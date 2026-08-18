@@ -1,0 +1,144 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profile",
+      "description": "User account information, Audio Points, VIP status and privileges",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "favoriteTrackIds": { "type": "array", "items": { "type": "string" } },
+        "audioPoints": { "type": "number", "description": "Current balance of audio points" },
+        "totalEarnedPoints": { "type": "number" },
+        "totalListenedMinutes": { "type": "number" },
+        "lastDailyCheckin": { "type": "string", "format": "date-time" },
+        "vipTier": { "type": "string", "enum": ["free", "vip", "vip_master"] },
+        "vipExpiresAt": { "type": "string", "format": "date-time" },
+        "vipSettings": {
+          "type": "object",
+          "properties": {
+            "hifiMode": { "type": "boolean" },
+            "bassBoost": { "type": "boolean" },
+            "spatial3D": { "type": "boolean" },
+            "showVipBadge": { "type": "boolean" },
+            "autoDownloadOffline": { "type": "boolean" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "vipOrders": {
+      "title": "VIP Topup Order",
+      "description": "Subscription and topup transactions for VIP packages with promo codes",
+      "type": "object",
+      "properties": {
+        "packageId": { "type": "string" },
+        "packageName": { "type": "string" },
+        "durationDays": { "type": "number" },
+        "originalAmount": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "finalAmount": { "type": "number" },
+        "promoCodeApplied": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["packageId", "packageName", "durationDays", "finalAmount", "paymentMethod", "createdAt"]
+    },
+    "pointTransactions": {
+      "title": "Point Transaction",
+      "description": "History of earned and spent audio points",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "amount", "type", "createdAt"]
+    },
+    "customTracks": {
+      "title": "Community Audio Tracks",
+      "description": "Audio tracks added by users to the shared library",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "url": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "genre": { "type": "string" },
+        "durationSec": { "type": "number" },
+        "isVipOnly": { "type": "boolean" },
+        "addedBy": { "type": "string" },
+        "addedByName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "artist", "url", "genre", "addedBy"]
+    },
+    "communityPosts": {
+      "title": "Community Post",
+      "description": "Discussions, audio shares and recommendations by users",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "isAuthorVip": { "type": "boolean" },
+        "content": { "type": "string" },
+        "trackId": { "type": "string" },
+        "trackTitle": { "type": "string" },
+        "trackArtist": { "type": "string" },
+        "trackCover": { "type": "string" },
+        "trackUrl": { "type": "string" },
+        "likes": { "type": "array", "items": { "type": "string" } },
+        "commentsCount": { "type": "number" },
+        "tag": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "authorName", "content", "createdAt"]
+    },
+    "comments": {
+      "title": "Post Comment",
+      "description": "Comments on community posts",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "isAuthorVip": { "type": "boolean" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "authorName", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "entity": "users",
+      "description": "User profile keyed by auth UID"
+    },
+    "/users/{userId}/vipOrders/{orderId}": {
+      "entity": "vipOrders",
+      "description": "VIP subscription orders and payment records"
+    },
+    "/users/{userId}/pointTransactions/{txId}": {
+      "entity": "pointTransactions",
+      "description": "Point earning and redemption records"
+    },
+    "/customTracks/{trackId}": {
+      "entity": "customTracks",
+      "description": "Shared audio tracks uploaded by community"
+    },
+    "/communityPosts/{postId}": {
+      "entity": "communityPosts",
+      "description": "Community posts and discussions"
+    },
+    "/communityPosts/{postId}/comments/{commentId}": {
+      "entity": "comments",
+      "description": "Comments on a community post"
+    }
+  }
+}

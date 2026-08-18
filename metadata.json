@@ -1,0 +1,6 @@
+{
+  "name": "Web Audio Player",
+  "description": "Nền tảng nghe nhạc trực tuyến với Trang chủ, Kho Audio, Cộng đồng, Điểm Audio, Cài đặt Đặc quyền VIP và Trang Nạp VIP (Gói tuần 15k, tháng 20k, 3 tháng 45k, 6 tháng 80k, 1 năm 150k kèm mã ưu đãi).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
