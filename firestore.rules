@@ -69,6 +69,12 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() || isAdmin();
     }
 
+    match /tracks/{trackId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() || isAdmin();
+    }
+
     // Author Verifications (Gmail, Phone, CCCD, Face photo)
     match /authorVerifications/{verificationId} {
       allow read: if true;
@@ -117,27 +123,43 @@ service cloud.firestore {
       allow write: if isSignedIn() || isAdmin();
 
       match /anniversaryGuesses/{guessId} {
-        allow read, write: if isSignedIn() || isAdmin();
+        allow read: if true;
+        allow write: if isSignedIn() || isAdmin();
       }
 
       match /customQuizzes/{quizId} {
-        allow read, write: if isSignedIn() || isAdmin();
+        allow read: if true;
+        allow write: if isSignedIn() || isAdmin();
       }
 
       match /loveCards/{cardId} {
-        allow read, write: if isSignedIn() || isAdmin();
+        allow read: if true;
+        allow write: if isSignedIn() || isAdmin();
       }
 
       match /voiceMoments/{momentId} {
-        allow read, write: if isSignedIn() || isAdmin();
+        allow read: if true;
+        allow write: if isSignedIn() || isAdmin();
       }
 
       match /memories/{memoryId} {
-        allow read, write: if isSignedIn() || isAdmin();
+        allow read: if true;
+        allow write: if isSignedIn() || isAdmin();
       }
 
       match /events/{eventId} {
-        allow read, write: if isSignedIn() || isAdmin();
+        allow read: if true;
+        allow write: if isSignedIn() || isAdmin();
+      }
+
+      match /periodLogs/{logId} {
+        allow read: if true;
+        allow write: if isSignedIn() || isAdmin();
+      }
+
+      match /diaries/{diaryId} {
+        allow read: if true;
+        allow write: if isSignedIn() || isAdmin();
       }
     }
 

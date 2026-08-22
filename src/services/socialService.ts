@@ -68,14 +68,22 @@ export async function getOrCreateConversation(user1: any, user2: any): Promise<s
 }
 
 /**
- * Send a chat message with flexible parameter support
+ * Send a chat message with flexible parameter support (text, image, voice, call log, tracks)
  */
 export async function sendChatMessage(params: {
   conversationId?: string;
   sender: any;
   recipient?: any;
   recipientUid?: string;
-  text: string;
+  text?: string;
+  imageUrl?: string;
+  voiceUrl?: string;
+  voiceDurationSec?: number;
+  callLog?: {
+    type: 'voice' | 'video';
+    durationSec: number;
+    status: 'completed' | 'missed' | 'declined';
+  };
   sharedTrack?: Track | null;
   trackAttachment?: any;
   attachments?: any[];
@@ -94,18 +102,47 @@ export async function sendChatMessage(params: {
 
     const messagesCol = collection(db, 'conversations', convId, 'messages');
     const track = params.sharedTrack || params.trackAttachment;
+    const textContent = (params.text || '').trim();
+
+    let previewText = textContent;
+    if (params.imageUrl) {
+      previewText = previewText ? `[Hình ảnh] ${previewText}` : '[Đã gửi một hình ảnh 📷]';
+    } else if (params.voiceUrl) {
+      previewText = `[Đoạn ghi âm 🎙️ ${params.voiceDurationSec ? params.voiceDurationSec + 's' : ''}]`;
+    } else if (params.callLog) {
+      const callTypeStr = params.callLog.type === 'video' ? 'Cuộc gọi video' : 'Cuộc gọi thoại';
+      previewText = `[${callTypeStr} • ${Math.floor(params.callLog.durationSec / 60)}:${(params.callLog.durationSec % 60).toString().padStart(2, '0')}]`;
+    } else if (track) {
+      previewText = `[Tác phẩm: ${track.title}] ${textContent}`;
+    }
 
     const msgData: any = {
       conversationId: convId,
       senderId: params.sender.uid,
       senderUid: params.sender.uid,
-      senderName: params.sender.displayName || 'Người Dùng',
+      senderName: params.sender.displayName || params.sender.stageName || 'Người Dùng',
       senderPhoto: params.sender.photoURL || '',
       isSenderVip: Boolean(params.sender.isVip),
-      text: params.text.trim(),
+      isSenderAuthor: Boolean(params.sender.isAuthorVerified),
+      senderAuthorStageName: params.sender.stageName || params.sender.authorStageName || '',
+      text: textContent,
       reactions: {},
       createdAt: serverTimestamp()
     };
+
+    if (params.imageUrl) {
+      msgData.imageUrl = params.imageUrl;
+    }
+    if (params.voiceUrl) {
+      msgData.voiceUrl = params.voiceUrl;
+      msgData.voiceDurationSec = params.voiceDurationSec || 0;
+    }
+    if (params.callLog) {
+      msgData.callLog = params.callLog;
+    }
+    if (params.attachments && params.attachments.length > 0) {
+      msgData.attachments = params.attachments;
+    }
 
     if (track) {
       msgData.sharedTrack = {
@@ -127,7 +164,7 @@ export async function sendChatMessage(params: {
     const prevUnread = recipientUid && convSnap.exists() ? (convSnap.data()?.unreadCounts?.[recipientUid] || 0) : 0;
 
     const updatePayload: any = {
-      lastMessageText: track ? `[Tác phẩm: ${track.title}] ${params.text}` : params.text,
+      lastMessageText: previewText || 'Tin nhắn mới',
       lastMessageSenderId: params.sender.uid,
       lastMessageSenderUid: params.sender.uid,
       lastMessageAt: serverTimestamp(),
@@ -372,6 +409,7 @@ export async function setThoughtBubble(params: {
   text: string;
   emoji?: string;
   bgColor?: string;
+  durationHours?: number; // 3, 6, 12, 24
   musicSnippet?: {
     trackId?: string;
     trackTitle?: string;
@@ -382,6 +420,9 @@ export async function setThoughtBubble(params: {
     if (!params.user?.uid) {
       return { success: false, message: 'Vui lòng đăng nhập để tạo bong bóng suy nghĩ.' };
     }
+    const durationHours = params.durationHours || 24;
+    const expiresAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
+
     const bubbleRef = doc(db, 'thoughtBubbles', params.user.uid);
     await setDoc(bubbleRef, {
       id: params.user.uid,
@@ -395,6 +436,8 @@ export async function setThoughtBubble(params: {
       text: params.text.trim(),
       emoji: params.emoji || '💭',
       bgColor: params.bgColor || '#18181b',
+      durationHours: durationHours,
+      expiresAt: expiresAt,
       musicSnippet: params.musicSnippet || null,
       createdAt: serverTimestamp()
     });

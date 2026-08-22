@@ -33,6 +33,18 @@ interface PublishAudioModalProps {
     durationSec?: number;
     description?: string;
     lyrics?: string;
+    isSeries?: boolean;
+    seriesId?: string;
+    seriesTitle?: string;
+    episodeNumber?: number;
+    episodeTitle?: string;
+    storylineSummary?: string;
+  } | null;
+  prefilledSeries?: {
+    seriesId: string;
+    seriesTitle: string;
+    nextEpisodeNumber: number;
+    genre: string;
   } | null;
 }
 
@@ -68,7 +80,8 @@ export function PublishAudioModal({
   onOpenVerification,
   onOpenTextToAudio,
   onPublishedSuccess,
-  initialData 
+  initialData,
+  prefilledSeries
 }: PublishAudioModalProps) {
   const { 
     user, 
@@ -81,7 +94,7 @@ export function PublishAudioModal({
 
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
-  const [genre, setGenre] = useState('Lo-Fi Chill');
+  const [genre, setGenre] = useState('Truyện Tiên Hiệp & Kiếm Hiệp');
   const [audioUrl, setAudioUrl] = useState('');
   const [audioFileName, setAudioFileName] = useState('');
   const [coverUrl, setCoverUrl] = useState(PRESET_COVERS[0]);
@@ -91,6 +104,15 @@ export function PublishAudioModal({
   const [bitrate, setBitrate] = useState('320kbps Hi-Fi');
   const [description, setDescription] = useState('');
   const [lyrics, setLyrics] = useState('');
+
+  // Series & Episodic Progression
+  const [isSeries, setIsSeries] = useState(false);
+  const [seriesId, setSeriesId] = useState('');
+  const [seriesTitle, setSeriesTitle] = useState('');
+  const [episodeNumber, setEpisodeNumber] = useState<number>(1);
+  const [episodeTitle, setEpisodeTitle] = useState('');
+  const [totalEpisodes, setTotalEpisodes] = useState<number>(10);
+  const [storylineSummary, setStorylineSummary] = useState('');
 
   // Audio Preview State
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
@@ -104,7 +126,15 @@ export function PublishAudioModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    if (initialData) {
+    if (prefilledSeries) {
+      setIsSeries(true);
+      setSeriesId(prefilledSeries.seriesId);
+      setSeriesTitle(prefilledSeries.seriesTitle);
+      setEpisodeNumber(prefilledSeries.nextEpisodeNumber);
+      setGenre(prefilledSeries.genre || 'Truyện Tiên Hiệp & Kiếm Hiệp');
+      setTitle(`${prefilledSeries.seriesTitle} - Tập ${('0' + prefilledSeries.nextEpisodeNumber).slice(-2)}`);
+      setEpisodeTitle(`Tập ${('0' + prefilledSeries.nextEpisodeNumber).slice(-2)}`);
+    } else if (initialData) {
       if (initialData.title) setTitle(initialData.title);
       if (initialData.artist) setArtist(initialData.artist);
       if (initialData.genre) setGenre(initialData.genre);
@@ -115,10 +145,16 @@ export function PublishAudioModal({
       if (initialData.durationSec) setDurationSec(initialData.durationSec);
       if (initialData.description) setDescription(initialData.description);
       if (initialData.lyrics) setLyrics(initialData.lyrics);
+      if (initialData.isSeries) setIsSeries(true);
+      if (initialData.seriesId) setSeriesId(initialData.seriesId);
+      if (initialData.seriesTitle) setSeriesTitle(initialData.seriesTitle);
+      if (initialData.episodeNumber) setEpisodeNumber(initialData.episodeNumber);
+      if (initialData.episodeTitle) setEpisodeTitle(initialData.episodeTitle);
+      if (initialData.storylineSummary) setStorylineSummary(initialData.storylineSummary);
     } else if (user) {
       setArtist(authorStageName || user.displayName || 'Tác giả');
     }
-  }, [isOpen, initialData, user, authorStageName]);
+  }, [isOpen, initialData, prefilledSeries, user, authorStageName]);
 
   // Clean audio on unmount / close
   useEffect(() => {
@@ -201,12 +237,17 @@ export function PublishAudioModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setErrorMsg('Vui lòng nhập Tiêu đề bài hát.');
+      setErrorMsg('Vui lòng nhập Tiêu đề bài hát / tên tập audio.');
       return;
     }
 
     if (!audioUrl.trim()) {
       setErrorMsg('Vui lòng tải lên tệp âm thanh hoặc nhập đường dẫn URL bài hát.');
+      return;
+    }
+
+    if (isSeries && !seriesTitle.trim()) {
+      setErrorMsg('Vui lòng nhập Tên Bộ Truyện / Cốt Truyện.');
       return;
     }
 
@@ -224,6 +265,13 @@ export function PublishAudioModal({
       bitrate,
       description: description.trim(),
       lyrics: lyrics.trim(),
+      isSeries,
+      seriesId: seriesId || (isSeries ? `series-${Date.now()}` : undefined),
+      seriesTitle: isSeries ? seriesTitle.trim() : undefined,
+      episodeNumber: isSeries ? Number(episodeNumber) : undefined,
+      episodeTitle: isSeries ? (episodeTitle.trim() || `Tập ${episodeNumber}`) : undefined,
+      totalEpisodes: isSeries ? Number(totalEpisodes) : undefined,
+      storylineSummary: isSeries ? storylineSummary.trim() : undefined,
     });
 
     setSubmitting(false);
@@ -468,7 +516,111 @@ export function PublishAudioModal({
             </div>
           </div>
 
-          {/* Genre & Quality Settings */}
+          {/* Section 2.5: Story Series & Episode Progression (Cốt truyện & Tập tiếp theo) */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950 border border-zinc-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Sliders size={16} />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-white">
+                    Thuộc Bộ Truyện / Cốt Truyện Nhiều Tập
+                  </h4>
+                  <p className="text-[11px] text-zinc-400">
+                    Bật nếu audio là một tập tiếp theo trong chuỗi truyện của bạn
+                  </p>
+                </div>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={isSeries}
+                onChange={(e) => setIsSeries(e.target.checked)}
+                className="w-5 h-5 rounded text-amber-500 focus:ring-amber-400 border-zinc-700 bg-zinc-900 cursor-pointer"
+              />
+            </div>
+
+            {isSeries && (
+              <div className="pt-2 border-t border-zinc-800/80 space-y-4 animate-in fade-in duration-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-zinc-300">
+                      Tên Bộ Truyện / Cốt Truyện *
+                    </label>
+                    <input
+                      type="text"
+                      value={seriesTitle}
+                      onChange={(e) => setSeriesTitle(e.target.value)}
+                      placeholder="VD: Phàm Nhân Tu Tiên, Huyết Án Làng Ma..."
+                      className="w-full bg-zinc-900 border border-zinc-700 focus:border-amber-400 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-zinc-600 outline-none font-semibold"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-zinc-300">
+                        Tập số (Episode #) *
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={episodeNumber}
+                        onChange={(e) => {
+                          const val = Math.max(1, parseInt(e.target.value) || 1);
+                          setEpisodeNumber(val);
+                          if (!episodeTitle || episodeTitle.startsWith('Tập ')) {
+                            setEpisodeTitle(`Tập ${('0' + val).slice(-2)}`);
+                          }
+                        }}
+                        className="w-full bg-zinc-900 border border-zinc-700 focus:border-amber-400 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-zinc-600 outline-none font-bold text-center"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-zinc-300">
+                        Tổng số tập (Dự kiến)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={totalEpisodes}
+                        onChange={(e) => setTotalEpisodes(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full bg-zinc-900 border border-zinc-700 focus:border-amber-400 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-zinc-600 outline-none text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-zinc-300">
+                    Tiêu đề riêng của tập này (Tùy chọn)
+                  </label>
+                  <input
+                    type="text"
+                    value={episodeTitle}
+                    onChange={(e) => setEpisodeTitle(e.target.value)}
+                    placeholder="VD: Tập 01: Nhập Thôn Thất Huyền Môn"
+                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-amber-400 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-zinc-600 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-zinc-300">
+                    Tóm tắt cốt truyện của bộ truyện (Story Synopsis)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={storylineSummary}
+                    onChange={(e) => setStorylineSummary(e.target.value)}
+                    placeholder="Tóm tắt ngắn gọn diễn biến cốt truyện chính giúp người nghe dễ nắm bắt..."
+                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-amber-400 rounded-2xl p-3 text-xs text-white placeholder-zinc-600 outline-none resize-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Section 2.8: Genre & Quality */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-300">

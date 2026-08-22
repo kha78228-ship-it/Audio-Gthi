@@ -161,6 +161,13 @@ interface AuthContextType {
     bitrate?: string;
     description?: string;
     lyrics?: string;
+    isSeries?: boolean;
+    seriesId?: string;
+    seriesTitle?: string;
+    episodeNumber?: number;
+    episodeTitle?: string;
+    totalEpisodes?: number;
+    storylineSummary?: string;
   }) => Promise<{ success: boolean; message: string; trackId?: string }>;
   deleteAuthorTrack: (trackId: string) => Promise<{ success: boolean; message: string }>;
   sendGiftToAuthor: (params: {
@@ -948,6 +955,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     bitrate?: string;
     description?: string;
     lyrics?: string;
+    isSeries?: boolean;
+    seriesId?: string;
+    seriesTitle?: string;
+    episodeNumber?: number;
+    episodeTitle?: string;
+    totalEpisodes?: number;
+    storylineSummary?: string;
   }): Promise<{ success: boolean; message: string; trackId?: string }> => {
     if (!user) {
       return { success: false, message: 'Vui lòng đăng nhập để đăng tác phẩm Audio.' };
@@ -959,9 +973,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cleanArtist = (trackData.artist || authorStageName || user.displayName || 'Tác giả').trim();
       const coverUrl = trackData.coverUrl.trim() || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80';
       const isVipOnly = Boolean(trackData.isVipOnly);
-      const bitrate = trackData.bitrate || (isVipOnly ? '320kbps Hi-Fi' : '192kbps');
+      const bitrate = trackData.bitrate || (isVipOnly ? 'Lossless 24-bit/96kHz (Đặc quyền VIP)' : '320kbps Hi-Fi');
 
-      const trackDocRef = await addDoc(collection(db, 'customTracks'), {
+      const payload: Record<string, any> = {
         title: cleanTitle,
         artist: cleanArtist,
         genre: trackData.genre || 'Khác',
@@ -980,14 +994,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         addedByName: user.displayName || cleanArtist,
         status: 'published',
         createdAt: serverTimestamp(),
-      });
+      };
+
+      if (trackData.isSeries || trackData.seriesTitle || trackData.seriesId) {
+        payload.isSeries = true;
+        payload.seriesId = trackData.seriesId || `series-${user.uid}-${Date.now()}`;
+        payload.seriesTitle = trackData.seriesTitle?.trim() || cleanTitle;
+        payload.episodeNumber = trackData.episodeNumber ? Number(trackData.episodeNumber) : 1;
+        payload.episodeTitle = trackData.episodeTitle?.trim() || `Tập ${payload.episodeNumber}`;
+        if (trackData.totalEpisodes) payload.totalEpisodes = Number(trackData.totalEpisodes);
+        if (trackData.storylineSummary) payload.storylineSummary = trackData.storylineSummary.trim();
+      }
+
+      const trackDocRef = await addDoc(collection(db, 'customTracks'), payload);
 
       // Reward audio points for publishing audio!
       await addAudioPoints(50, `Đăng tải tác phẩm: ${cleanTitle}`, 'upload');
 
       return {
         success: true,
-        message: `Đăng tác phẩm "${cleanTitle}" thành công! Bài hát đã được đưa lên Kho Audio và Cộng đồng.`,
+        message: `Đăng tác phẩm "${cleanTitle}" thành công! Bài hát đã được đưa lên Kho Audio và Trang Tác Giả.`,
         trackId: trackDocRef.id,
       };
     } catch (err: any) {

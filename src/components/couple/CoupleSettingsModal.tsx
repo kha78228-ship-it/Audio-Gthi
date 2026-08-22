@@ -21,6 +21,7 @@ interface CoupleSettingsModalProps {
   userUid?: string;
   onUpdateCouple: (updatedData: Partial<CoupleData>) => Promise<void>;
   onUnpairCouple: () => Promise<void>;
+  onDeleteRelationship: () => Promise<void>;
 }
 
 export function CoupleSettingsModal({
@@ -29,23 +30,32 @@ export function CoupleSettingsModal({
   couple,
   userUid,
   onUpdateCouple,
-  onUnpairCouple
+  onUnpairCouple,
+  onDeleteRelationship
 }: CoupleSettingsModalProps) {
   const isMePartner1 = couple.partner1.uid === userUid;
   const me = isMePartner1 ? couple.partner1 : couple.partner2;
   const myPartner = isMePartner1 ? couple.partner2 : couple.partner1;
 
   const [coupleTitle, setCoupleTitle] = useState(couple.coupleTitle || 'Tình Yêu Chúng Mình');
+  const [passcode, setPasscode] = useState(couple.passcode || '');
   const [anniversaryDate, setAnniversaryDate] = useState(couple.anniversaryDate || '');
   const [relationshipType, setRelationshipType] = useState<CoupleRelationshipType>(couple.relationshipType || 'dating');
   const [myNickname, setMyNickname] = useState(me?.nickname || 'Người Yêu');
   const [partnerNickname, setPartnerNickname] = useState(myPartner?.nickname || 'Người Yêu');
   const [myPhoto, setMyPhoto] = useState(me?.photoURL || '');
   const [bannerUrl, setBannerUrl] = useState(couple.bannerUrl || '');
-  const [confirmUnpair, setConfirmUnpair] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(couple.pairCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2500);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +63,7 @@ export function CoupleSettingsModal({
     try {
       const updatedPayload: Partial<CoupleData> = {
         coupleTitle: coupleTitle.trim(),
+        passcode: passcode.trim(),
         anniversaryDate,
         relationshipType,
         bannerUrl: bannerUrl.trim() || undefined
@@ -103,6 +114,39 @@ export function CoupleSettingsModal({
         </div>
 
         <form onSubmit={handleSave} className="space-y-4">
+          {/* System Pair Code & Passcode info */}
+          <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-zinc-500">Mã Mời Phòng Đôi (Hệ thống cấp)</div>
+                <div className="text-sm sm:text-base font-mono font-black text-rose-400 tracking-wider">
+                  {couple.pairCode}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyCode}
+                className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer"
+              >
+                {copiedCode ? '✓ Đã Chép' : 'Sao Chép'}
+              </button>
+            </div>
+            <div className="border-t border-zinc-800/80 pt-2 space-y-1">
+              <label className="text-xs font-bold text-zinc-300 flex items-center justify-between">
+                <span>Mật Khẩu Phòng Đôi (Do người tạo cấp)</span>
+                <span className="text-[10px] text-zinc-500 font-normal">Dùng để ghép đôi an toàn</span>
+              </label>
+              <input
+                type="text"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                placeholder="Thiết lập mật khẩu phòng (VD: 123456, emyeuanh...)"
+                className="w-full bg-zinc-900 border border-zinc-700 focus:border-rose-500 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                required
+              />
+            </div>
+          </div>
+
           <div className="space-y-1">
             <label className="text-xs font-bold text-zinc-300">Tên Không Gian Đôi</label>
             <input
@@ -188,39 +232,39 @@ export function CoupleSettingsModal({
           </div>
         </form>
 
-        {/* Danger Zone: Unpair */}
+        {/* Danger Zone: Reset / Delete Relationship */}
         <div className="border-t border-zinc-800 pt-3 sm:pt-4 space-y-2">
-          <div className="text-xs font-bold text-zinc-400">Khu vực nguy hiểm:</div>
-          {confirmUnpair ? (
-            <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-rose-950/40 border border-rose-500/40 space-y-2.5 sm:space-y-3">
-              <div className="text-xs text-rose-300 font-medium">
-                Bạn có chắc chắn muốn hủy ghép đôi không? Toàn bộ không gian đôi này sẽ đóng lại.
+          <div className="text-xs font-bold text-zinc-400">Xoá mối quan hệ / Bắt đầu mối quan hệ mới:</div>
+          {confirmDelete ? (
+            <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-rose-950/50 border border-rose-500/50 space-y-2.5 sm:space-y-3">
+              <div className="text-xs text-rose-200 font-semibold leading-relaxed">
+                ⚠️ <span className="font-bold text-white">Xác nhận xoá mối quan hệ:</span> Không gian đôi này sẽ được xoá hoàn toàn, giải phóng cả 2 bạn để có thể tạo hoặc ghép đôi sang một mối quan hệ mới ngay lập tức.
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setConfirmUnpair(false)}
-                  className="flex-1 py-1.5 sm:py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold cursor-pointer"
+                  onClick={() => setConfirmDelete(false)}
+                  className="flex-1 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold cursor-pointer transition-colors"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="button"
-                  onClick={onUnpairCouple}
-                  className="flex-1 py-1.5 sm:py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                  onClick={onDeleteRelationship}
+                  className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg cursor-pointer transition-all"
                 >
-                  Xác Nhận Hủy Ghép Đôi
+                  Xác Nhận Xoá Mối Quan Hệ
                 </button>
               </div>
             </div>
           ) : (
             <button
               type="button"
-              onClick={() => setConfirmUnpair(true)}
-              className="w-full py-2 sm:py-2.5 rounded-xl border border-zinc-800 hover:border-rose-500/40 text-zinc-500 hover:text-rose-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              onClick={() => setConfirmDelete(true)}
+              className="w-full py-2.5 rounded-xl border border-rose-900/40 bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
             >
               <Trash2 size={14} />
-              <span>Hủy Ghép Đôi / Rời Phòng</span>
+              <span>Xoá Mối Quan Hệ (Bắt Đầu Mối Quan Hệ Mới)</span>
             </button>
           )}
         </div>

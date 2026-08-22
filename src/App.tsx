@@ -23,6 +23,8 @@ import { CoupleRomanceView } from './components/CoupleRomanceView';
 import { FinanceView } from './components/FinanceView';
 import { HaevyGamesView } from './components/HaevyGamesView';
 import { HaevyStudioView } from './components/HaevyStudioView';
+import { AuthorChannelView } from './components/AuthorChannelView';
+import { PublishAudioModal } from './components/PublishAudioModal';
 import { QuickChatModal } from './components/QuickChatModal';
 import { SystemAnnouncementBanner } from './components/SystemAnnouncementBanner';
 import { HaevyEcosystemDrawer } from './components/HaevyEcosystemDrawer';
@@ -48,7 +50,7 @@ function MainApp() {
   const [isPlayerDismissed, setIsPlayerDismissed] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState<string>('Tất cả');
   const [messageSubTab, setMessageSubTab] = useState<'chat' | 'feed' | 'friends'>('chat');
-  const [coupleSubTab, setCoupleSubTab] = useState<'page1' | 'page2' | 'page3'>('page1');
+  const [coupleSubTab, setCoupleSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
   const [financeSubTab, setFinanceSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
   const [adminSubTab, setAdminSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4'>('page1');
   const [gamesSubTab, setGamesSubTab] = useState<'home' | 'leaderboard'>('home');
@@ -57,6 +59,16 @@ function MainApp() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState<'signin' | 'signup' | 'anonymous'>('signin');
   const [anonStudioWarning, setAnonStudioWarning] = useState<string | null>(null);
+
+  // Author Channel & Story Series States
+  const [viewingAuthor, setViewingAuthor] = useState<{ uid?: string; stageName?: string } | null>(null);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [publishSeriesPrefill, setPublishSeriesPrefill] = useState<{
+    seriesId: string;
+    seriesTitle: string;
+    nextEpisodeNumber: number;
+    genre: string;
+  } | null>(null);
 
   // Sleep Timer States
   const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
@@ -154,10 +166,29 @@ function MainApp() {
     }
   };
 
-  const handleOpenPublishAudio = () => handleOpenStudioAudio('publish');
+  const handleOpenPublishAudio = (prefilledSeries?: { seriesId: string; seriesTitle: string; nextEpisodeNumber: number; genre: string }) => {
+    if (!user) {
+      handleOpenAuth('signin');
+      return;
+    }
+    if (isAnonymousAccount || (user as any).isAnonymous) {
+      setAnonStudioWarning('Tài khoản Ẩn Danh không có quyền truy cập Studio Tác Giả & AI Voice để đảm bảo bản quyền và xác minh danh tính. Bạn vui lòng đăng ký hoặc đăng nhập tài khoản chính thức để mở toàn bộ tính năng Studio!');
+      return;
+    }
+    setPublishSeriesPrefill(prefilledSeries || null);
+    setIsPublishModalOpen(true);
+  };
+
   const handleOpenAuthorStudio = () => handleOpenStudioAudio('my-tracks');
   const handleOpenAuthorVerification = () => handleOpenStudioAudio('ekyc');
   const handleOpenTextToAudio = () => handleOpenStudioAudio('tts');
+
+  const handleViewAuthorChannel = (authorUid?: string, authorStageName?: string) => {
+    setViewingAuthor({
+      uid: authorUid,
+      stageName: authorStageName
+    });
+  };
 
   const handleSelectMode = (mode: EcosystemMode, initialTab?: ActiveTab) => {
     setCurrentMode(mode);
@@ -262,6 +293,14 @@ function MainApp() {
               stageName: data.stageName,
               isAuthorVerified: data.isAuthorVerified,
               description: data.description,
+              isSeries: Boolean(data.isSeries),
+              seriesId: data.seriesId,
+              seriesTitle: data.seriesTitle,
+              episodeNumber: data.episodeNumber !== undefined ? Number(data.episodeNumber) : undefined,
+              episodeTitle: data.episodeTitle,
+              totalEpisodes: data.totalEpisodes !== undefined ? Number(data.totalEpisodes) : undefined,
+              storylineSummary: data.storylineSummary,
+              nextTrackId: data.nextTrackId,
             });
           }
         });
@@ -364,11 +403,49 @@ function MainApp() {
   };
 
   const handlePlayNext = () => {
+    if (allTracks.length === 0) return;
+
+    // Check if current track belongs to a storyline series with next episode
+    if (currentTrack?.isSeries && currentTrack.episodeNumber !== undefined) {
+      const nextEpNum = currentTrack.episodeNumber + 1;
+      const nextEpisodeIdx = allTracks.findIndex(
+        (t) => (
+          (currentTrack.seriesId && t.seriesId === currentTrack.seriesId) ||
+          (currentTrack.seriesTitle && t.seriesTitle && t.seriesTitle.trim().toLowerCase() === currentTrack.seriesTitle.trim().toLowerCase())
+        ) && t.episodeNumber === nextEpNum
+      );
+      if (nextEpisodeIdx !== -1) {
+        setCurrentTrackIndex(nextEpisodeIdx);
+        setIsPlaying(true);
+        return;
+      }
+    }
+
+    // Default cyclic next
     setCurrentTrackIndex((prev) => (prev + 1) % allTracks.length);
     setIsPlaying(true);
   };
 
   const handlePlayPrev = () => {
+    if (allTracks.length === 0) return;
+
+    // Check if current track belongs to a storyline series with previous episode
+    if (currentTrack?.isSeries && currentTrack.episodeNumber !== undefined && currentTrack.episodeNumber > 1) {
+      const prevEpNum = currentTrack.episodeNumber - 1;
+      const prevEpisodeIdx = allTracks.findIndex(
+        (t) => (
+          (currentTrack.seriesId && t.seriesId === currentTrack.seriesId) ||
+          (currentTrack.seriesTitle && t.seriesTitle && t.seriesTitle.trim().toLowerCase() === currentTrack.seriesTitle.trim().toLowerCase())
+        ) && t.episodeNumber === prevEpNum
+      );
+      if (prevEpisodeIdx !== -1) {
+        setCurrentTrackIndex(prevEpisodeIdx);
+        setIsPlaying(true);
+        return;
+      }
+    }
+
+    // Default cyclic previous
     setCurrentTrackIndex((prev) => (prev - 1 + allTracks.length) % allTracks.length);
     setIsPlaying(true);
   };
@@ -424,171 +501,194 @@ function MainApp() {
 
       {/* Main Tab Content */}
       <main className="flex-1 flex flex-col justify-start w-full max-w-full pb-36 sm:pb-40">
-        {activeTab === 'home' && (
-          <HomeView
-            tracks={allTracks}
-            currentTrack={currentTrack}
-            isPlaying={isPlaying}
-            onPlayTrack={handlePlayTrack}
-            onTogglePlay={handleTogglePlay}
-            onSelectTab={setActiveTab}
-            onFilterGenre={(genre) => setSelectedGenre(genre)}
-            onOpenAuth={() => handleOpenAuth('signin')}
-          />
-        )}
-
-        {activeTab === 'library' && (
-          <AudioLibraryView
-            tracks={allTracks}
-            currentTrack={currentTrack}
-            isPlaying={isPlaying}
-            onPlayTrack={handlePlayTrack}
-            onTogglePlay={handleTogglePlay}
-            selectedGenre={selectedGenre}
-            onSelectGenre={setSelectedGenre}
-            onOpenAuth={() => handleOpenAuth('signin')}
-            onOpenVipHub={() => setActiveTab('topup')}
-            onOpenPublishAudio={handleOpenPublishAudio}
-            onOpenAuthorStudio={handleOpenAuthorStudio}
-          />
-        )}
-
-        {activeTab === 'player' && (
-          <AudioPlayer
-            playlist={allTracks}
-            currentTrack={currentTrack}
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
-            volume={volume}
-            isMuted={isMuted}
-            onTogglePlay={handleTogglePlay}
-            onPlayNext={handlePlayNext}
-            onPlayPrev={handlePlayPrev}
-            onSeek={handleSeek}
-            onVolumeChange={setVolume}
-            onToggleMute={() => setIsMuted(!isMuted)}
-            onSelectTrack={handlePlayTrack}
-            onOpenAuth={() => handleOpenAuth('signin')}
-            onOpenVipHub={() => setActiveTab('topup')}
-            onOpenGiftShop={handleOpenGiftShop}
-            onOpenSleepTimer={() => setIsSleepTimerOpen(true)}
-            sleepTimerSecondsLeft={sleepTimerSecondsLeft}
-            sleepTimerActive={sleepTimerMinutes !== null}
-          />
-        )}
-
-        {activeTab === 'messages' && (
-          <MessagesFriendsView
-            tracks={allTracks}
-            currentTrack={currentTrack}
-            onPlayTrack={handlePlayTrack}
-            onOpenAuth={() => handleOpenAuth('signin')}
-            onOpenGiftShop={handleOpenGiftShop}
-            activeSubTab={messageSubTab}
-            onSelectSubTab={setMessageSubTab}
-          />
-        )}
-
-        {activeTab === 'community' && (
-          <CommunityView
-            tracks={allTracks}
-            currentTrack={currentTrack}
-            isPlaying={isPlaying}
-            onPlayTrack={handlePlayTrack}
-            onOpenAuth={() => handleOpenAuth('signin')}
-          />
-        )}
-
-        {activeTab === 'couple' && (
-          <CoupleRomanceView
-            onOpenAuth={() => handleOpenAuth('signin')}
-            onOpenGiftShop={handleOpenGiftShop}
-            allTracks={allTracks}
-            tracks={allTracks}
-            currentTrack={currentTrack}
-            isPlaying={isPlaying}
-            onPlayTrack={handlePlayTrack}
-            activePage={coupleSubTab}
-            onSelectPage={setCoupleSubTab}
-          />
-        )}
-
-        {activeTab === 'finance' && (
-          <FinanceView
-            currentUserId={user?.uid || 'user_guest'}
-            isVip={user?.isVip ?? true}
-            onUpgradeVip={() => setActiveTab('topup')}
-            activePage={financeSubTab}
-            onSelectPage={setFinanceSubTab}
-          />
-        )}
-
-        {(activeTab === 'vip' || activeTab === 'topup') && (
-          <VipTopupView
-            onOpenAuth={() => handleOpenAuth('signin')}
-            onGoToProfile={() => setActiveTab('profile')}
+        {/* If user is specifically viewing an author's channel */}
+        {viewingAuthor ? (
+          <AuthorChannelView
+            authorUid={viewingAuthor.uid}
+            authorStageName={viewingAuthor.stageName}
             allTracks={allTracks}
             currentTrack={currentTrack}
-            onOpenGiftShopModal={handleOpenGiftShop}
-            activePage={vipSubTab}
-            onSelectPage={setVipSubTab}
-          />
-        )}
-
-        {activeTab === 'profile' && (
-          <UserProfileView
-            onOpenAuth={() => handleOpenAuth('signin')}
-            onGoToTopup={() => setActiveTab('topup')}
-            onOpenAuthorStudio={handleOpenAuthorStudio}
-            onOpenAuthorVerification={handleOpenAuthorVerification}
+            isPlaying={isPlaying}
+            onPlayTrack={handlePlayTrack}
+            onTogglePlay={handleTogglePlay}
+            onClose={() => setViewingAuthor(null)}
+            onOpenGiftShop={handleOpenGiftShop}
             onOpenPublishAudio={handleOpenPublishAudio}
-            onOpenGiftShop={() => handleOpenGiftShop()}
-            onOpenAdmin={() => {
-              setCurrentMode('admin');
-              setActiveTab('admin');
-            }}
-          />
-        )}
-
-        {activeTab === 'admin' && (
-          <AdminDashboardView
-            onBackToHome={() => {
-              setCurrentMode('audio');
-              setActiveTab('home');
-            }}
-            onOpenAuth={() => handleOpenAuth('signin')}
-            adminSubTab={adminSubTab}
-            onSelectAdminSubTab={setAdminSubTab}
-          />
-        )}
-
-        {activeTab === 'games' && (
-          <HaevyGamesView
-            activeSubTab={gamesSubTab}
-            onSelectSubTab={setGamesSubTab}
             onOpenAuth={() => handleOpenAuth('signin')}
             onOpenVipHub={() => setActiveTab('topup')}
           />
-        )}
+        ) : (
+          <>
+            {activeTab === 'home' && (
+              <HomeView
+                tracks={allTracks}
+                currentTrack={currentTrack}
+                isPlaying={isPlaying}
+                onPlayTrack={handlePlayTrack}
+                onTogglePlay={handleTogglePlay}
+                onSelectTab={setActiveTab}
+                onFilterGenre={(genre) => setSelectedGenre(genre)}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onOpenPublishAudio={handleOpenPublishAudio}
+                onViewAuthorChannel={handleViewAuthorChannel}
+              />
+            )}
 
-        {activeTab === 'studio' && (
-          <HaevyStudioView
-            activeSubTab={studioSubTab}
-            onSelectSubTab={setStudioSubTab}
-            onOpenAuth={() => handleOpenAuth('signin')}
-            onPlayTrack={(track) => {
-              const idx = allTracks.findIndex(t => t.id === track.id);
-              if (idx !== -1) {
-                setCurrentTrackIndex(idx);
-                setIsPlaying(true);
-              } else {
-                setAllTracks(prev => [track, ...prev]);
-                setCurrentTrackIndex(0);
-                setIsPlaying(true);
-              }
-            }}
-          />
+            {activeTab === 'library' && (
+              <AudioLibraryView
+                tracks={allTracks}
+                currentTrack={currentTrack}
+                isPlaying={isPlaying}
+                onPlayTrack={handlePlayTrack}
+                onTogglePlay={handleTogglePlay}
+                selectedGenre={selectedGenre}
+                onSelectGenre={setSelectedGenre}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onOpenVipHub={() => setActiveTab('topup')}
+                onOpenPublishAudio={handleOpenPublishAudio}
+                onOpenAuthorStudio={handleOpenAuthorStudio}
+                onViewAuthorChannel={handleViewAuthorChannel}
+              />
+            )}
+
+            {activeTab === 'player' && (
+              <AudioPlayer
+                playlist={allTracks}
+                currentTrack={currentTrack}
+                isPlaying={isPlaying}
+                progress={progress}
+                duration={duration}
+                volume={volume}
+                isMuted={isMuted}
+                onTogglePlay={handleTogglePlay}
+                onPlayNext={handlePlayNext}
+                onPlayPrev={handlePlayPrev}
+                onSeek={handleSeek}
+                onVolumeChange={setVolume}
+                onToggleMute={() => setIsMuted(!isMuted)}
+                onSelectTrack={handlePlayTrack}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onOpenVipHub={() => setActiveTab('topup')}
+                onOpenGiftShop={handleOpenGiftShop}
+                onOpenSleepTimer={() => setIsSleepTimerOpen(true)}
+                sleepTimerSecondsLeft={sleepTimerSecondsLeft}
+                sleepTimerActive={sleepTimerMinutes !== null}
+              />
+            )}
+
+            {activeTab === 'messages' && (
+              <MessagesFriendsView
+                tracks={allTracks}
+                currentTrack={currentTrack}
+                onPlayTrack={handlePlayTrack}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onOpenGiftShop={handleOpenGiftShop}
+                activeSubTab={messageSubTab}
+                onSelectSubTab={setMessageSubTab}
+              />
+            )}
+
+            {activeTab === 'community' && (
+              <CommunityView
+                tracks={allTracks}
+                currentTrack={currentTrack}
+                isPlaying={isPlaying}
+                onPlayTrack={handlePlayTrack}
+                onOpenAuth={() => handleOpenAuth('signin')}
+              />
+            )}
+
+            {activeTab === 'couple' && (
+              <CoupleRomanceView
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onOpenGiftShop={handleOpenGiftShop}
+                allTracks={allTracks}
+                tracks={allTracks}
+                currentTrack={currentTrack}
+                isPlaying={isPlaying}
+                onPlayTrack={handlePlayTrack}
+                activePage={coupleSubTab}
+                onSelectPage={setCoupleSubTab}
+              />
+            )}
+
+            {activeTab === 'finance' && (
+              <FinanceView
+                currentUserId={user?.uid || 'user_guest'}
+                isVip={user?.isVip ?? true}
+                onUpgradeVip={() => setActiveTab('topup')}
+                activePage={financeSubTab}
+                onSelectPage={setFinanceSubTab}
+              />
+            )}
+
+            {(activeTab === 'vip' || activeTab === 'topup') && (
+              <VipTopupView
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onGoToProfile={() => setActiveTab('profile')}
+                allTracks={allTracks}
+                currentTrack={currentTrack}
+                onOpenGiftShopModal={handleOpenGiftShop}
+                activePage={vipSubTab}
+                onSelectPage={setVipSubTab}
+              />
+            )}
+
+            {activeTab === 'profile' && (
+              <UserProfileView
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onGoToTopup={() => setActiveTab('topup')}
+                onOpenAuthorStudio={handleOpenAuthorStudio}
+                onOpenAuthorVerification={handleOpenAuthorVerification}
+                onOpenPublishAudio={handleOpenPublishAudio}
+                onOpenGiftShop={() => handleOpenGiftShop()}
+                onOpenAdmin={() => {
+                  setCurrentMode('admin');
+                  setActiveTab('admin');
+                }}
+              />
+            )}
+
+            {activeTab === 'admin' && (
+              <AdminDashboardView
+                onBackToHome={() => {
+                  setCurrentMode('audio');
+                  setActiveTab('home');
+                }}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                adminSubTab={adminSubTab}
+                onSelectAdminSubTab={setAdminSubTab}
+              />
+            )}
+
+            {activeTab === 'games' && (
+              <HaevyGamesView
+                activeSubTab={gamesSubTab}
+                onSelectSubTab={setGamesSubTab}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onOpenVipHub={() => setActiveTab('topup')}
+              />
+            )}
+
+            {activeTab === 'studio' && (
+              <HaevyStudioView
+                activeSubTab={studioSubTab}
+                onSelectSubTab={setStudioSubTab}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onPlayTrack={(track) => {
+                  const idx = allTracks.findIndex(t => t.id === track.id);
+                  if (idx !== -1) {
+                    setCurrentTrackIndex(idx);
+                    setIsPlaying(true);
+                  } else {
+                    setAllTracks(prev => [track, ...prev]);
+                    setCurrentTrackIndex(0);
+                    setIsPlaying(true);
+                  }
+                }}
+              />
+            )}
+          </>
         )}
       </main>
 
@@ -717,6 +817,16 @@ function MainApp() {
           setQuickChatTarget(null);
           setActiveTab('messages');
         }}
+      />
+
+      {/* Publish Audio & Series Storylines Modal */}
+      <PublishAudioModal
+        isOpen={isPublishModalOpen}
+        onClose={() => {
+          setIsPublishModalOpen(false);
+          setPublishSeriesPrefill(null);
+        }}
+        prefilledSeries={publishSeriesPrefill}
       />
 
       {/* Anonymous Account Studio Restriction Warning Modal */}

@@ -60,6 +60,50 @@ export interface Track {
   isFeatured?: boolean;
   isHidden?: boolean;
   createdAt?: any;
+  // Story Series & Episode Progression (Cốt truyện, bộ truyện, các tập tiếp theo)
+  isSeries?: boolean;
+  seriesId?: string;
+  seriesTitle?: string;
+  episodeNumber?: number;
+  episodeTitle?: string;
+  totalEpisodes?: number;
+  storylineSummary?: string;
+  nextTrackId?: string;
+}
+
+export interface AudioSeriesItem {
+  id: string;
+  title: string;
+  authorId: string;
+  authorName: string;
+  stageName?: string;
+  isAuthorVerified?: boolean;
+  coverUrl: string;
+  genre: string;
+  storylineSummary: string;
+  totalEpisodes: number;
+  episodes: Track[];
+  totalPlays: number;
+  totalLikes: number;
+  updatedAt?: any;
+}
+
+export interface AuthorProfileInfo {
+  uid: string;
+  stageName: string;
+  fullName?: string;
+  photoURL?: string;
+  bio?: string;
+  isVerified?: boolean;
+  genre?: string;
+  socialLink?: string;
+  tracksCount: number;
+  seriesCount: number;
+  totalPlays: number;
+  totalLikes: number;
+  followersCount: number;
+  tracks: Track[];
+  seriesList: AudioSeriesItem[];
 }
 
 export type AuthorVerificationStatus = 'none' | 'pending' | 'verified' | 'rejected';
@@ -137,9 +181,67 @@ export interface CouplePartnerInfo {
   isVip?: boolean;
 }
 
+export interface CouplePeriodCycleConfig {
+  lastPeriodStartDate: string; // YYYY-MM-DD
+  cycleLengthDays: number; // typically 21-35, default 28
+  periodDurationDays: number; // typically 3-7, default 5
+  lutealPhaseDays?: number; // default 14
+  notificationsEnabled?: boolean;
+  notes?: string;
+  updatedAt?: any;
+  updatedBy?: string;
+}
+
+export interface CouplePeriodLog {
+  id: string;
+  coupleId: string;
+  startDate: string; // YYYY-MM-DD
+  endDate?: string;
+  flowLevel?: 'light' | 'medium' | 'heavy' | 'spotting';
+  painLevel?: number; // 1 to 5 scale
+  symptoms?: string[];
+  mood?: string;
+  boyfriendCareNotes?: string;
+  sweetMessageFromPartner?: string;
+  createdAt: any;
+}
+
+export interface CoupleDiaryComment {
+  id: string;
+  authorUid: string;
+  authorName: string;
+  authorNickname?: string;
+  authorPhoto?: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface CoupleDiary {
+  id: string;
+  coupleId: string;
+  authorUid: string;
+  authorName: string;
+  authorNickname?: string;
+  authorPhoto?: string;
+  title: string;
+  content: string;
+  date: string; // YYYY-MM-DD
+  mood: string; // e.g. 'happy', 'romantic', 'sweet', 'missing', 'cozy', 'sulking', 'peaceful'
+  weather?: string; // 'sunny', 'rainy', 'cold', 'cloudy', 'sunset', 'night'
+  photoUrls?: string[];
+  audioTrackId?: string;
+  audioTrackTitle?: string;
+  audioTrackArtist?: string;
+  reactions?: Record<string, string>; // uid -> emoji string
+  comments?: CoupleDiaryComment[];
+  createdAt: any;
+  updatedAt?: any;
+}
+
 export interface CoupleData {
   id: string;
-  pairCode: string; // 6-character connection code e.g. "LOVE88"
+  pairCode: string; // System-generated code e.g. "HV-74921X"
+  passcode: string; // Password created by space owner to protect couple room
   partner1: CouplePartnerInfo;
   partner2?: CouplePartnerInfo;
   status: 'pending' | 'active' | 'cancelled';
@@ -150,6 +252,7 @@ export interface CoupleData {
   lovePoints: number;
   sharedSongIds: string[];
   bannerUrl?: string;
+  cycleConfig?: CouplePeriodCycleConfig;
   createdAt: any;
   updatedAt?: any;
 }
@@ -316,10 +419,18 @@ export interface ChatMessageTrackAttachment {
   genre?: string;
 }
 
+export interface ChatMessageAttachment {
+  type: 'voice' | 'image' | 'file';
+  url: string;
+  durationSec?: number;
+  fileName?: string;
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
   senderUid: string;
+  senderId?: string;
   senderName: string;
   senderPhoto?: string;
   senderAccountId?: string;
@@ -327,13 +438,23 @@ export interface ChatMessage {
   isSenderAuthor?: boolean;
   senderAuthorStageName?: string;
   text: string;
+  imageUrl?: string;
+  voiceUrl?: string;
+  voiceDurationSec?: number;
+  attachments?: ChatMessageAttachment[];
+  callLog?: {
+    type: 'voice' | 'video';
+    durationSec: number;
+    status: 'completed' | 'missed' | 'declined';
+  };
   trackAttachment?: ChatMessageTrackAttachment;
+  sharedTrack?: ChatMessageTrackAttachment;
   pointsGift?: {
     amount: number;
     giftName: string;
     giftIcon: string;
   };
-  reactions?: Record<string, string>; // uid -> emoji
+  reactions?: Record<string, any>; // emoji -> list of UIDs or map
   createdAt: any;
   isRead?: boolean;
 }
@@ -462,7 +583,7 @@ export interface VipOrder {
   discountAmount: number;
   finalAmount: number;
   promoCodeApplied?: string;
-  paymentMethod: 'vietqr' | 'momo' | 'zalopay' | 'card';
+  paymentMethod: 'vietqr' | 'momo' | 'zalopay';
   status: 'completed' | 'pending';
   createdAt: any;
 }
@@ -476,7 +597,7 @@ export interface PointTopupOrder {
   discountAmount: number;
   finalAmount: number;
   promoCodeApplied?: string;
-  paymentMethod: 'vietqr' | 'momo' | 'zalopay' | 'card';
+  paymentMethod: 'vietqr' | 'momo' | 'zalopay';
   status: 'completed' | 'pending';
   createdAt: any;
 }
@@ -493,7 +614,7 @@ export interface VipGiftOrder {
   packageName: string;
   durationDays: number;
   finalAmount: number;
-  paymentMethod: 'vietqr' | 'momo' | 'zalopay' | 'card';
+  paymentMethod: 'vietqr' | 'momo' | 'zalopay';
   message?: string;
   status: 'completed' | 'pending';
   createdAt: any;
@@ -545,7 +666,7 @@ export interface AuthorGiftDonation {
 export interface VipPrivilegeItem {
   id: string;
   title: string;
-  category: 'audio' | 'downloads' | 'social' | 'points' | 'exclusives' | 'playback' | 'creator' | 'couple' | 'messages' | 'studio';
+  category: 'audio' | 'downloads' | 'social' | 'points' | 'exclusives' | 'playback' | 'creator' | 'couple' | 'messages' | 'studio' | 'finance';
   tierRequired: 'vip';
   shortDesc: string;
   detailedBenefit: string;
@@ -842,6 +963,7 @@ export interface ThoughtBubble {
     trackArtist?: string;
   };
   bgColor?: string;
+  durationHours?: number; // 3, 6, 12, 24
   createdAt: any;
   expiresAt?: any;
 }

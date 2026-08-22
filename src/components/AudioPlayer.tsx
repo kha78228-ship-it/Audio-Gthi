@@ -263,10 +263,16 @@ export function AudioPlayer({
           )}
         </div>
 
-        {/* Title & Artist */}
-        <div className="flex items-center justify-between mb-6 px-1">
+        {/* Title & Artist & Series */}
+        <div className="flex items-start justify-between mb-6 px-1 gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              {activeTrack?.isSeries && (
+                <span className="text-[10px] font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <Disc3 size={11} className="animate-spin text-indigo-400" />
+                  {activeTrack.episodeNumber ? `Tập ${activeTrack.episodeNumber}${activeTrack.totalEpisodes ? `/${activeTrack.totalEpisodes}` : ''}` : 'Cốt Truyện'}
+                </span>
+              )}
               {activeTrack?.genre && (
                 <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 block">
                   {activeTrack.genre}
@@ -281,9 +287,24 @@ export function AudioPlayer({
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight truncate">
               {activeTrack?.title}
             </h2>
-            <p className="text-zinc-400 font-medium text-sm sm:text-base truncate mt-0.5">
-              {activeTrack?.artist}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-zinc-300 font-semibold text-sm sm:text-base truncate">
+                {activeTrack?.artist}
+              </p>
+              {activeTrack?.isAuthorVerified && (
+                <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+              )}
+            </div>
+            {activeTrack?.seriesTitle && (
+              <p className="text-xs text-zinc-400 mt-1 font-medium truncate">
+                📖 Nằm trong bộ cốt truyện: <span className="text-amber-300 font-bold">{activeTrack.seriesTitle}</span>
+              </p>
+            )}
+            {activeTrack?.storylineSummary && (
+              <p className="text-xs text-zinc-400 mt-1.5 line-clamp-2 italic bg-zinc-950/60 p-2 rounded-xl border border-zinc-800/80">
+                "{activeTrack.storylineSummary}"
+              </p>
+            )}
           </div>
 
           {/* Quick Gift Button for Active Author */}
@@ -296,7 +317,7 @@ export function AudioPlayer({
                 trackTitle: activeTrack.title,
                 trackId: activeTrack.id
               })}
-              className="ml-3 px-3 py-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-amber-300 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-sm active:scale-95"
+              className="ml-2 px-3 py-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-amber-300 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-sm active:scale-95"
               title="Tặng quà cho tác giả bài hát này"
             >
               <Gift size={15} className="text-amber-400" />

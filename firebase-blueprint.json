@@ -353,6 +353,18 @@
       "entity": "couples",
       "description": "Shared photo album and milestone timeline"
     },
+    "/couples/{coupleId}/events/{eventId}": {
+      "entity": "couples",
+      "description": "Custom couple events, milestones and calendar items"
+    },
+    "/couples/{coupleId}/periodLogs/{logId}": {
+      "entity": "couples",
+      "description": "Period cycle logs and symptom tracking"
+    },
+    "/couples/{coupleId}/diaries/{diaryId}": {
+      "entity": "couples",
+      "description": "Shared couple diary entries and memories"
+    },
     "/users/{userId}": {
       "entity": "users",
       "description": "User profile keyed by auth UID"

@@ -9,7 +9,10 @@ import {
   ArrowRight, 
   Radio, 
   Clock, 
-  Compass 
+  Compass,
+  Plus,
+  BookOpen,
+  CheckCircle2
 } from 'lucide-react';
 import { Track, ActiveTab } from '../types';
 import { FEATURED_PLAYLISTS, GENRE_LIST } from '../data';
@@ -23,6 +26,8 @@ interface HomeViewProps {
   onSelectTab: (tab: ActiveTab) => void;
   onFilterGenre: (genre: string) => void;
   onOpenAuth: () => void;
+  onOpenPublishAudio?: () => void;
+  onViewAuthorChannel?: (authorUid: string, authorName?: string) => void;
 }
 
 export function HomeView({
@@ -33,6 +38,9 @@ export function HomeView({
   onTogglePlay,
   onSelectTab,
   onFilterGenre,
+  onOpenAuth,
+  onOpenPublishAudio,
+  onViewAuthorChannel,
 }: HomeViewProps) {
   const heroTrack = tracks[0] || null;
   const trendingTracks = tracks.slice(0, 6);
@@ -47,7 +55,7 @@ export function HomeView({
   return (
     <div className="w-full max-w-6xl mx-auto space-y-8 sm:space-y-12">
       {/* Hero Spotlight Section */}
-      {heroTrack && (
+      {heroTrack ? (
         <section 
           id="home-hero-spotlight"
           className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-800/80 border border-zinc-800 p-5 sm:p-8 md:p-10 shadow-2xl"
@@ -59,7 +67,7 @@ export function HomeView({
             <div className="flex-1 space-y-4 sm:space-y-5 text-center md:text-left min-w-0">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-800/90 border border-zinc-700 text-xs font-semibold text-zinc-300">
                 <Sparkles size={14} className="text-amber-400" />
-                <span>Bản nhạc nổi bật hôm nay</span>
+                <span>{heroTrack.isSeries ? 'Cốt truyện nổi bật hôm nay' : 'Bản audio nổi bật hôm nay'}</span>
               </div>
 
               <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight break-words">
@@ -67,7 +75,7 @@ export function HomeView({
               </h1>
               
               <p className="text-zinc-400 text-xs sm:text-base max-w-xl font-normal leading-relaxed">
-                Được tuyển chọn đặc biệt để tối ưu hóa khả năng sáng tạo và thư giãn tinh thần với âm thanh vòm chất lượng cao.
+                {heroTrack.storylineSummary || heroTrack.description || 'Được phát hành chính thức bởi tác giả cộng đồng trên nền tảng Haevy Audio.'}
               </p>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 sm:gap-4 pt-1 sm:pt-2">
@@ -115,10 +123,45 @@ export function HomeView({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3 sm:p-4">
                 <span className="text-[11px] sm:text-xs text-zinc-400 font-medium">{heroTrack.genre}</span>
-                <span className="text-xs sm:text-sm font-bold text-white truncate">{heroTrack.artist}</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onViewAuthorChannel) {
+                      onViewAuthorChannel(heroTrack.addedBy || heroTrack.artist, heroTrack.artist);
+                    }
+                  }}
+                  className="text-xs sm:text-sm font-bold text-white hover:text-amber-300 transition-colors truncate text-left"
+                >
+                  {heroTrack.artist}
+                </button>
               </div>
             </div>
           </div>
+        </section>
+      ) : (
+        /* Empty State when no author tracks exist yet */
+        <section className="relative overflow-hidden rounded-3xl bg-zinc-900/80 border border-zinc-800 p-8 sm:p-12 text-center shadow-xl flex flex-col items-center justify-center gap-4">
+          <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg">
+            <Radio size={32} />
+          </div>
+          <div className="max-w-md space-y-1">
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              Chào Mừng Đến Với Haevy Audio Hub
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-400">
+              Hệ thống đã được làm sạch và chuyển đổi hoàn toàn sang Nền tảng Tác giả Tự Do & Cốt Truyện Audio.
+            </p>
+          </div>
+          {onOpenPublishAudio && (
+            <button
+              onClick={onOpenPublishAudio}
+              className="mt-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-300 text-black font-extrabold text-xs sm:text-sm shadow-xl hover:brightness-110 active:scale-95 cursor-pointer flex items-center gap-2"
+            >
+              <Plus size={18} />
+              <span>Đăng Tác Phẩm / Bộ Truyện Đầu Tiên</span>
+            </button>
+          )}
         </section>
       )}
 

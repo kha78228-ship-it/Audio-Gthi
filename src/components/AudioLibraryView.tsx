@@ -34,6 +34,7 @@ interface AudioLibraryViewProps {
   onOpenPublishAudio?: () => void;
   onOpenAuthorStudio?: () => void;
   onRefreshCustomTracks?: () => void;
+  onViewAuthorChannel?: (authorUid: string, authorName?: string) => void;
 }
 
 export function AudioLibraryView({
@@ -49,6 +50,7 @@ export function AudioLibraryView({
   onOpenPublishAudio,
   onOpenAuthorStudio,
   onRefreshCustomTracks,
+  onViewAuthorChannel,
 }: AudioLibraryViewProps) {
   const { 
     user, 
@@ -404,12 +406,41 @@ export function AudioLibraryView({
 
                 {/* Info */}
                 <div>
+                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                    {track.isSeries && (
+                      <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-md border border-indigo-500/30">
+                        {track.episodeNumber ? `Tập ${track.episodeNumber}` : 'Bộ truyện'}
+                      </span>
+                    )}
+                    {track.seriesTitle && (
+                      <span className="text-[10px] bg-zinc-800 text-zinc-300 font-medium px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                        {track.seriesTitle}
+                      </span>
+                    )}
+                  </div>
+
                   <h3 className={`font-bold text-sm truncate ${isCurrent ? 'text-white' : 'text-zinc-200'}`}>
                     {track.title}
                   </h3>
-                  <p className="text-xs text-zinc-400 truncate mt-0.5">
-                    {track.artist}
-                  </p>
+
+                  <div className="flex items-center justify-between mt-1">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onViewAuthorChannel) {
+                          onViewAuthorChannel(track.addedBy || track.artist, track.artist);
+                        }
+                      }}
+                      className="text-xs text-zinc-400 hover:text-amber-300 transition-colors truncate text-left font-medium hover:underline flex items-center gap-1"
+                      title="Xem trang tác giả"
+                    >
+                      <span>{track.artist}</span>
+                      {track.isAuthorVerified && (
+                        <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500 font-medium">
@@ -468,7 +499,12 @@ export function AudioLibraryView({
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {track.isSeries && (
+                        <span className="text-[9px] bg-indigo-500/20 text-indigo-300 font-bold px-1.5 py-0.5 rounded border border-indigo-500/30 shrink-0">
+                          {track.episodeNumber ? `Tập ${track.episodeNumber}` : 'Bộ truyện'}
+                        </span>
+                      )}
                       <h4 className={`font-semibold text-sm truncate ${isCurrent ? 'text-white font-bold' : 'text-zinc-200'}`}>
                         {track.title}
                       </h4>
@@ -478,9 +514,28 @@ export function AudioLibraryView({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-zinc-400 truncate mt-0.5">
-                      {track.artist}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-400">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onViewAuthorChannel) {
+                            onViewAuthorChannel(track.addedBy || track.artist, track.artist);
+                          }
+                        }}
+                        className="hover:text-amber-300 transition-colors hover:underline flex items-center gap-1"
+                      >
+                        <span>{track.artist}</span>
+                        {track.isAuthorVerified && (
+                          <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
+                        )}
+                      </button>
+                      {track.seriesTitle && (
+                        <span className="text-[11px] text-zinc-500 truncate hidden sm:inline">
+                          • Bộ: {track.seriesTitle}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

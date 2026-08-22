@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Trash2, Smile, Check } from 'lucide-react';
+import { X, Sparkles, Trash2, Smile, Check, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { setThoughtBubble, deleteThoughtBubble } from '../../services/socialService';
 import { ThoughtBubble } from '../../types';
@@ -21,6 +21,13 @@ const BG_PRESETS = [
   { name: 'Hoa Hồng', bg: '#4c0519', border: '#e11d48' },
 ];
 
+const DURATION_OPTIONS = [
+  { label: '3 Giờ', hours: 3 },
+  { label: '6 Giờ', hours: 6 },
+  { label: '12 Giờ', hours: 12 },
+  { label: '24 Giờ', hours: 24 }
+];
+
 export function ThoughtBubbleModal({
   isOpen,
   onClose,
@@ -31,6 +38,7 @@ export function ThoughtBubbleModal({
   const [text, setText] = useState(currentBubble?.text || '');
   const [selectedEmoji, setSelectedEmoji] = useState(currentBubble?.emoji || '💭');
   const [selectedBg, setSelectedBg] = useState(currentBubble?.bgColor || '#18181b');
+  const [selectedDuration, setSelectedDuration] = useState<number>(currentBubble?.durationHours || 24);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -56,7 +64,8 @@ export function ThoughtBubbleModal({
       },
       text: text.trim(),
       emoji: selectedEmoji,
-      bgColor: selectedBg
+      bgColor: selectedBg,
+      durationHours: selectedDuration
     });
 
     setIsSubmitting(false);
@@ -90,7 +99,7 @@ export function ThoughtBubbleModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-white">Bong Bóng Suy Nghĩ</h3>
-              <p className="text-xs text-zinc-400">Chia sẻ trạng thái ngắn hiển thị trên avatar bạn bè</p>
+              <p className="text-xs text-zinc-400">Chỉ hiển thị với bạn bè & tự động xóa theo thời gian</p>
             </div>
           </div>
           <button
@@ -144,6 +153,33 @@ export function ThoughtBubbleModal({
           />
           <div className="text-right text-[11px] text-zinc-500 font-mono">
             {text.length}/120
+          </div>
+        </div>
+
+        {/* Duration Selector (3h, 6h, 12h, 24h) */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+              <Clock size={13} className="text-amber-400" />
+              <span>Tự động biến mất sau:</span>
+            </label>
+            <span className="text-[11px] text-amber-400/90 font-medium">Chỉ bạn bè nhìn thấy</span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {DURATION_OPTIONS.map((opt) => (
+              <button
+                key={opt.hours}
+                type="button"
+                onClick={() => setSelectedDuration(opt.hours)}
+                className={`py-2 px-1 text-xs font-bold rounded-xl border transition-all flex flex-col items-center justify-center gap-0.5 ${
+                  selectedDuration === opt.hours
+                    ? 'bg-amber-400 text-black border-amber-300 shadow-md shadow-amber-400/20 font-black'
+                    : 'bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border-zinc-800'
+                }`}
+              >
+                <span>{opt.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 

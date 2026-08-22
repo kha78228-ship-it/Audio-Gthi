@@ -37,7 +37,9 @@ import {
   Gamepad2,
   Mic,
   Zap,
-  Gift
+  Gift,
+  BookOpen,
+  Droplets
 } from 'lucide-react';
 import { Track, ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -52,8 +54,8 @@ interface BottomTaskbarProps {
   onSelectTab: (tab: ActiveTab) => void;
   messageSubTab?: 'chat' | 'feed' | 'friends';
   onSelectMessageSubTab?: (subTab: 'chat' | 'feed' | 'friends') => void;
-  coupleSubTab?: 'page1' | 'page2' | 'page3';
-  onSelectCoupleSubTab?: (subTab: 'page1' | 'page2' | 'page3') => void;
+  coupleSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
+  onSelectCoupleSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
   financeSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
   onSelectFinanceSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
   adminSubTab?: 'page1' | 'page2' | 'page3' | 'page4';
@@ -236,14 +238,26 @@ export function BottomTaskbar({
           },
           { 
             id: 'page2', 
-            label: 'Sự Kiện & Game ✨', 
-            icon: Calendar, 
+            label: 'Chu Kỳ 🌸', 
+            icon: Droplets, 
             isModeSubTab: true 
           },
           { 
             id: 'page3', 
-            label: 'Kỷ Niệm & Lời Hứa 📸', 
-            icon: ImageIcon, 
+            label: 'Lịch Đôi 📅', 
+            icon: Calendar, 
+            isModeSubTab: true 
+          },
+          { 
+            id: 'page4', 
+            label: 'Nhật Ký 📖', 
+            icon: BookOpen, 
+            isModeSubTab: true 
+          },
+          { 
+            id: 'page5', 
+            label: 'Kỷ Niệm ✨', 
+            icon: Sparkles, 
             isModeSubTab: true 
           },
         ];

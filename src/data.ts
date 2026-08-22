@@ -1,245 +1,11 @@
 import { Track, GiftItem, VipPrivilegeItem, PointTopupPackage } from './types';
 
-export const INITIAL_TRACKS: Track[] = [
-  // --- BỘ TRUYỆN TIÊN HIỆP & KIẾM HIỆP ---
-  {
-    id: 'story-1',
-    title: 'Phàm Nhân Tu Tiên - Tập 01: Nhập Thôn Thất Huyền Môn',
-    artist: 'MC Tiến Dũng (Diễn Đọc)',
-    genre: 'Truyện Tiên Hiệp & Kiếm Hiệp',
-    durationSec: 1680,
-    plays: 89400,
-    bitrate: '320kbps Hi-Fi Audio',
-    description: 'Hành trình bước vào con đường tu đạo của thiếu niên bình phàm Hàn Lập. Giọng đọc truyền cảm, lôi cuốn kết hợp nhạc nền hùng tráng.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'MC Tiến Dũng',
-    authorBio: 'Giọng đọc Tiên Hiệp số 1 cộng đồng audio truyện.'
-  },
-  {
-    id: 'story-2',
-    title: 'Phàm Nhân Tu Tiên - Tập 02: Chưởng Thiên Bình Xuất Thế (VIP)',
-    artist: 'MC Tiến Dũng (Diễn Đọc)',
-    genre: 'Truyện Tiên Hiệp & Kiếm Hiệp',
-    durationSec: 1890,
-    plays: 64200,
-    isVipOnly: true,
-    bitrate: 'Spatial 3D Surround Master',
-    description: 'Bí mật chiếc bình xanh thần bí giúp thúc dục linh dược vạn năm. Bản thu VIP Spatial 3D độc quyền chất lượng phòng thu.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'MC Tiến Dũng',
-  },
-  {
-    id: 'story-3',
-    title: 'Đấu Phá Thương Khung - Tập 01: Thiên Tài Biến Phế Vật',
-    artist: 'MC Hoàng Hải',
-    genre: 'Truyện Tiên Hiệp & Kiếm Hiệp',
-    durationSec: 1450,
-    plays: 53100,
-    bitrate: '320kbps Hi-Fi Audio',
-    description: 'Ba mươi năm hà đông, ba mươi năm hà tây, đừng khinh thiếu niên nghèo! Khởi đầu huyền thoại của Tiêu Viêm.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'MC Hoàng Hải'
-  },
-  {
-    id: 'story-4',
-    title: 'Tiên Nghịch - Tập 01: Thiếu Niên Vương Lâm Cầu Tiên',
-    artist: 'MC Đình Soạn',
-    genre: 'Truyện Tiên Hiệp & Kiếm Hiệp',
-    durationSec: 1720,
-    plays: 48900,
-    bitrate: '320kbps Hi-Fi Audio',
-    description: 'Đạo tu chân tàn khốc, thuận vi phàm, nghịch vi tiên. Khắc họa con đường tu đạo gian truân đẫm máu lửa của Vương Lâm.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'MC Đình Soạn'
-  },
-
-  // --- BỘ TRUYỆN MA & TRINH THÁM ĐÊM KHUYA ---
-  {
-    id: 'story-5',
-    title: 'Huyết Án Làng Ma Đêm Mưa - Tập 01',
-    artist: 'MC Nguyễn Thành Audio',
-    genre: 'Truyện Ma & Trinh Thám',
-    durationSec: 2150,
-    plays: 97800,
-    isVipOnly: true,
-    bitrate: 'Lossless 24-bit/96kHz (Âm Thanh Rùng Rợn)',
-    description: 'Vụ án bí ẩn tại ngôi làng hẻo lánh giữa rừng già. Tiếng gõ cửa lúc 3 giờ sáng và những cái bóng trắng lẩn khuất.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'MC Nguyễn Thành'
-  },
-  {
-    id: 'story-6',
-    title: 'Bác Sĩ Pháp Y Kể Chuyện - Hồ Sơ Kẻ Giấu Mặt',
-    artist: 'MC Ánh Nguyệt',
-    genre: 'Truyện Ma & Trinh Thám',
-    durationSec: 1560,
-    plays: 41200,
-    bitrate: '320kbps Hi-Fi Audio',
-    description: 'Những góc khuất phá án li kỳ qua lăng kính giải phẫu pháp y. Từng chứng cứ nhỏ nhất cũng cất lên tiếng nói công lý.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'MC Ánh Nguyệt'
-  },
-  {
-    id: 'story-7',
-    title: 'Oan Hồn Cây Đa Cổ Thụ - Chuyện Tâm Linh Có Thật',
-    artist: 'MC Quàng A Phìn',
-    genre: 'Truyện Ma & Trinh Thám',
-    durationSec: 1980,
-    plays: 68500,
-    bitrate: '320kbps Hi-Fi Audio',
-    description: 'Chuyện tâm linh dân gian xứ Bắc cực kỳ cuốn hút, dẫn dắt bởi nghệ sĩ kể chuyện tâm linh nổi tiếng Quàng A Phìn.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'MC Quàng A Phìn'
-  },
-
-  // --- BỘ TRUYỆN NGÔN TÌNH & ĐÔ THỊ ---
-  {
-    id: 'story-8',
-    title: 'Boss Nghiện Vợ Vô Độ - Tập 01: Gặp Gỡ Định Mệnh',
-    artist: 'MC Thanh Mai',
-    genre: 'Truyện Ngôn Tình & Đô Thị',
-    durationSec: 1420,
-    plays: 56300,
-    bitrate: '320kbps Hi-Fi Audio',
-    description: 'Câu chuyện tình yêu ngọt ngào, hài hước và đầy kịch tính của tổng tài bá đạo và cô nàng thiết kế thông minh.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'MC Thanh Mai'
-  },
-  {
-    id: 'story-9',
-    title: 'Hôn Trộm 55 Lần - Tập 01: Hợp Đồng Hôn Nhân',
-    artist: 'MC Thảo My Audio',
-    genre: 'Truyện Ngôn Tình & Đô Thị',
-    durationSec: 1380,
-    plays: 47900,
-    isVipOnly: true,
-    bitrate: '320kbps Hi-Fi Audio',
-    description: 'Siêu phẩm ngôn tình lãng mạn triệu view. Diễn đọc cảm xúc sâu lắng chạm đến trái tim người nghe.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'MC Thảo My'
-  },
-
-  // --- SÁCH NÓI & RADIO TINH TUYỂN ---
-  {
-    id: 'story-10',
-    title: 'Sách Nói: Đắc Nhân Tâm - Nghệ Thuật Thu Phục Lòng Người',
-    artist: 'Radio Tri Thức & Doanh Nhân',
-    genre: 'Sách Nói & Radio',
-    durationSec: 2400,
-    plays: 112000,
-    bitrate: '320kbps Hi-Fi Studio',
-    description: 'Tác phẩm kinh điển thế giới về nghệ thuật ứng xử, giao tiếp và kết nối con người của Dale Carnegie.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'Radio Tri Thức'
-  },
-  {
-    id: 'story-11',
-    title: 'Sách Nói: Nhà Giả Kim - Đi Tìm Kho Báu Cuộc Đời',
-    artist: 'Hành Trình Tri Thức',
-    genre: 'Sách Nói & Radio',
-    durationSec: 2100,
-    plays: 87600,
-    bitrate: '320kbps Hi-Fi Audio',
-    description: 'Khi bạn khao khát một điều gì đó, cả vũ trụ sẽ hợp lực giúp bạn đạt được điều đó.',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
-    isAuthorVerified: true,
-    stageName: 'Hành Trình Tri Thức'
-  },
-
-  // --- ÂM NHẠC & PODCAST THƯ GIÃN ---
-  {
-    id: '1',
-    title: 'Midnight Lo-fi Beats',
-    artist: 'ChillHop Vibes',
-    genre: 'Lo-Fi Chill',
-    durationSec: 218,
-    plays: 14200,
-    bitrate: '320kbps Hi-Fi',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: '2',
-    title: 'Deep Coding Horizon',
-    artist: 'DevSynthesizer',
-    genre: 'Deep Focus',
-    durationSec: 184,
-    plays: 28900,
-    bitrate: '320kbps Hi-Fi',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: '3',
-    title: 'Sunset Acoustic Melody',
-    artist: 'Elena Rossi',
-    genre: 'Acoustic',
-    durationSec: 245,
-    plays: 9500,
-    bitrate: '320kbps Hi-Fi',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: '4',
-    title: 'Neon Cyber Odyssey (Studio Master)',
-    artist: 'HyperDrive Labs',
-    genre: 'Electronic',
-    durationSec: 310,
-    plays: 35100,
-    isVipOnly: true,
-    bitrate: 'Lossless 24-bit/96kHz',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: '5',
-    title: 'Zen Tibetan Sanctuary (Spatial 3D Master)',
-    artist: 'Mindful Sanctuary',
-    genre: 'Ambient & Zen',
-    durationSec: 275,
-    plays: 18300,
-    isVipOnly: true,
-    bitrate: 'Spatial 3D Surround',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: '6',
-    title: 'Tập 01: Sáng tạo & Công nghệ AI',
-    artist: 'TechTalk Vietnam Podcast',
-    genre: 'Podcast & Talk',
-    durationSec: 360,
-    plays: 8200,
-    bitrate: '320kbps Hi-Fi',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1487180144351-b8472da7d491?auto=format&fit=crop&w=600&q=80',
-  }
-];
+// System default tracks are empty: All audio in Haevy Audio is 100% created & uploaded by authors/creators
+export const INITIAL_TRACKS: Track[] = [];
 
 export const GENRE_LIST = [
   'Tất cả',
+  'Truyện Audio & Cốt Truyện',
   'Truyện Tiên Hiệp & Kiếm Hiệp',
   'Truyện Ma & Trinh Thám',
   'Truyện Ngôn Tình & Đô Thị',
@@ -441,172 +207,85 @@ export const POINT_TOPUP_PACKAGES: PointTopupPackage[] = [
 ];
 
 export const VIP_PRIVILEGES_LIST: VipPrivilegeItem[] = [
+  // --- NHÓM 1: HAEVY FINANCE (TÀI CHÍNH & XU HAEVY) ---
   {
-    id: 'multiplier_points',
-    title: 'Tăng Gấp 3 (x3) Tốc Độ Tích Lũy Xu Haevy',
-    category: 'points',
+    id: 'finance_multiplier_points',
+    title: 'Haevy Finance: Tăng Gấp 3 (x3) Tốc Độ Tích Lũy Xu Haevy',
+    category: 'finance',
     tierRequired: 'vip',
-    shortDesc: 'Nhân 3 toàn bộ Xu Haevy khi nghe nhạc & điểm danh',
+    shortDesc: 'Nhân 3 toàn bộ Xu khi nghe nhạc, điểm danh và nhiệm vụ hằng ngày',
     detailedBenefit: 'Toàn bộ thành viên VIP nhận nhân ba (x3) Xu Haevy khi nghe nhạc (+15 xu/phút), điểm danh hằng ngày (+150 xu/ngày) và tương tác cộng đồng.',
     iconName: 'Coins',
     badge: 'x3 Xu Haevy'
   },
   {
-    id: 'hifi_sound',
-    title: 'Âm thanh Studio Master Lossless 24-bit / 96kHz',
-    category: 'audio',
+    id: 'finance_zero_fee',
+    title: 'Haevy Finance: Miễn 100% Phí Chuyển Xu & Tặng Quà Tác Giả',
+    category: 'finance',
     tierRequired: 'vip',
-    shortDesc: 'Độ phân giải siêu cao gấp 6 lần chuẩn thường',
-    detailedBenefit: 'Tận hưởng từng dải âm trầm sâu lắng, âm trung trong trẻo và âm cao tách bạch với chuẩn nén FLAC không suy hao.',
-    iconName: 'Sparkles',
-    badge: 'Lossless 24-bit'
-  },
-  {
-    id: 'spatial_3d',
-    title: 'Không Gian Âm Nhạc Vòm Spatial 3D Audio',
-    category: 'audio',
-    tierRequired: 'vip',
-    shortDesc: 'Mô phỏng âm thanh 360 độ như đang ở rạp hát',
-    detailedBenefit: 'Công nghệ định vị hướng âm thanh vòm 3 chiều độc quyền, tăng cảm giác sống động và chân thực khi đeo tai nghe.',
-    iconName: 'Headphones',
-    badge: '3D Surround'
-  },
-  {
-    id: 'equalizer_pro',
-    title: 'Equalizer Chuyên Nghiệp 10 Băng Tần & 6 Preset Dolby',
-    category: 'audio',
-    tierRequired: 'vip',
-    shortDesc: 'Tùy biến âm bass, vocal, acoustic, cinema sống động',
-    detailedBenefit: 'Tự do tinh chỉnh dải tần từ 31Hz đến 16kHz với 6 chế độ căn chỉnh âm thanh chuyên nghiệp chuẩn rạp hát phòng thu.',
-    iconName: 'Sliders',
-    badge: 'Equalizer Pro'
-  },
-  {
-    id: 'unlimited_download',
-    title: 'Tải Nhạc Offline Không Giới Hạn Chuẩn Lossless',
-    category: 'downloads',
-    tierRequired: 'vip',
-    shortDesc: 'Lưu bài hát trực tiếp vào máy nghe không cần mạng',
-    detailedBenefit: 'Tải trọn vẹn danh sách phát yêu thích chuẩn Lossless, nghe mượt mà ngay cả khi trên máy bay hay không có 4G/Wifi.',
-    iconName: 'Download',
-    badge: 'Offline'
-  },
-  {
-    id: 'ad_free',
-    title: 'Trải Nghiệm 100% Không Quảng Cáo & Nghe Nền',
-    category: 'playback',
-    tierRequired: 'vip',
-    shortDesc: 'Phát nhạc liên tục khi khóa màn hình hoặc đa nhiệm',
-    detailedBenefit: 'Không bao giờ bị làm phiền bởi quảng cáo gián đoạn cảm xúc, tiết kiệm pin tối đa khi phát ngầm trên thiết bị di động.',
-    iconName: 'Zap',
-    badge: 'No Ads'
-  },
-  {
-    id: 'unlimited_skips',
-    title: 'Bỏ Qua Bài Hát Không Giới Hạn (Unlimited Skips)',
-    category: 'playback',
-    tierRequired: 'vip',
-    shortDesc: 'Tự do chuyển bài hát tiếp theo bất cứ lúc nào',
-    detailedBenefit: 'Không bị giới hạn 6 lượt bỏ qua/giờ như bản thường. Bạn làm chủ hoàn toàn danh sách phát theo cảm xúc.',
-    iconName: 'Radio',
-    badge: 'Unlimited'
-  },
-  {
-    id: 'crossfade_seamless',
-    title: 'Âm Nhạc Liền Mạch Crossfade & Gapless Playback',
-    category: 'playback',
-    tierRequired: 'vip',
-    shortDesc: 'Chuyển bài mượt mà 0 - 12 giây như tại Club/DJ Studio',
-    detailedBenefit: 'Hòa quyện phần đuôi ca khúc trước và phần đầu ca khúc sau liền mạch không ngắt quãng, duy trì nhịp đập cảm xúc.',
-    iconName: 'Flame',
-    badge: 'Seamless DJ'
-  },
-  {
-    id: 'karaoke_lyrics_sync',
-    title: 'Chế Độ Karaoke Studio & Đồng Bộ Lời Bài Hát Thời Gian Thực',
-    category: 'audio',
-    tierRequired: 'vip',
-    shortDesc: 'Hiển thị lời chạy mượt mà từng giây và tính năng tách vocal',
-    detailedBenefit: 'Trải nghiệm hát theo nhạc với hiệu ứng karaoke chạy chữ nhấp nháy, hỗ trợ luyện giọng và thu âm tại gia.',
-    iconName: 'Sparkles',
-    badge: 'Karaoke Studio'
-  },
-  {
-    id: 'sleep_timer_smart_fade',
-    title: 'Hẹn Giờ Tắt Thông Minh Tự Động Giảm Dần Âm Lượng',
-    category: 'playback',
-    tierRequired: 'vip',
-    shortDesc: 'Smart Sleep Fade-out bảo vệ giấc ngủ và thính giác',
-    detailedBenefit: 'Âm lượng tự động giảm dần tuyến tính trong 60 giây cuối cùng trước khi dừng phát, đưa bạn vào giấc ngủ êm đềm.',
-    iconName: 'Zap',
-    badge: 'Smart Sleep'
-  },
-  {
-    id: 'vip_aura_badge',
-    title: 'Huy Hiệu Vương Miện VIP Mạ Vàng & Golden Aura',
-    category: 'social',
-    tierRequired: 'vip',
-    shortDesc: 'Nổi bật vị thế quý tộc trong mọi bình luận và danh bạ',
-    detailedBenefit: 'Tên tài khoản phát sáng màu vàng Gold sang trọng, hiệu ứng khung viền mạ vàng đặc quyền dành riêng cho giới VIP.',
-    iconName: 'Crown',
-    badge: 'Aura Gold'
-  },
-  {
-    id: 'vip_direct_chat_perks',
-    title: 'Đặc Quyền Nhắn Tin: Khung Avatar VIP & Chia Sẻ Nhạc Tốc Độ Cao',
-    category: 'social',
-    tierRequired: 'vip',
-    shortDesc: 'Trò chuyện không giới hạn và tặng quà thần tốc',
-    detailedBenefit: 'Mở khóa toàn bộ nhãn dán cao cấp, biểu tượng cảm xúc động và khung avatar vương miện rực rỡ trong Tin Nhắn Bạn Bè.',
+    shortDesc: '0% phí giao dịch khi nạp, tặng quà và chuyển Xu Haevy cho bạn bè',
+    detailedBenefit: 'Miễn phí hoàn toàn các khoản phí giao dịch tài chính nội bộ, tối ưu 100% giá trị quà tặng đến tay nghệ sĩ và người thân.',
     iconName: 'ShieldCheck',
-    badge: 'VIP Chat'
+    badge: '0% Phí Giao Dịch'
   },
   {
-    id: 'gift_discount',
-    title: 'Đặc Quyền Quà Tặng & Bảng Vàng Top Fan Tác Giả',
-    category: 'social',
+    id: 'finance_interest_bonus',
+    title: 'Haevy Finance: Hưởng Lãi Suất Tích Lũy Xu +15%/Năm Trong Két Sắt',
+    category: 'finance',
     tierRequired: 'vip',
-    shortDesc: 'Gửi quà tặng kèm hiệu ứng pháo hoa rực rỡ cho thần tượng',
-    detailedBenefit: 'Mở khóa toàn bộ kho quà tặng độc quyền trong Cửa Hàng Quà Tác Giả, ghi danh bạn vào Bảng Vàng Vinh Danh của nghệ sĩ.',
-    iconName: 'Gift',
-    badge: 'Top Fan'
+    shortDesc: 'Tự động sinh lời Xu Haevy hằng ngày dựa trên số dư tài khoản',
+    detailedBenefit: 'Tính năng Staking tài chính thông minh: Số dư Xu trong ví Haevy Finance tự động sinh thêm lợi nhuận +15%/năm nhận theo ngày.',
+    iconName: 'TrendingUp',
+    badge: '+15%/Năm Két Sắt'
   },
   {
-    id: 'vip_exclusive_themes',
-    title: 'Kho Giao Diện Cá Nhân Hóa VIP (Royal, Cyber Neon, Luxury)',
-    category: 'social',
+    id: 'finance_vip_analytics',
+    title: 'Haevy Finance: Báo Cáo Tài Chính & Phân Tích Dòng Tiền AI Chuyên Sâu',
+    category: 'finance',
     tierRequired: 'vip',
-    shortDesc: 'Tùy biến không gian âm nhạc theo phong cách riêng',
-    detailedBenefit: 'Chuyển đổi giao diện độc quyền: Hoàng Gia Gold, Cyberpunk Neon, Thạch Anh Tím và Ngọc Lục Bảo Quý Phái.',
-    iconName: 'Sparkles',
-    badge: 'Themes'
+    shortDesc: 'Biểu đồ thu chi đa chiều, dự báo dòng tiền và quản lý ngân sách thông minh',
+    detailedBenefit: 'Trợ lý AI tự động phân loại giao dịch, cảnh báo chi tiêu vượt ngưỡng và đề xuất kế hoạch tích lũy tối ưu.',
+    iconName: 'Sliders',
+    badge: 'AI Finance Pro'
   },
+  {
+    id: 'finance_instant_payout',
+    title: 'Haevy Finance: Xử Lý Đổi Thưởng & Rút Về MB Bank Tức Thì (Dưới 30s)',
+    category: 'finance',
+    tierRequired: 'vip',
+    shortDesc: 'Phân luồng ưu tiên rút thưởng 24/7 không cần chờ duyệt thủ công',
+    detailedBenefit: 'Hệ thống tự động kích hoạt API ngân hàng chuyển tiền thưởng về số tài khoản MB Bank đã liên kết chỉ trong 30 giây.',
+    iconName: 'Zap',
+    badge: 'Rút 30s'
+  },
+
+  // --- NHÓM 2: HAEVY STUDIO (PHÒNG THU & SÁNG TẠO AI) ---
   {
     id: 'tts_studio_discount',
-    title: 'Haevy Studio: Ưu Đãi Tạo Giọng Đọc AI Voice (-33% Phí)',
+    title: 'Haevy Studio: Ưu Đãi Tạo Giọng Đọc AI Voice (-33% Phí & Không Giới Hạn)',
     category: 'studio',
     tierRequired: 'vip',
-    shortDesc: 'Giảm 33% phí chuyển văn bản thành âm thanh AI (50 pts vs 75 pts)',
-    detailedBenefit: 'Đặc quyền tạo giọng đọc AI chất lượng cao & phối nhạc nền chỉ với 50 pts/lượt (tiết kiệm 25 Điểm Audio so với người dùng thường).',
+    shortDesc: 'Giảm 33% phí chuyển văn bản thành âm thanh AI (50 pts vs 75 pts) và hỗ trợ văn bản dài',
+    detailedBenefit: 'Đặc quyền tạo giọng đọc AI chất lượng cao & phối nhạc nền chỉ với 50 pts/lượt (tiết kiệm 25 Điểm Audio so với người dùng thường) không giới hạn độ dài văn bản.',
     iconName: 'Sparkles',
     badge: 'Studio 50 pts'
   },
   {
     id: 'studio_master_lossless_export',
-    title: 'Haevy Studio: Xuất Âm Thanh Studio Master Lossless 24-bit',
+    title: 'Haevy Studio: Xuất Âm Thanh Studio Master Lossless 24-bit / 96kHz',
     category: 'studio',
     tierRequired: 'vip',
-    shortDesc: 'Tải và xuất file audio chất lượng phòng thu 24-bit/96kHz',
-    detailedBenefit: 'Hỗ trợ xuất file âm thanh chất lượng cao chuẩn FLAC/WAV không nén, phù hợp sản xuất podcast, truyện audio và âm nhạc chuyên nghiệp.',
+    shortDesc: 'Tải và xuất file audio chất lượng phòng thu 24-bit/96kHz chuẩn FLAC/WAV',
+    detailedBenefit: 'Hỗ trợ xuất file âm thanh chất lượng cao chuẩn FLAC/WAV không nén, phục vụ sản xuất podcast, truyện audio và âm nhạc chuyên nghiệp.',
     iconName: 'Sliders',
     badge: 'Master 24-bit'
   },
   {
     id: 'studio_fast_track_queue',
-    title: 'Haevy Studio: Luồng Xử Lý AI Siêu Tốc Độ Ưu Tiên 1',
+    title: 'Haevy Studio: Luồng Xử Lý AI Siêu Tốc Độ Ưu Tiên 1 (Zero-Queue)',
     category: 'studio',
     tierRequired: 'vip',
-    shortDesc: 'Hàng chờ ưu tiên chuyển đổi giọng đọc AI chỉ dưới 2 giây',
+    shortDesc: 'Hàng chờ ưu tiên chuyển đổi giọng đọc AI chỉ dưới 2 giây trên cụm GPU riêng',
     detailedBenefit: 'Bỏ qua hàng chờ thông thường, tài khoản VIP được phân luồng trực tiếp đến cụm máy chủ GPU hiệu năng cao xử lý tức thì.',
     iconName: 'Zap',
     badge: 'Zero-Queue'
@@ -632,11 +311,75 @@ export const VIP_PRIVILEGES_LIST: VipPrivilegeItem[] = [
     badge: 'Ambient Pro'
   },
   {
+    id: 'studio_multi_track_vip',
+    title: 'Haevy Studio: Bộ Trộn Multi-Track & Lồng Tiếng Đa Tầng Không Giới Hạn',
+    category: 'studio',
+    tierRequired: 'vip',
+    shortDesc: 'Mix nhiều lớp âm thanh, lồng hiệu ứng FX và master chuyên nghiệp',
+    detailedBenefit: 'Hỗ trợ không giới hạn layer âm thanh trong một dự án, tích hợp bộ nén tiếng Compressor và Reverb phòng thu cao cấp.',
+    iconName: 'Sliders',
+    badge: 'Multi-Track'
+  },
+
+  // --- NHÓM 3: HAEVY MESSAGE (TIN NHẮN & KẾT NỐI BẠN BÈ) ---
+  {
+    id: 'messages_vip_avatar_glow',
+    title: 'Haevy Message: Khung Avatar VIP Golden Aura & Vương Miện Chat',
+    category: 'messages',
+    tierRequired: 'vip',
+    shortDesc: 'Hiệu ứng phát sáng vàng kim và biểu tượng VIP danh dự bên cạnh tên',
+    detailedBenefit: 'Tôn vinh vị thế thành viên VIP trong danh sách bạn bè, hội thoại trực tiếp và các phòng chat giao lưu âm nhạc.',
+    iconName: 'Crown',
+    badge: 'VIP Aura'
+  },
+  {
+    id: 'messages_lossless_voice',
+    title: 'Haevy Message: Tin Nhắn Thoại HD Lossless 320kbps Khử Tạp Âm',
+    category: 'messages',
+    tierRequired: 'vip',
+    shortDesc: 'Gửi tin nhắn âm thanh trong trẻo, khử tạp âm và không giới hạn độ dài',
+    detailedBenefit: 'Thu âm giọng nói rõ nét chuẩn 320kbps truyền tải trọn vẹn cảm xúc và giai điệu bài hát bạn muốn gửi tặng bạn bè.',
+    iconName: 'Headphones',
+    badge: 'HD Voice'
+  },
+  {
+    id: 'messages_listen_together',
+    title: 'Haevy Message: Cùng Nghe Nhạc Trực Tuyến Đồng Bộ (Listen Together)',
+    category: 'messages',
+    tierRequired: 'vip',
+    shortDesc: 'Nghe chung một bài hát cùng lúc với bạn bè thời gian thực trong khi nhắn tin',
+    detailedBenefit: 'Đồng bộ hóa thanh phát nhạc giữa 2 thiết bị thời gian thực với độ trễ 0ms, cùng cảm nhận giai điệu tuyệt hảo ở khoảng cách xa.',
+    iconName: 'Radio',
+    badge: 'Listen Together'
+  },
+  {
+    id: 'messages_animated_stickers',
+    title: 'Haevy Message: Trọn Bộ Nhãn Dán Động VIP & Emoji Hiệu Ứng 3D',
+    category: 'messages',
+    tierRequired: 'vip',
+    shortDesc: 'Hàng trăm sticker âm nhạc động vui nhộn và hiệu ứng quà tặng bùng nổ',
+    detailedBenefit: 'Mở khóa toàn bộ bộ sưu tập biểu cảm động độc quyền, gửi quà tặng kèm hiệu ứng bùng nổ ngay trong cửa sổ chat.',
+    iconName: 'Gift',
+    badge: 'VIP Stickers'
+  },
+  {
+    id: 'messages_cloud_history_pin',
+    title: 'Haevy Message: Ghim Tin Nhắn Quan Trọng & Lưu Trữ Đám Mây Vô Hạn',
+    category: 'messages',
+    tierRequired: 'vip',
+    shortDesc: 'Tìm kiếm lại toàn bộ lịch sử trò chuyện và ghim tin nhắn yêu thích',
+    detailedBenefit: 'Không bao giờ mất tin nhắn quan trọng, tự động đồng bộ hóa trên tất cả các thiết bị cá nhân của bạn.',
+    iconName: 'ShieldCheck',
+    badge: 'Cloud Chat'
+  },
+
+  // --- NHÓM 4: I LOVE HAEVY (KHÔNG GIAN HẸN HÒ & TÌNH YÊU ĐÔI) ---
+  {
     id: 'couple_themes_vip',
     title: 'I Love Haevy: Mở Khóa Toàn Bộ Theme Lãng Mạn VIP Độc Quyền',
     category: 'couple',
     tierRequired: 'vip',
-    shortDesc: 'Đêm Sao Thiên Hà, Anh Đào Nhật Bản, Hoàng Hôn Tình Yêu & Hoa Hồng',
+    shortDesc: 'Đêm Sao Thiên Hà, Anh Đào Nhật Bản, Hoàng Hôn Tình Yêu & Vườn Hồng Hoàng Gia',
     detailedBenefit: 'Đổi mới không gian hẹn hò với 4 bộ giao diện cao cấp có hoạt cảnh chuyển động, màu sắc lung linh và hiệu ứng ánh sáng gradient.',
     iconName: 'Sparkles',
     badge: 'VIP Themes'
@@ -682,94 +425,96 @@ export const VIP_PRIVILEGES_LIST: VipPrivilegeItem[] = [
     badge: 'Golden Love'
   },
   {
-    id: 'messages_vip_avatar_glow',
-    title: 'Haevy Message: Khung Avatar VIP Golden Aura & Vương Miện Chat',
-    category: 'messages',
+    id: 'couple_shared_playlist_sync',
+    title: 'I Love Haevy: Danh Sách Phát Tình Yêu Chung & Ghi Chú Đôi',
+    category: 'couple',
     tierRequired: 'vip',
-    shortDesc: 'Hiệu ứng phát sáng vàng kim và biểu tượng VIP danh dự bên cạnh tên',
-    detailedBenefit: 'Tôn vinh vị thế thành viên VIP trong danh sách bạn bè, hội thoại trực tiếp và các phòng chat giao lưu âm nhạc.',
-    iconName: 'Crown',
-    badge: 'VIP Aura'
+    shortDesc: 'Cùng nhau tạo danh sách bài hát kỷ niệm và viết nhật ký cảm xúc theo từng ca khúc',
+    detailedBenefit: 'Playlist tình yêu được đồng bộ tự động giữa 2 người, hỗ trợ ghim bài hát đại diện và nhắc nhở nghe chung mỗi tối.',
+    iconName: 'Heart',
+    badge: 'Love Playlist'
+  },
+
+  // --- NHÓM 5: CHẤT LƯỢNG ÂM THANH & PHÁT NHẠC ĐỈNH CAO ---
+  {
+    id: 'hifi_sound',
+    title: 'Âm Thanh Studio Master Lossless 24-bit / 96kHz',
+    category: 'audio',
+    tierRequired: 'vip',
+    shortDesc: 'Độ phân giải siêu cao gấp 6 lần chuẩn thường, chi tiết trung thực',
+    detailedBenefit: 'Tận hưởng từng dải âm trầm sâu lắng, âm trung trong trẻo và âm cao tách bạch với chuẩn nén FLAC không suy hao.',
+    iconName: 'Sparkles',
+    badge: 'Lossless 24-bit'
   },
   {
-    id: 'messages_lossless_voice',
-    title: 'Haevy Message: Tin Nhắn Thoại HD Lossless Phòng Thu',
-    category: 'messages',
+    id: 'spatial_3d',
+    title: 'Không Gian Âm Nhạc Vòm Spatial 3D Audio 360°',
+    category: 'audio',
     tierRequired: 'vip',
-    shortDesc: 'Gửi tin nhắn âm thanh trong trẻo, khử tạp âm và không giới hạn độ dài',
-    detailedBenefit: 'Thu âm giọng nói rõ nét chuẩn 320kbps truyền tải trọn vẹn cảm xúc và giai điệu bài hát bạn muốn gửi tặng bạn bè.',
+    shortDesc: 'Mô phỏng âm thanh 360 độ như đang ở rạp hát thính phòng',
+    detailedBenefit: 'Công nghệ định vị hướng âm thanh vòm 3 chiều độc quyền, tăng cảm giác sống động và chân thực khi đeo tai nghe.',
     iconName: 'Headphones',
-    badge: 'HD Voice'
+    badge: '3D Surround'
   },
   {
-    id: 'messages_listen_together',
-    title: 'Haevy Message: Cùng Nghe Nhạc Trực Tuyến Đồng Bộ (Listen Together)',
-    category: 'messages',
+    id: 'equalizer_pro',
+    title: 'Equalizer Chuyên Nghiệp 10 Băng Tần & 6 Preset Dolby',
+    category: 'audio',
     tierRequired: 'vip',
-    shortDesc: 'Nghe chung một bài hát cùng lúc với bạn bè trong khi nhắn tin',
-    detailedBenefit: 'Đồng bộ hóa thanh phát nhạc giữa 2 thiết bị thời gian thực, cùng cảm nhận giai điệu tuyệt hảo ở khoảng cách xa.',
-    iconName: 'Radio',
-    badge: 'Listen Together'
+    shortDesc: 'Tùy biến âm bass, vocal, acoustic, cinema sống động',
+    detailedBenefit: 'Tự do tinh chỉnh dải tần từ 31Hz đến 16kHz với 6 chế độ căn chỉnh âm thanh chuyên nghiệp chuẩn rạp hát phòng thu.',
+    iconName: 'Sliders',
+    badge: 'Equalizer Pro'
   },
   {
-    id: 'messages_animated_stickers',
-    title: 'Haevy Message: Trọn Bộ Nhãn Dán Động VIP & Emoji Độc Quyền',
-    category: 'messages',
-    tierRequired: 'vip',
-    shortDesc: 'Hàng trăm sticker âm nhạc động vui nhộn và pháo hoa chúc mừng',
-    detailedBenefit: 'Mở khóa toàn bộ bộ sưu tập biểu cảm động độc quyền, gửi quà tặng kèm hiệu ứng bùng nổ ngay trong cửa sổ chat.',
-    iconName: 'Gift',
-    badge: 'VIP Stickers'
-  },
-  {
-    id: 'messages_cloud_history_pin',
-    title: 'Haevy Message: Ghim Tin Nhắn Quan Trọng & Lưu Trữ Đám Mây Vô Hạn',
-    category: 'messages',
-    tierRequired: 'vip',
-    shortDesc: 'Tìm kiếm lại toàn bộ lịch sử trò chuyện và ghim tin nhắn yêu thích',
-    detailedBenefit: 'Không bao giờ mất tin nhắn quan trọng, tự động đồng bộ hóa trên tất cả các thiết bị cá nhân của bạn.',
-    iconName: 'ShieldCheck',
-    badge: 'Cloud Chat'
-  },
-  {
-    id: 'early_access',
-    title: 'Quyền Nghe Sớm Bản Thu & Album Mới Trước 7 Ngày',
-    category: 'exclusives',
-    tierRequired: 'vip',
-    shortDesc: 'Truy cập kho nhạc độc quyền từ các nghệ sĩ danh tiếng',
-    detailedBenefit: 'Trở thành những người đầu tiên thưởng thức các ca khúc, album và podcast độc quyền trước khi phát hành đại chúng.',
-    iconName: 'Radio',
-    badge: 'Early Access'
-  },
-  {
-    id: 'exclusive_vip_radio',
-    title: 'Kênh Radio Độc Quyền VIP 24/7 & Master Playlists',
-    category: 'exclusives',
-    tierRequired: 'vip',
-    shortDesc: 'Đài phát thanh tuyển chọn không giới hạn bởi chuyên gia',
-    detailedBenefit: 'Thưởng thức các luồng radio trực tuyến chuẩn Lossless theo tâm trạng: Deep Focus, Acoustic Coffee, Lofi Midnight và EDM Energy.',
-    iconName: 'Headphones',
-    badge: 'Master Radio'
-  },
-  {
-    id: 'cloud_library_unlimited',
-    title: 'Lưu Trữ Danh Sách Phát & Thư Viện Đám Mây Vô Hạn',
+    id: 'unlimited_download',
+    title: 'Tải Nhạc Offline Không Giới Hạn Chuẩn Lossless',
     category: 'downloads',
     tierRequired: 'vip',
-    shortDesc: 'Tạo hàng trăm Playlist và tự động sao lưu an toàn',
-    detailedBenefit: 'Không giới hạn số lượng bài hát trong danh sách yêu thích, đồng bộ tức thì trên mọi thiết bị bạn đăng nhập.',
+    shortDesc: 'Lưu bài hát trực tiếp vào máy nghe không cần mạng 4G/Wifi',
+    detailedBenefit: 'Tải trọn vẹn danh sách phát yêu thích chuẩn Lossless, nghe mượt mà ngay cả khi trên máy bay hay không có 4G/Wifi.',
     iconName: 'Download',
-    badge: 'Cloud Sync'
+    badge: 'Offline'
   },
   {
-    id: 'dedicated_server',
-    title: 'Băng Thông Riêng Zero-Latency Không Giật Lag',
-    category: 'downloads',
+    id: 'ad_free',
+    title: 'Trải Nghiệm 100% Không Quảng Cáo & Phát Nhạc Khi Tắt Màn Hình',
+    category: 'playback',
     tierRequired: 'vip',
-    shortDesc: 'Kết nối đường truyền CDN siêu tốc độ độ trễ 0ms',
-    detailedBenefit: 'Hệ thống phân luồng máy chủ siêu tốc riêng biệt, bảo đảm phát nhạc tức thì không phải chờ tải bộ đệm ngay cả giờ cao điểm.',
-    iconName: 'ShieldCheck',
-    badge: 'Dedicated CDN'
+    shortDesc: 'Phát nhạc liên tục khi khóa màn hình hoặc chuyển ứng dụng khác',
+    detailedBenefit: 'Không bao giờ bị làm phiền bởi quảng cáo gián đoạn cảm xúc, tiết kiệm pin tối đa khi phát ngầm trên thiết bị di động.',
+    iconName: 'Zap',
+    badge: 'No Ads'
+  },
+  {
+    id: 'crossfade_seamless',
+    title: 'Âm Nhạc Liền Mạch Crossfade & Gapless Playback Chuẩn DJ',
+    category: 'playback',
+    tierRequired: 'vip',
+    shortDesc: 'Chuyển bài mượt mà 0 - 12 giây như tại Club/DJ Studio',
+    detailedBenefit: 'Hòa quyện phần đuôi ca khúc trước và phần đầu ca khúc sau liền mạch không ngắt quãng, duy trì nhịp đập cảm xúc.',
+    iconName: 'Flame',
+    badge: 'Seamless DJ'
+  },
+  {
+    id: 'karaoke_lyrics_sync',
+    title: 'Chế Độ Karaoke Studio & Đồng Bộ Lời Bài Hát Thời Gian Thực',
+    category: 'audio',
+    tierRequired: 'vip',
+    shortDesc: 'Hiển thị lời chạy mượt mà từng giây và tính năng tách vocal',
+    detailedBenefit: 'Trải nghiệm hát theo nhạc với hiệu ứng karaoke chạy chữ nhấp nháy, hỗ trợ luyện giọng và thu âm tại gia.',
+    iconName: 'Sparkles',
+    badge: 'Karaoke Studio'
+  },
+  {
+    id: 'vip_exclusive_themes',
+    title: 'Kho Giao Diện Cá Nhân Hóa VIP (Royal, Cyber Neon, Luxury)',
+    category: 'social',
+    tierRequired: 'vip',
+    shortDesc: 'Tùy biến không gian âm nhạc theo phong cách hoàng gia riêng',
+    detailedBenefit: 'Chuyển đổi giao diện độc quyền: Hoàng Gia Gold, Cyberpunk Neon, Thạch Anh Tím và Ngọc Lục Bảo Quý Phái.',
+    iconName: 'Sparkles',
+    badge: 'Themes'
   }
 ];
 

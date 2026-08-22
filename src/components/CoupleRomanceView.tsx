@@ -11,7 +11,15 @@ import {
   Sparkles, 
   AlertCircle, 
   Loader2,
-  Share2
+  Share2,
+  Droplets,
+  BookOpen,
+  Lock,
+  KeyRound,
+  RefreshCw,
+  Copy,
+  Check,
+  Trash2
 } from 'lucide-react';
 import { 
   Track, 
@@ -23,6 +31,9 @@ import {
   CoupleVoiceMoment, 
   CoupleMemory,
   CoupleEvent,
+  CouplePeriodCycleConfig,
+  CouplePeriodLog,
+  CoupleDiary,
   CustomQuizOption,
   LoveCardCategory
 } from '../types';
@@ -50,6 +61,9 @@ import {
 } from './couple/RomanticHeroHeader';
 import { AnniversaryDaysWidget } from './couple/AnniversaryDaysWidget';
 import { AnniversaryTab } from './couple/AnniversaryTab';
+import { PeriodTrackerTab } from './couple/PeriodTrackerTab';
+import { CoupleCalendarTab } from './couple/CoupleCalendarTab';
+import { CoupleDiaryTab } from './couple/CoupleDiaryTab';
 import { QuizzesTab } from './couple/QuizzesTab';
 import { LoveCardsTab } from './couple/LoveCardsTab';
 import { VoiceMomentsTab } from './couple/VoiceMomentsTab';
@@ -93,6 +107,16 @@ const PRESET_LOVE_CARDS: { category: LoveCardCategory; promptText: string }[] = 
   }
 ];
 
+// Helper to generate unique system pair code e.g. "HV-74921X"
+const generateSystemPairCode = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let randomPart = '';
+  for (let i = 0; i < 6; i++) {
+    randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `HV-${randomPart}`;
+};
+
 interface CoupleRomanceViewProps {
   allTracks?: Track[];
   tracks?: Track[];
@@ -101,8 +125,8 @@ interface CoupleRomanceViewProps {
   isPlaying?: boolean;
   onOpenAuth: () => void;
   onOpenGiftShop?: (author?: { uid: string; stageName: string; trackTitle?: string; trackId?: string }) => void;
-  activePage?: 'page1' | 'page2' | 'page3';
-  onSelectPage?: (page: 'page1' | 'page2' | 'page3') => void;
+  activePage?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
+  onSelectPage?: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
 }
 
 export function CoupleRomanceView({
@@ -119,20 +143,17 @@ export function CoupleRomanceView({
   const effectiveTracks = allTracks || tracks || [];
   const { user, accountId } = useAuth();
 
-  // Active Main 3-Page System
-  const [localPage, setLocalPage] = useState<'page1' | 'page2' | 'page3'>('page1');
+  // Active Main 5-Page System
+  const [localPage, setLocalPage] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
   const currentPage = activePage || localPage;
 
-  const handleSetPage = (p: 'page1' | 'page2' | 'page3') => {
+  const handleSetPage = (p: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => {
     setLocalPage(p);
     if (onSelectPage) onSelectPage(p);
   };
 
-  // Sub-tabs for Page 2 (Events / Quizzes / Cards)
-  const [page2SubTab, setPage2SubTab] = useState<'events' | 'quizzes' | 'cards'>('events');
-
-  // Sub-tabs for Page 3 (Voice Promises / Photo Gallery)
-  const [page3SubTab, setPage3SubTab] = useState<'voice' | 'gallery'>('voice');
+  // Sub-tabs for Page 5 (Kỷ Niệm & Trò Chơi: Quizzes / Cards / Voice / Gallery)
+  const [page5SubTab, setPage5SubTab] = useState<'quizzes' | 'cards' | 'voice' | 'gallery'>('quizzes');
 
   // Couple Data Realtime
   const [couple, setCouple] = useState<CoupleData | null>(null);
@@ -143,7 +164,12 @@ export function CoupleRomanceView({
 
   // Unpaired / Setup Form States
   const [setupMode, setSetupMode] = useState<'create' | 'join'>('create');
-  const [customPairCode, setCustomPairCode] = useState('');
+  const [systemGeneratedCode, setSystemGeneratedCode] = useState<string>(() => generateSystemPairCode());
+  const [createPasscode, setCreatePasscode] = useState('');
+  const [joinPairCode, setJoinPairCode] = useState('');
+  const [joinPasscode, setJoinPasscode] = useState('');
+  const [copiedGeneratedCode, setCopiedGeneratedCode] = useState(false);
+
   const [partnerIdentifier, setPartnerIdentifier] = useState('');
   const [relationshipType, setRelationshipType] = useState<CoupleRelationshipType>('dating');
   const [anniversaryDate, setAnniversaryDate] = useState(() => {
@@ -165,9 +191,22 @@ export function CoupleRomanceView({
   const [voiceMoments, setVoiceMoments] = useState<CoupleVoiceMoment[]>([]);
   const [memories, setMemories] = useState<CoupleMemory[]>([]);
   const [coupleEvents, setCoupleEvents] = useState<CoupleEvent[]>([]);
+  const [periodLogs, setPeriodLogs] = useState<CouplePeriodLog[]>([]);
+  const [diaries, setDiaries] = useState<CoupleDiary[]>([]);
 
   // Quick Love Ping Floating Toast / Animation
   const [activeLovePingNotification, setActiveLovePingNotification] = useState<string | null>(null);
+
+  // Regenerate system code
+  const handleRegenerateCode = () => {
+    setSystemGeneratedCode(generateSystemPairCode());
+  };
+
+  const handleCopyGeneratedCode = () => {
+    navigator.clipboard.writeText(systemGeneratedCode);
+    setCopiedGeneratedCode(true);
+    setTimeout(() => setCopiedGeneratedCode(false), 2500);
+  };
 
   // Listen to user's Couple space in Firestore
   useEffect(() => {
@@ -184,19 +223,32 @@ export function CoupleRomanceView({
     const unsub1 = onSnapshot(q1, (snap1) => {
       if (!snap1.empty) {
         const docData = snap1.docs[0].data() as CoupleData;
-        setCouple({ ...docData, id: snap1.docs[0].id });
-        setLoadingCouple(false);
-      } else {
-        getDocs(q2).then((snap2) => {
-          if (!snap2.empty) {
-            const docData = snap2.docs[0].data() as CoupleData;
+        if (docData.status !== 'cancelled') {
+          setCouple({ ...docData, id: snap1.docs[0].id });
+          setLoadingCouple(false);
+          return;
+        }
+      }
+      
+      getDocs(q2).then((snap2) => {
+        if (!snap2.empty) {
+          const docData = snap2.docs[0].data() as CoupleData;
+          if (docData.status !== 'cancelled') {
             setCouple({ ...docData, id: snap2.docs[0].id });
           } else {
             setCouple(null);
           }
-          setLoadingCouple(false);
-        });
-      }
+        } else {
+          setCouple(null);
+        }
+        setLoadingCouple(false);
+      }).catch((e) => {
+        console.warn('Error fetching couple partner2:', e);
+        setLoadingCouple(false);
+      });
+    }, (err) => {
+      console.warn('Couple listener q1 warning:', err);
+      setLoadingCouple(false);
     });
 
     // Check for incoming invitations by accountId or pairCode
@@ -210,29 +262,33 @@ export function CoupleRomanceView({
         const data = d.data() as CoupleData;
         if (
           data.partner1.uid !== user.uid && 
-          (data.partner2?.uid === user.uid || data.partner2?.accountId === accountId || data.pairCode === customPairCode)
+          (data.partner2?.uid === user.uid || data.partner2?.accountId === accountId)
         ) {
           list.push({ ...data, id: d.id });
         }
       });
       setInvitations(list);
+    }, (err) => {
+      console.warn('Invitations listener warning:', err);
     });
 
     return () => {
       unsub1();
       unsubInvites();
     };
-  }, [user, accountId, customPairCode]);
+  }, [user, accountId]);
 
   // Listen to subcollections when couple is active
   useEffect(() => {
-    if (!couple || !couple.id) {
+    if (!couple || !couple.id || couple.status === 'cancelled') {
       setAnniversaryGuesses([]);
       setCustomQuizzes([]);
       setLoveCards([]);
       setVoiceMoments([]);
       setMemories([]);
       setCoupleEvents([]);
+      setPeriodLogs([]);
+      setDiaries([]);
       return;
     }
 
@@ -244,7 +300,8 @@ export function CoupleRomanceView({
       (snap) => {
         const list: CoupleAnniversaryGuess[] = snap.docs.map(d => ({ ...d.data(), id: d.id } as CoupleAnniversaryGuess));
         setAnniversaryGuesses(list);
-      }
+      },
+      (err) => console.warn('anniversaryGuesses listener warning:', err)
     );
 
     // 2. Custom Quizzes
@@ -253,7 +310,8 @@ export function CoupleRomanceView({
       (snap) => {
         const list: CoupleCustomQuiz[] = snap.docs.map(d => ({ ...d.data(), id: d.id } as CoupleCustomQuiz));
         setCustomQuizzes(list);
-      }
+      },
+      (err) => console.warn('customQuizzes listener warning:', err)
     );
 
     // 3. Love Cards
@@ -262,7 +320,8 @@ export function CoupleRomanceView({
       (snap) => {
         const list: CoupleLoveCard[] = snap.docs.map(d => ({ ...d.data(), id: d.id } as CoupleLoveCard));
         setLoveCards(list);
-      }
+      },
+      (err) => console.warn('loveCards listener warning:', err)
     );
 
     // 4. Voice Moments
@@ -271,7 +330,8 @@ export function CoupleRomanceView({
       (snap) => {
         const list: CoupleVoiceMoment[] = snap.docs.map(d => ({ ...d.data(), id: d.id } as CoupleVoiceMoment));
         setVoiceMoments(list);
-      }
+      },
+      (err) => console.warn('voiceMoments listener warning:', err)
     );
 
     // 5. Memories
@@ -280,7 +340,8 @@ export function CoupleRomanceView({
       (snap) => {
         const list: CoupleMemory[] = snap.docs.map(d => ({ ...d.data(), id: d.id } as CoupleMemory));
         setMemories(list);
-      }
+      },
+      (err) => console.warn('memories listener warning:', err)
     );
 
     // 6. Custom Events
@@ -289,7 +350,28 @@ export function CoupleRomanceView({
       (snap) => {
         const list: CoupleEvent[] = snap.docs.map(d => ({ ...d.data(), id: d.id } as CoupleEvent));
         setCoupleEvents(list);
-      }
+      },
+      (err) => console.warn('events listener warning:', err)
+    );
+
+    // 7. Period Logs
+    const unsubPeriods = onSnapshot(
+      query(collection(db, 'couples', coupleId, 'periodLogs'), orderBy('startDate', 'desc')),
+      (snap) => {
+        const list: CouplePeriodLog[] = snap.docs.map(d => ({ ...d.data(), id: d.id } as CouplePeriodLog));
+        setPeriodLogs(list);
+      },
+      (err) => console.warn('periodLogs listener warning:', err)
+    );
+
+    // 8. Diaries
+    const unsubDiaries = onSnapshot(
+      query(collection(db, 'couples', coupleId, 'diaries'), orderBy('date', 'desc')),
+      (snap) => {
+        const list: CoupleDiary[] = snap.docs.map(d => ({ ...d.data(), id: d.id } as CoupleDiary));
+        setDiaries(list);
+      },
+      (err) => console.warn('diaries listener warning:', err)
     );
 
     return () => {
@@ -299,10 +381,12 @@ export function CoupleRomanceView({
       unsubVoices();
       unsubMemories();
       unsubEvents();
+      unsubPeriods();
+      unsubDiaries();
     };
-  }, [couple?.id]);
+  }, [couple?.id, couple?.status]);
 
-  // Handle Creating Couple Space
+  // Handle Creating Couple Space (System-generated Pair Code + Creator Passcode)
   const handleCreateCouple = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -310,16 +394,22 @@ export function CoupleRomanceView({
       return;
     }
 
+    if (!createPasscode.trim()) {
+      setFormError('Vui lòng thiết lập Mật khẩu phòng đôi để bảo vệ không gian của bạn!');
+      return;
+    }
+
     setFormLoading(true);
     setFormError(null);
 
     try {
-      const generatedCode = customPairCode.trim().toUpperCase() || `LOVE${Math.floor(1000 + Math.random() * 9000)}`;
+      const generatedCode = systemGeneratedCode.trim().toUpperCase();
       const coupleDocRef = doc(collection(db, 'couples'));
 
       const newCouple: Partial<CoupleData> = {
         id: coupleDocRef.id,
         pairCode: generatedCode,
+        passcode: createPasscode.trim(),
         partner1: {
           uid: user.uid,
           name: user.displayName || 'Bạn',
@@ -335,6 +425,11 @@ export function CoupleRomanceView({
         theme: 'rose_romance',
         lovePoints: 100, // initial bonus
         sharedSongIds: (effectiveTracks || []).slice(0, 3).map(t => t.id),
+        cycleConfig: {
+          lastPeriodStartDate: anniversaryDate,
+          cycleLengthDays: 28,
+          periodDurationDays: 5
+        },
         createdAt: serverTimestamp(),
       };
 
@@ -370,7 +465,7 @@ export function CoupleRomanceView({
     }
   };
 
-  // Handle Joining by Code
+  // Handle Joining by System-generated Code & Creator-provided Passcode
   const handleJoinCouple = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -378,8 +473,13 @@ export function CoupleRomanceView({
       return;
     }
 
-    if (!customPairCode.trim()) {
-      setFormError('Vui lòng nhập mã ghép đôi 6 ký tự!');
+    if (!joinPairCode.trim()) {
+      setFormError('Vui lòng nhập Mã mời do hệ thống cấp!');
+      return;
+    }
+
+    if (!joinPasscode.trim()) {
+      setFormError('Vui lòng nhập Mật khẩu do người tạo phòng cung cấp!');
       return;
     }
 
@@ -389,12 +489,12 @@ export function CoupleRomanceView({
     try {
       const q = query(
         collection(db, 'couples'),
-        where('pairCode', '==', customPairCode.trim().toUpperCase())
+        where('pairCode', '==', joinPairCode.trim().toUpperCase())
       );
       const snap = await getDocs(q);
 
       if (snap.empty) {
-        setFormError('Không tìm thấy không gian cặp đôi với mã này. Hãy kiểm tra lại!');
+        setFormError('Không tìm thấy không gian cặp đôi với mã mời này. Hãy kiểm tra lại!');
         setFormLoading(false);
         return;
       }
@@ -402,8 +502,21 @@ export function CoupleRomanceView({
       const coupleDoc = snap.docs[0];
       const data = coupleDoc.data() as CoupleData;
 
+      if (data.status === 'cancelled') {
+        setFormError('Không gian đôi này đã bị hủy hoặc không còn tồn tại.');
+        setFormLoading(false);
+        return;
+      }
+
       if (data.partner1.uid === user.uid) {
         setFormError('Đây là mã phòng do chính bạn tạo.');
+        setFormLoading(false);
+        return;
+      }
+
+      // Check Passcode Security
+      if (data.passcode && data.passcode !== joinPasscode.trim()) {
+        setFormError('Mật khẩu phòng đôi không chính xác! Hãy hỏi người tạo để nhận mật khẩu phòng.');
         setFormLoading(false);
         return;
       }
@@ -496,7 +609,41 @@ export function CoupleRomanceView({
     }
   };
 
-  // 1. Anniversary Guesses & Custom Events Handlers
+  // 1. Period Tracker Handlers
+  const handleUpdateCycleConfig = async (config: CouplePeriodCycleConfig) => {
+    if (!couple) return;
+    await updateDoc(doc(db, 'couples', couple.id), {
+      cycleConfig: config,
+      updatedAt: serverTimestamp()
+    });
+    setCouple({ ...couple, cycleConfig: config });
+  };
+
+  const handleAddPeriodLog = async (logData: Omit<CouplePeriodLog, 'id' | 'coupleId' | 'createdAt'>) => {
+    if (!couple || !user) return;
+    const ref = collection(db, 'couples', couple.id, 'periodLogs');
+    await addDoc(ref, {
+      ...logData,
+      coupleId: couple.id,
+      createdAt: serverTimestamp()
+    });
+
+    await updateDoc(doc(db, 'couples', couple.id), {
+      lovePoints: (couple.lovePoints || 0) + 15
+    });
+  };
+
+  const handleSendBoyfriendCarePing = async (careType: string, customMessage?: string) => {
+    if (!couple) return;
+    setActiveLovePingNotification(customMessage || '🧸 Đã gửi sự quan tâm ấm áp tới bạn gái! (+10đ)');
+    setTimeout(() => setActiveLovePingNotification(null), 4000);
+
+    await updateDoc(doc(db, 'couples', couple.id), {
+      lovePoints: (couple.lovePoints || 0) + 10
+    });
+  };
+
+  // 2. Custom Events & Calendar Handlers
   const handleCreateCustomEvent = async (
     title: string, 
     targetDate: string, 
@@ -540,6 +687,94 @@ export function CoupleRomanceView({
     await deleteDoc(doc(db, 'couples', couple.id, 'events', eventId));
   };
 
+  // 3. Couple Shared Diary Handlers
+  const handleCreateDiary = async (
+    title: string, 
+    content: string, 
+    date: string, 
+    mood: string, 
+    weather: string, 
+    photoUrl?: string, 
+    trackId?: string
+  ) => {
+    if (!couple || !user) return;
+    const isPartner1 = couple.partner1.uid === user.uid;
+    const myNick = isPartner1 ? couple.partner1.nickname : couple.partner2?.nickname;
+    const attachedTrack = trackId ? effectiveTracks.find(t => t.id === trackId) : undefined;
+
+    const ref = collection(db, 'couples', couple.id, 'diaries');
+    await addDoc(ref, {
+      coupleId: couple.id,
+      authorUid: user.uid,
+      authorName: user.displayName || 'Người Thương',
+      authorNickname: myNick || undefined,
+      authorPhoto: user.photoURL || undefined,
+      title,
+      content,
+      date,
+      mood,
+      weather,
+      photoUrls: photoUrl ? [photoUrl] : [],
+      audioTrackId: trackId || undefined,
+      audioTrackTitle: attachedTrack?.title,
+      audioTrackArtist: attachedTrack?.artist,
+      reactions: {},
+      comments: [],
+      createdAt: serverTimestamp()
+    });
+
+    await updateDoc(doc(db, 'couples', couple.id), {
+      lovePoints: (couple.lovePoints || 0) + 25
+    });
+  };
+
+  const handleDeleteDiary = async (diaryId: string) => {
+    if (!couple) return;
+    await deleteDoc(doc(db, 'couples', couple.id, 'diaries', diaryId));
+  };
+
+  const handleAddDiaryComment = async (diaryId: string, text: string) => {
+    if (!couple || !user) return;
+    const targetDiary = diaries.find(d => d.id === diaryId);
+    if (!targetDiary) return;
+
+    const isPartner1 = couple.partner1.uid === user.uid;
+    const myNick = isPartner1 ? couple.partner1.nickname : couple.partner2?.nickname;
+
+    const newComment = {
+      id: `comment-${Date.now()}`,
+      authorUid: user.uid,
+      authorName: user.displayName || 'Người Thương',
+      authorNickname: myNick,
+      authorPhoto: user.photoURL || undefined,
+      text,
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedComments = [...(targetDiary.comments || []), newComment];
+    await updateDoc(doc(db, 'couples', couple.id, 'diaries', diaryId), {
+      comments: updatedComments
+    });
+  };
+
+  const handleToggleDiaryReaction = async (diaryId: string, emoji: string) => {
+    if (!couple || !user) return;
+    const targetDiary = diaries.find(d => d.id === diaryId);
+    if (!targetDiary) return;
+
+    const currentReactions = { ...(targetDiary.reactions || {}) };
+    if (currentReactions[user.uid] === emoji) {
+      delete currentReactions[user.uid];
+    } else {
+      currentReactions[user.uid] = emoji;
+    }
+
+    await updateDoc(doc(db, 'couples', couple.id, 'diaries', diaryId), {
+      reactions: currentReactions
+    });
+  };
+
+  // 4. Anniversary Guesses Handlers
   const handleCreateGuess = async (title: string, actualDate: string, hint: string) => {
     if (!couple || !user) return;
     const ref = collection(db, 'couples', couple.id, 'anniversaryGuesses');
@@ -591,7 +826,7 @@ export function CoupleRomanceView({
     });
   };
 
-  // 2. Custom Quizzes Handlers
+  // 5. Custom Quizzes Handlers
   const handleCreateQuiz = async (question: string, options: CustomQuizOption[], explanation: string, sweetReward: string) => {
     if (!couple || !user) return;
     const ref = collection(db, 'couples', couple.id, 'customQuizzes');
@@ -626,7 +861,7 @@ export function CoupleRomanceView({
     }
   };
 
-  // 3. Love Cards Handlers
+  // 6. Love Cards Handlers
   const handleDrawLoveCard = async (category: LoveCardCategory) => {
     if (!couple) return;
     const matching = PRESET_LOVE_CARDS.filter(c => c.category === category);
@@ -676,7 +911,7 @@ export function CoupleRomanceView({
     });
   };
 
-  // 4. Voice Moments Handlers
+  // 7. Voice Moments Handlers
   const handleSaveVoiceMoment = async (title: string, audioBlob: Blob | null, audioUrl: string, durationSec: number, type: any, note: string) => {
     if (!couple || !user) return;
 
@@ -710,7 +945,7 @@ export function CoupleRomanceView({
     });
   };
 
-  // 5. Shared Memory & Songs Handlers
+  // 8. Shared Memory & Songs Handlers
   const handleCreateMemory = async (title: string, photoUrl: string, date: string, location: string, desc: string) => {
     if (!couple || !user) return;
     const ref = collection(db, 'couples', couple.id, 'memories');
@@ -771,6 +1006,28 @@ export function CoupleRomanceView({
     setIsSettingsOpen(false);
   };
 
+  // 9. DELETE RELATIONSHIP TO START A NEW ONE (Xoá mối quan hệ để sang mối quan hệ mới)
+  const handleDeleteRelationship = async () => {
+    if (!couple) return;
+    try {
+      await deleteDoc(doc(db, 'couples', couple.id));
+      setCouple(null);
+      setIsSettingsOpen(false);
+      setSystemGeneratedCode(generateSystemPairCode());
+      setCreatePasscode('');
+      setJoinPairCode('');
+      setJoinPasscode('');
+    } catch (err) {
+      console.error('Error deleting relationship:', err);
+      // Fallback update status
+      await updateDoc(doc(db, 'couples', couple.id), {
+        status: 'cancelled'
+      });
+      setCouple(null);
+      setIsSettingsOpen(false);
+    }
+  };
+
   // Loading state
   if (loadingCouple) {
     return (
@@ -804,7 +1061,7 @@ export function CoupleRomanceView({
               Không Gian Tình Yêu <span className="bg-gradient-to-r from-rose-400 via-pink-400 to-amber-300 bg-clip-text text-transparent">I Love Haevy</span>
             </h1>
             <p className="text-zinc-300 text-xs sm:text-base leading-relaxed">
-              Kết nối hai trái tim với đồng hồ kỷ niệm đếm ngày yêu/cưới, trắc nghiệm thấu hiểu tùy chuẩn, thẻ bài tình yêu, ghi âm lời hứa và album kỷ niệm chung.
+              Kết nối hai trái tim với mã mời hệ thống bảo mật bằng mật khẩu, theo dõi chu kỳ kinh nguyệt bạn gái, lịch hẹn hò đôi, nhật ký tình yêu chung và trò chơi thấu hiểu.
             </p>
           </div>
 
@@ -850,7 +1107,7 @@ export function CoupleRomanceView({
                 setupMode === 'join' ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-md' : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Nhập Mã Ghép
+              Gia Nhập Phòng
             </button>
           </div>
         </div>
@@ -866,6 +1123,60 @@ export function CoupleRomanceView({
 
           {setupMode === 'create' ? (
             <form onSubmit={handleCreateCouple} className="space-y-3.5 sm:space-y-5">
+              {/* 1. System-generated Pair Code Card */}
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-zinc-950 border border-rose-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] uppercase font-black text-rose-400 tracking-wider">
+                      Mã Mời Phòng Đôi (Hệ thống tự động cấp)
+                    </span>
+                    <div className="text-base sm:text-xl font-mono font-black text-white tracking-widest">
+                      {systemGeneratedCode}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleRegenerateCode}
+                      className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 transition-all cursor-pointer"
+                      title="Đổi mã khác"
+                    >
+                      <RefreshCw size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopyGeneratedCode}
+                      className="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      {copiedGeneratedCode ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      <span>{copiedGeneratedCode ? 'Đã Chép' : 'Sao Chép'}</span>
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-zinc-500">
+                  *Mã mời được tạo ngẫu nhiên bảo mật bởi hệ thống. Bạn chỉ cần gửi mã này và mật khẩu bên dưới cho người yêu.
+                </p>
+              </div>
+
+              {/* 2. Creator Passcode Field (Required) */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-zinc-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-rose-300">
+                    <Lock size={13} />
+                    <span>Mật Khẩu Phòng Đôi (Do bạn tự đặt) *</span>
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-normal">Cần cung cấp cho đối phương</span>
+                </label>
+                <input
+                  type="text"
+                  value={createPasscode}
+                  onChange={(e) => setCreatePasscode(e.target.value)}
+                  placeholder="VD: 123456, emyeuanh, ngayhenho..."
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-rose-500 rounded-xl sm:rounded-2xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white placeholder-zinc-600 outline-none"
+                  required
+                />
+              </div>
+
               <div className="space-y-1">
                 <label className="text-xs font-bold text-zinc-300">Tên Không Gian / Gia Đình</label>
                 <input
@@ -939,37 +1250,9 @@ export function CoupleRomanceView({
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-300">Mã Ghép Đôi Tùy Chỉnh (Tùy chọn)</label>
-                  <span className="text-[10px] text-zinc-500">Để trống để tạo tự động</span>
-                </div>
-                <input
-                  type="text"
-                  value={customPairCode}
-                  onChange={(e) => setCustomPairCode(e.target.value.toUpperCase().slice(0, 8))}
-                  placeholder="VD: LOVE88, HAPPY2026..."
-                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-rose-500 rounded-xl sm:rounded-2xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-mono font-bold text-white placeholder-zinc-600 uppercase tracking-widest outline-none text-center"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-300">Mời trực tiếp qua Account ID / Email (Tùy chọn)</label>
-                  <span className="text-[10px] text-zinc-500">VD: AH-123456</span>
-                </div>
-                <input
-                  type="text"
-                  value={partnerIdentifier}
-                  onChange={(e) => setPartnerIdentifier(e.target.value)}
-                  placeholder="Nhập ID hoặc Email người ấy..."
-                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-rose-500 rounded-xl sm:rounded-2xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-white placeholder-zinc-600 outline-none"
-                />
-              </div>
-
               <button
                 type="submit"
-                disabled={formLoading}
+                disabled={formLoading || !createPasscode.trim()}
                 className="w-full py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-amber-400 hover:brightness-110 text-white font-extrabold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50 mt-1"
               >
                 {formLoading ? <Loader2 size={16} className="animate-spin" /> : <Heart size={16} className="fill-white" />}
@@ -979,18 +1262,33 @@ export function CoupleRomanceView({
           ) : (
             <form onSubmit={handleJoinCouple} className="space-y-3.5 sm:space-y-5">
               <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 leading-relaxed">
-                Nhập mã ghép đôi mà đối phương đã gửi cho bạn (hoặc yêu cầu đối phương mở tab Cặp Đôi để lấy mã).
+                Nhập Mã mời do hệ thống cấp và Mật khẩu phòng do người yêu bạn đã đặt để ghép đôi an toàn.
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-300">Mã Ghép Đôi (Pair Code)</label>
+                <label className="text-xs font-bold text-zinc-300">Mã Mời Phòng Đôi (Do hệ thống cấp)</label>
                 <input
                   type="text"
-                  value={customPairCode}
-                  onChange={(e) => setCustomPairCode(e.target.value.toUpperCase())}
-                  placeholder="VD: LOVE88"
+                  value={joinPairCode}
+                  onChange={(e) => setJoinPairCode(e.target.value.toUpperCase())}
+                  placeholder="VD: HV-74921X"
                   maxLength={12}
                   className="w-full bg-zinc-950 border border-zinc-800 focus:border-rose-500 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:py-3.5 text-sm sm:text-base font-mono font-black text-white placeholder-zinc-600 uppercase tracking-widest outline-none text-center"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-zinc-300 flex items-center gap-1 text-rose-300">
+                  <KeyRound size={13} />
+                  <span>Mật Khẩu Phòng Đôi (Do người tạo cấp) *</span>
+                </label>
+                <input
+                  type="password"
+                  value={joinPasscode}
+                  onChange={(e) => setJoinPasscode(e.target.value)}
+                  placeholder="Nhập mật khẩu do người tạo phòng cung cấp..."
+                  className="w-full bg-zinc-950 border border-zinc-800 focus:border-rose-500 rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:py-3 text-xs sm:text-sm text-white placeholder-zinc-600 outline-none"
                   required
                 />
               </div>
@@ -1008,11 +1306,11 @@ export function CoupleRomanceView({
 
               <button
                 type="submit"
-                disabled={formLoading || !customPairCode.trim()}
+                disabled={formLoading || !joinPairCode.trim() || !joinPasscode.trim()}
                 className="w-full py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 hover:brightness-110 text-white font-extrabold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50 mt-1"
               >
                 {formLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                <span>Kết Nối Ngay</span>
+                <span>Xác Thực & Ghép Đôi Ngay</span>
               </button>
             </form>
           )}
@@ -1022,7 +1320,7 @@ export function CoupleRomanceView({
   }
 
   // -------------------------------------------------------------
-  // VIEW B: ACTIVE COUPLE ROMANCE SPACE (3 CONSOLIDATED PAGES)
+  // VIEW B: ACTIVE COUPLE ROMANCE SPACE (5 TABS SYSTEM)
   // -------------------------------------------------------------
   const currentTheme: RomanceThemeKey = (couple.theme as RomanceThemeKey) || 'rose_romance';
 
@@ -1035,6 +1333,51 @@ export function CoupleRomanceView({
           <span className="truncate">{activeLovePingNotification}</span>
         </div>
       )}
+
+      {/* Primary In-Page Nav Tabs Header */}
+      <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-zinc-800/80">
+        <div className="flex items-center gap-1 sm:gap-2">
+          {[
+            { id: 'page1', label: 'Yêu Thương 💕', icon: Heart },
+            { id: 'page2', label: 'Chu Kỳ Bạn Gái 🌸', icon: Droplets, badge: periodLogs.length > 0 ? periodLogs.length : undefined },
+            { id: 'page3', label: 'Lịch Đôi 📅', icon: Calendar, badge: coupleEvents.length > 0 ? coupleEvents.length : undefined },
+            { id: 'page4', label: 'Nhật Ký 📖', icon: BookOpen, badge: diaries.length > 0 ? diaries.length : undefined },
+            { id: 'page5', label: 'Kỷ Niệm & Game ✨', icon: Sparkles },
+          ].map(tab => {
+            const isActive = currentPage === tab.id;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleSetPage(tab.id as any)}
+                className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/20'
+                    : 'bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800/80'
+                }`}
+              >
+                <Icon size={14} className={isActive ? 'text-white' : 'text-zinc-400'} />
+                <span>{tab.label}</span>
+                {tab.badge !== undefined && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${
+                    isActive ? 'bg-white text-rose-600' : 'bg-zinc-800 text-zinc-300'
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-all cursor-pointer shrink-0"
+          title="Cài đặt không gian đôi"
+        >
+          <Settings size={16} />
+        </button>
+      </div>
 
       {/* ============================================================= */}
       {/* PAGE 1: YÊU THƯƠNG & CẢM XÚC (Bộ đếm thời gian, Tương tác cảm xúc, Lời nhắc) */}
@@ -1071,22 +1414,68 @@ export function CoupleRomanceView({
       )}
 
       {/* ============================================================= */}
-      {/* PAGE 2: SỰ KIỆN & TRÒ CHƠI ĐÔI (Đếm ngược ngày sự kiện, Trả lời câu hỏi, Thẻ bài) */}
+      {/* PAGE 2: CHU KỲ & SỨC KHỎE BẠN GÁI (Menstrual Tracker & Boyfriend Care) */}
       {/* ============================================================= */}
       {currentPage === 'page2' && (
+        <PeriodTrackerTab
+          couple={couple}
+          userUid={user?.uid}
+          periodLogs={periodLogs}
+          onUpdateCycleConfig={handleUpdateCycleConfig}
+          onAddPeriodLog={handleAddPeriodLog}
+          onSendBoyfriendCarePing={handleSendBoyfriendCarePing}
+        />
+      )}
+
+      {/* ============================================================= */}
+      {/* PAGE 3: LỊCH CẶP ĐÔI (Interactive Calendar with Period & Anniversaries) */}
+      {/* ============================================================= */}
+      {currentPage === 'page3' && (
+        <CoupleCalendarTab
+          couple={couple}
+          userUid={user?.uid}
+          customEvents={coupleEvents}
+          onCreateCustomEvent={handleCreateCustomEvent}
+          onUpdateCustomEvent={handleUpdateCustomEvent}
+          onDeleteCustomEvent={handleDeleteCustomEvent}
+        />
+      )}
+
+      {/* ============================================================= */}
+      {/* PAGE 4: NHẬT KÝ TÌNH YÊU (Couple Shared Love Diary) */}
+      {/* ============================================================= */}
+      {currentPage === 'page4' && (
+        <CoupleDiaryTab
+          couple={couple}
+          userUid={user?.uid}
+          diaries={diaries}
+          effectiveTracks={effectiveTracks}
+          onPlayTrack={onPlayTrack}
+          onCreateDiary={handleCreateDiary}
+          onDeleteDiary={handleDeleteDiary}
+          onAddDiaryComment={handleAddDiaryComment}
+          onToggleDiaryReaction={handleToggleDiaryReaction}
+        />
+      )}
+
+      {/* ============================================================= */}
+      {/* PAGE 5: KỶ NIỆM & TRÒ CHƠI (Quizzes, Cards, Voice Moments, Gallery) */}
+      {/* ============================================================= */}
+      {currentPage === 'page5' && (
         <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
-          {/* Sub-selector for Page 2 */}
+          {/* Sub-selector for Page 5 */}
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-zinc-800/80 pb-2">
             {[
-              { id: 'events', label: '📅 Đếm Ngược Sự Kiện & Đoán Ngày', shortLabel: '📅 Đếm Ngược Sự Kiện', badge: coupleEvents.length + anniversaryGuesses.length },
-              { id: 'quizzes', label: '❓ Trả Lời Câu Hỏi Thấu Hiểu', shortLabel: '❓ Câu Hỏi Thấu Hiểu', badge: customQuizzes.length },
-              { id: 'cards', label: '🎴 Thẻ Bài Tình Yêu Đôi', shortLabel: '🎴 Thẻ Bài Tình Yêu', badge: loveCards.length },
+              { id: 'quizzes', label: '❓ Trả Lời Câu Hỏi Thấu Hiểu', shortLabel: '❓ Trắc Nghiệm', badge: customQuizzes.length },
+              { id: 'cards', label: '🎴 Thẻ Bài Tình Yêu Đôi', shortLabel: '🎴 Thẻ Bài', badge: loveCards.length },
+              { id: 'voice', label: '🎙️ Audio Lời Hứa & Hộp Thư Thoại', shortLabel: '🎙️ Audio Lời Hứa', badge: voiceMoments.length },
+              { id: 'gallery', label: '📸 Bộ Sưu Tập Ảnh & Nhạc Kỷ Niệm', shortLabel: '📸 Ảnh & Nhạc', badge: memories.length + (couple.sharedSongIds?.length || 0) },
             ].map(sub => {
-              const isActive = page2SubTab === sub.id;
+              const isActive = page5SubTab === sub.id;
               return (
                 <button
                   key={sub.id}
-                  onClick={() => setPage2SubTab(sub.id as any)}
+                  onClick={() => setPage5SubTab(sub.id as any)}
                   className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                     isActive
                       ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
@@ -1107,22 +1496,7 @@ export function CoupleRomanceView({
             })}
           </div>
 
-          {/* Page 2 Content */}
-          {page2SubTab === 'events' && (
-            <AnniversaryTab
-              couple={couple}
-              userUid={user?.uid}
-              anniversaryGuesses={anniversaryGuesses}
-              onCreateGuess={handleCreateGuess}
-              onSubmitGuessAnswer={handleSubmitGuessAnswer}
-              customEvents={coupleEvents}
-              onCreateCustomEvent={handleCreateCustomEvent}
-              onUpdateCustomEvent={handleUpdateCustomEvent}
-              onDeleteCustomEvent={handleDeleteCustomEvent}
-            />
-          )}
-
-          {page2SubTab === 'quizzes' && (
+          {page5SubTab === 'quizzes' && (
             <QuizzesTab
               couple={couple}
               userUid={user?.uid}
@@ -1132,7 +1506,7 @@ export function CoupleRomanceView({
             />
           )}
 
-          {page2SubTab === 'cards' && (
+          {page5SubTab === 'cards' && (
             <LoveCardsTab
               couple={couple}
               userUid={user?.uid}
@@ -1142,47 +1516,8 @@ export function CoupleRomanceView({
               onToggleReveal={handleToggleCardReveal}
             />
           )}
-        </div>
-      )}
 
-      {/* ============================================================= */}
-      {/* PAGE 3: KỶ NIỆM & LỜI HỨA (Audio lời hứa và Bộ sưu tập ảnh đôi kỷ niệm) */}
-      {/* ============================================================= */}
-      {currentPage === 'page3' && (
-        <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
-          {/* Sub-selector for Page 3 */}
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-zinc-800/80 pb-2">
-            {[
-              { id: 'voice', label: '🎙️ Audio Lời Hứa & Hộp Thư Thoại', shortLabel: '🎙️ Audio Lời Hứa', badge: voiceMoments.length },
-              { id: 'gallery', label: '📸 Bộ Sưu Tập Ảnh Đôi & Nhạc Kỷ Niệm', shortLabel: '📸 Ảnh Đôi & Nhạc', badge: memories.length + (couple.sharedSongIds?.length || 0) },
-            ].map(sub => {
-              const isActive = page3SubTab === sub.id;
-              return (
-                <button
-                  key={sub.id}
-                  onClick={() => setPage3SubTab(sub.id as any)}
-                  className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                    isActive
-                      ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
-                      : 'bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800/80'
-                  }`}
-                >
-                  <span className="hidden sm:inline">{sub.label}</span>
-                  <span className="sm:hidden">{sub.shortLabel}</span>
-                  {sub.badge > 0 && (
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] sm:text-[10px] font-extrabold ${
-                      isActive ? 'bg-white text-rose-600' : 'bg-zinc-800 text-zinc-300'
-                    }`}>
-                      {sub.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Page 3 Content */}
-          {page3SubTab === 'voice' && (
+          {page5SubTab === 'voice' && (
             <VoiceMomentsTab
               couple={couple}
               userUid={user?.uid}
@@ -1191,7 +1526,7 @@ export function CoupleRomanceView({
             />
           )}
 
-          {page3SubTab === 'gallery' && (
+          {page5SubTab === 'gallery' && (
             <SharedGalleryTab
               couple={couple}
               userUid={user?.uid}
@@ -1208,7 +1543,7 @@ export function CoupleRomanceView({
         </div>
       )}
 
-      {/* 4. SETTINGS MODAL */}
+      {/* 6. SETTINGS MODAL */}
       <CoupleSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -1216,6 +1551,7 @@ export function CoupleRomanceView({
         userUid={user?.uid}
         onUpdateCouple={handleUpdateCoupleSettings}
         onUnpairCouple={handleUnpairCouple}
+        onDeleteRelationship={handleDeleteRelationship}
       />
     </div>
   );
