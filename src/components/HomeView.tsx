@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Play, 
   Pause, 
@@ -6,16 +6,13 @@ import {
   Flame, 
   Headphones, 
   Disc3, 
-  Heart, 
-  MessageSquare, 
-  ArrowRight,
-  Radio,
-  Clock,
-  Compass
+  ArrowRight, 
+  Radio, 
+  Clock, 
+  Compass 
 } from 'lucide-react';
 import { Track, ActiveTab } from '../types';
 import { FEATURED_PLAYLISTS, GENRE_LIST } from '../data';
-import { useAuth } from '../context/AuthContext';
 
 interface HomeViewProps {
   tracks: Track[];
@@ -36,9 +33,7 @@ export function HomeView({
   onTogglePlay,
   onSelectTab,
   onFilterGenre,
-  onOpenAuth,
 }: HomeViewProps) {
-  const { user, favorites, toggleFavorite } = useAuth();
   const heroTrack = tracks[0] || null;
   const trendingTracks = tracks.slice(0, 6);
 
@@ -49,42 +44,33 @@ export function HomeView({
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleFavorite = async (trackId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!user) {
-      onOpenAuth();
-      return;
-    }
-    await toggleFavorite(trackId);
-  };
-
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-12 pb-36 sm:pb-40">
+    <div className="w-full max-w-6xl mx-auto space-y-8 sm:space-y-12">
       {/* Hero Spotlight Section */}
       {heroTrack && (
         <section 
           id="home-hero-spotlight"
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-800/80 border border-zinc-800 p-6 sm:p-10 shadow-2xl"
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-800/80 border border-zinc-800 p-5 sm:p-8 md:p-10 shadow-2xl"
         >
-          <div className="absolute -right-10 -bottom-10 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute right-1/3 top-0 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -right-10 -bottom-10 w-72 sm:w-96 h-72 sm:h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute right-1/3 top-0 w-48 sm:w-64 h-48 sm:h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 justify-between">
-            <div className="flex-1 space-y-5 text-center md:text-left">
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 sm:gap-8 justify-between">
+            <div className="flex-1 space-y-4 sm:space-y-5 text-center md:text-left min-w-0">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-800/90 border border-zinc-700 text-xs font-semibold text-zinc-300">
                 <Sparkles size={14} className="text-amber-400" />
                 <span>Bản nhạc nổi bật hôm nay</span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight break-words">
                 {heroTrack.title}
               </h1>
               
-              <p className="text-zinc-400 text-sm sm:text-base max-w-xl font-normal leading-relaxed">
+              <p className="text-zinc-400 text-xs sm:text-base max-w-xl font-normal leading-relaxed">
                 Được tuyển chọn đặc biệt để tối ưu hóa khả năng sáng tạo và thư giãn tinh thần với âm thanh vòm chất lượng cao.
               </p>
 
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 sm:gap-4 pt-1 sm:pt-2">
                 <button
                   id="hero-play-btn"
                   onClick={() => {
@@ -94,16 +80,16 @@ export function HomeView({
                       onPlayTrack(heroTrack);
                     }
                   }}
-                  className="flex items-center gap-3 bg-white hover:bg-zinc-200 text-black px-7 py-3.5 rounded-2xl font-bold transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer"
+                  className="flex items-center gap-2.5 sm:gap-3 bg-white hover:bg-zinc-200 text-black px-6 sm:px-7 py-3 sm:py-3.5 rounded-2xl font-bold transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer text-sm sm:text-base"
                 >
                   {currentTrack?.id === heroTrack.id && isPlaying ? (
                     <>
-                      <Pause size={20} fill="currentColor" />
+                      <Pause size={18} fill="currentColor" />
                       <span>Tạm dừng phát</span>
                     </>
                   ) : (
                     <>
-                      <Play size={20} fill="currentColor" className="ml-0.5" />
+                      <Play size={18} fill="currentColor" className="ml-0.5" />
                       <span>Phát ngay</span>
                     </>
                   )}
@@ -112,24 +98,24 @@ export function HomeView({
                 <button
                   id="hero-explore-library-btn"
                   onClick={() => onSelectTab('library')}
-                  className="flex items-center gap-2 bg-zinc-800/90 hover:bg-zinc-800 text-zinc-200 hover:text-white px-5 py-3.5 rounded-2xl font-semibold border border-zinc-700/70 transition-all"
+                  className="flex items-center gap-2 bg-zinc-800/90 hover:bg-zinc-800 text-zinc-200 hover:text-white px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl font-semibold border border-zinc-700/70 transition-all text-xs sm:text-sm"
                 >
-                  <Compass size={18} />
+                  <Compass size={16} />
                   <span>Khám phá kho audio</span>
                 </button>
               </div>
             </div>
 
             {/* Hero Cover Art Card */}
-            <div className="w-56 sm:w-64 lg:w-72 aspect-square rounded-2xl overflow-hidden relative shadow-2xl border border-zinc-700/50 group shrink-0">
+            <div className="w-44 sm:w-56 lg:w-72 aspect-square rounded-2xl overflow-hidden relative shadow-2xl border border-zinc-700/50 group shrink-0">
               <img
                 src={heroTrack.coverUrl}
                 alt={heroTrack.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4">
-                <span className="text-xs text-zinc-400 font-medium">{heroTrack.genre}</span>
-                <span className="text-sm font-bold text-white truncate">{heroTrack.artist}</span>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3 sm:p-4">
+                <span className="text-[11px] sm:text-xs text-zinc-400 font-medium">{heroTrack.genre}</span>
+                <span className="text-xs sm:text-sm font-bold text-white truncate">{heroTrack.artist}</span>
               </div>
             </div>
           </div>
@@ -194,7 +180,6 @@ export function HomeView({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {trendingTracks.map((track) => {
             const isCurrent = currentTrack?.id === track.id;
-            const isFav = favorites.includes(track.id);
 
             return (
               <div
@@ -238,17 +223,8 @@ export function HomeView({
                   </p>
                 </div>
 
-                {/* Right metadata & like */}
+                {/* Right metadata */}
                 <div className="flex flex-col items-end gap-1 shrink-0">
-                  <button
-                    onClick={(e) => handleFavorite(track.id, e)}
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      isFav ? 'text-rose-500' : 'text-zinc-500 hover:text-zinc-200 opacity-0 group-hover:opacity-100'
-                    }`}
-                    title={isFav ? 'Bỏ yêu thích' : 'Yêu thích'}
-                  >
-                    <Heart size={16} className={isFav ? 'fill-rose-500 text-rose-500' : ''} />
-                  </button>
                   <span className="text-[11px] text-zinc-500 font-mono flex items-center gap-1">
                     <Clock size={11} />
                     {formatDuration(track.durationSec)}
@@ -299,79 +275,16 @@ export function HomeView({
                 <span className="text-xs font-semibold text-purple-400 mb-1 block">
                   {item.genre}
                 </span>
-                <h3 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors">
+                <h3 className="font-bold text-base text-white group-hover:text-amber-300 transition-colors">
                   {item.title}
                 </h3>
-                <p className="text-xs text-zinc-400 line-clamp-2 mt-1.5 leading-relaxed">
+                <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
                   {item.description}
                 </p>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-500 font-medium">
-                <span>Khám phá bộ sưu tập</span>
-                <ArrowRight size={14} className="text-zinc-400 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           ))}
         </div>
-      </section>
-
-      {/* VIP Topup Banner Callout */}
-      <section 
-        id="home-vip-topup-banner"
-        className="rounded-3xl bg-gradient-to-r from-amber-950/40 via-zinc-900 to-yellow-950/30 border border-amber-500/40 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden"
-      >
-        <div className="flex items-center gap-4 text-center md:text-left">
-          <div className="p-3.5 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
-            <Sparkles size={28} className="text-amber-400" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 justify-center md:justify-start mb-1">
-              <span className="text-[10px] uppercase font-bold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/30">
-                Ưu Đãi Đặc Quyền
-              </span>
-              <span className="text-xs text-zinc-400">Gói Tuần 15k • Gói Tháng 20k • 1 Năm 150k</span>
-            </div>
-            <h3 className="text-lg sm:text-xl font-extrabold text-white">Nâng Cấp Gói VIP & Nhập Mã Ưu Đãi</h3>
-            <p className="text-xs sm:text-sm text-zinc-300 mt-1 max-w-xl">
-              Tận hưởng âm thanh Hi-Fi Lossless, Spatial 3D Audio, huy hiệu VIP hoàng gia và thưởng hàng ngàn Audio Points.
-            </p>
-          </div>
-        </div>
-
-        <button
-          id="home-topup-vip-btn"
-          onClick={() => onSelectTab('topup')}
-          className="bg-gradient-to-r from-amber-500 to-yellow-400 hover:brightness-110 text-black font-extrabold px-6 py-3.5 rounded-2xl transition-all text-xs sm:text-sm shrink-0 whitespace-nowrap shadow-xl shadow-amber-500/20 active:scale-95 cursor-pointer"
-        >
-          Nạp VIP Ngay
-        </button>
-      </section>
-
-      {/* Community Banner Callout */}
-      <section 
-        id="home-community-banner"
-        className="rounded-3xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-800/90 border border-zinc-800 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl"
-      >
-        <div className="flex items-center gap-4 text-center sm:text-left">
-          <div className="p-3.5 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-            <MessageSquare size={28} />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-white">Góc cộng đồng yêu âm nhạc</h3>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-lg">
-              Tham gia thảo luận, đánh giá các bản thu âm mới, chia sẻ cảm xúc và đề xuất các bài hát tâm đắc với mọi người.
-            </p>
-          </div>
-        </div>
-
-        <button
-          id="home-join-community-btn"
-          onClick={() => onSelectTab('community')}
-          className="bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-6 py-3 rounded-2xl border border-zinc-700/80 transition-all text-xs sm:text-sm shrink-0 whitespace-nowrap"
-        >
-          Tham gia thảo luận
-        </button>
       </section>
     </div>
   );

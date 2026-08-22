@@ -8,7 +8,8 @@ import {
   VolumeX, 
   Heart, 
   Maximize2,
-  Music2
+  Music2,
+  Moon
 } from 'lucide-react';
 import { Track } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -28,6 +29,9 @@ interface BottomPlayerBarProps {
   onToggleMute: () => void;
   onOpenFullPlayer: () => void;
   onOpenAuth: () => void;
+  onOpenSleepTimer?: () => void;
+  sleepTimerSecondsLeft?: number | null;
+  sleepTimerActive?: boolean;
 }
 
 export function BottomPlayerBar({
@@ -45,6 +49,9 @@ export function BottomPlayerBar({
   onToggleMute,
   onOpenFullPlayer,
   onOpenAuth,
+  onOpenSleepTimer,
+  sleepTimerSecondsLeft,
+  sleepTimerActive,
 }: BottomPlayerBarProps) {
   const { user, favorites, toggleFavorite } = useAuth();
 
@@ -56,6 +63,12 @@ export function BottomPlayerBar({
     if (isNaN(time)) return '0:00';
     const m = Math.floor(time / 60);
     const s = Math.floor(time % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const formatTimerBadge = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
@@ -169,7 +182,28 @@ export function BottomPlayerBar({
         </div>
 
         {/* Right Volume & Expand */}
-        <div className="flex items-center justify-end gap-3 w-1/4 sm:w-1/3">
+        <div className="flex items-center justify-end gap-2 sm:gap-3 w-1/4 sm:w-1/3">
+          {/* Sleep Timer button */}
+          {onOpenSleepTimer && (
+            <button
+              type="button"
+              onClick={onOpenSleepTimer}
+              className={`p-1.5 sm:p-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer ${
+                sleepTimerActive
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm shadow-amber-500/20'
+                  : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border-zinc-800'
+              }`}
+              title="Hẹn giờ tắt nhạc (Sleep Timer)"
+            >
+              <Moon size={15} className={sleepTimerActive ? 'text-amber-400 fill-amber-400/40 animate-pulse' : ''} />
+              {sleepTimerActive && sleepTimerSecondsLeft !== null && sleepTimerSecondsLeft > 0 ? (
+                <span className="font-mono text-[11px] font-bold text-amber-300 hidden min-[480px]:inline">
+                  {formatTimerBadge(sleepTimerSecondsLeft)}
+                </span>
+              ) : null}
+            </button>
+          )}
+
           <div className="hidden md:flex items-center gap-2">
             <button 
               onClick={onToggleMute} 

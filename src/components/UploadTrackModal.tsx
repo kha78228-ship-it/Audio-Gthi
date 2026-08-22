@@ -4,6 +4,7 @@ import { GENRE_LIST } from '../data';
 import { useAuth } from '../context/AuthContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { ImageUploadPicker } from './common/ImageUploadPicker';
 
 interface UploadTrackModalProps {
   isOpen: boolean;
@@ -202,7 +203,7 @@ export function UploadTrackModal({ isOpen, onClose, onTrackUploaded }: UploadTra
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
                 Thể loại
@@ -224,19 +225,13 @@ export function UploadTrackModal({ isOpen, onClose, onTrackUploaded }: UploadTra
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-zinc-400 mb-1.5 uppercase tracking-wider">
-                Ảnh bìa URL (Tùy chọn)
-              </label>
-              <div className="relative">
-                <ImageIcon size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  className="w-full bg-zinc-800/70 border border-zinc-700/60 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 text-sm"
-                />
-              </div>
+              <ImageUploadPicker
+                value={coverUrl}
+                onChange={setCoverUrl}
+                label="Ảnh bìa bài hát (Từ máy hoặc link URL)"
+                helperText="Chọn ảnh bìa bài hát từ thư viện hoặc dán link"
+                aspectRatio="square"
+              />
             </div>
           </div>
 

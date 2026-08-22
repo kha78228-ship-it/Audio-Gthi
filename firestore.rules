@@ -1,42 +1,197 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'kha78228@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        exists(/databases/$(database)/documents/subAdmins/$(request.auth.uid))
+      );
+    }
+
+    // Admins & Sub-Admins collections
+    match /admins/{adminId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSignedIn();
+    }
+
+    match /subAdmins/{adminId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSignedIn();
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow create: if isSignedIn();
+      allow update: if true;
+      allow delete: if isAdmin();
 
       // User point transactions
       match /pointTransactions/{txId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if true;
       }
 
       // User VIP subscription orders
       match /vipOrders/{orderId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if true;
       }
+
+      // User Points/Coins topup orders
+      match /pointOrders/{orderId} {
+        allow read, write: if true;
+      }
+    }
+
+    // Admin referral codes (6 characters, max 100 uses)
+    match /referralCodes/{codeId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if true; // allow incrementing usedCount and recording user redemption
+    }
+
+    // Anonymous VIP Passes (3-digit 1 month or 1 week)
+    match /anonymousPasses/{passId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if true; // allow incrementing usedCount
     }
 
     // Community Audio Tracks
     match /customTracks/{trackId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.addedBy == request.auth.uid || request.auth.uid != null);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() || isAdmin();
+    }
+
+    // Author Verifications (Gmail, Phone, CCCD, Face photo)
+    match /authorVerifications/{verificationId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if (isSignedIn() && (request.auth.uid == verificationId || resource.data.userId == request.auth.uid)) || isAdmin();
+    }
+
+    // Gift Donations to Authors
+    match /giftDonations/{giftId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
 
     // Community Posts
     match /communityPosts/{postId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if true;
+      allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
 
       // Comments subcollection
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if request.auth != null;
-        allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
+        allow create: if isSignedIn();
+        allow update: if true;
+        allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
+      }
+    }
+
+    // Friend Requests (senderId, receiverId, status: pending/accepted/rejected)
+    match /friendRequests/{requestId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isAdmin();
+    }
+
+    // Friendships (user1, user2, userIds array)
+    match /friendships/{friendshipId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isAdmin();
+    }
+
+    // Couple Romance & Marriage Space
+    match /couples/{coupleId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isAdmin();
+
+      match /anniversaryGuesses/{guessId} {
+        allow read, write: if isSignedIn() || isAdmin();
+      }
+
+      match /customQuizzes/{quizId} {
+        allow read, write: if isSignedIn() || isAdmin();
+      }
+
+      match /loveCards/{cardId} {
+        allow read, write: if isSignedIn() || isAdmin();
+      }
+
+      match /voiceMoments/{momentId} {
+        allow read, write: if isSignedIn() || isAdmin();
+      }
+
+      match /memories/{memoryId} {
+        allow read, write: if isSignedIn() || isAdmin();
+      }
+
+      match /events/{eventId} {
+        allow read, write: if isSignedIn() || isAdmin();
+      }
+    }
+
+    // Direct Conversations & Messages
+    match /conversations/{conversationId} {
+      allow read: if true;
+      allow write: if isSignedIn() || isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if true;
+        allow write: if isSignedIn() || isAdmin();
+      }
+    }
+
+    // System Transparency & Activity Audit Logs (zero omissions)
+    match /systemAuditLogs/{logId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // System Broadcast Announcements
+    match /systemAnnouncements/{announcementId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Global System Settings & Maintenance Mode
+    match /systemSettings/{configId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Friend Thought Bubbles (Bong bóng suy nghĩ / Notes)
+    match /thoughtBubbles/{bubbleId} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    // Friend Photo Posts (Trang Tin: Ảnh chụp / Tải lên kèm miêu tả)
+    match /friendPhotoPosts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if true;
+      allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update: if true;
+        allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
       }
     }
   }
 }
+

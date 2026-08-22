@@ -15,7 +15,10 @@ import {
   Loader2,
   AlertCircle,
   Tag,
-  Crown
+  Crown,
+  Pin,
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 import { CommunityPost, Track, CommunityComment } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -43,7 +46,7 @@ interface CommunityViewProps {
   onOpenAuth: () => void;
 }
 
-const POST_TAGS = ['#ThảoLuận', '#GợiÝBàiHát', '#ĐánhGiá', '#CảmXúc', '#GócTậpTrung', '#Podcast'];
+const POST_TAGS = ['#ThảoLuận', '#GợiÝBàiHát', '#ĐánhGiá', '#CảmXúc', '#GócTậpTrung', '#Podcast', '#ThôngBáoAdmin'];
 
 export function CommunityView({
   tracks,
@@ -52,7 +55,15 @@ export function CommunityView({
   onPlayTrack,
   onOpenAuth,
 }: CommunityViewProps) {
-  const { user, isVip, addAudioPoints } = useAuth();
+  const { 
+    user, 
+    isVip, 
+    isAdmin, 
+    addAudioPoints,
+    deleteCommentByAdmin,
+    deleteCommunityPostByAdmin,
+    pinCommunityPostByAdmin
+  } = useAuth();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState('');
@@ -61,6 +72,12 @@ export function CommunityView({
   const [activeFilterTag, setActiveFilterTag] = useState<string>('Tất cả');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3200);
+  };
 
   // Active expanded comments per post
   const [expandedCommentsPostId, setExpandedCommentsPostId] = useState<string | null>(null);
@@ -86,6 +103,7 @@ export function CommunityView({
             authorName: data.authorName || 'Thành viên ẩn danh',
             authorPhoto: data.authorPhoto || '',
             isAuthorVip: data.isAuthorVip || false,
+            isAuthorAdmin: data.isAuthorAdmin || false,
             content: data.content || '',
             trackId: data.trackId || '',
             trackTitle: data.trackTitle || '',
@@ -95,6 +113,7 @@ export function CommunityView({
             likes: Array.isArray(data.likes) ? data.likes : [],
             commentsCount: data.commentsCount || 0,
             tag: data.tag || '#ThảoLuận',
+            isPinned: Boolean(data.isPinned),
             createdAt: data.createdAt,
           };
         });
@@ -130,6 +149,7 @@ export function CommunityView({
             authorName: data.authorName || 'Người dùng',
             authorPhoto: data.authorPhoto || '',
             isAuthorVip: data.isAuthorVip || false,
+            isAuthorAdmin: data.isAuthorAdmin || false,
             text: data.text || '',
             createdAt: data.createdAt,
           };
@@ -172,6 +192,7 @@ export function CommunityView({
         authorName: user.displayName || user.email?.split('@')[0] || 'Yêu Âm Nhạc',
         authorPhoto: user.photoURL || '',
         isAuthorVip: isVip,
+        isAuthorAdmin: isAdmin,
         content: content.trim(),
         trackId: attachedTrack?.id || '',
         trackTitle: attachedTrack?.title || '',
@@ -181,6 +202,7 @@ export function CommunityView({
         likes: [],
         commentsCount: 0,
         tag: selectedTag,
+        isPinned: false,
         createdAt: serverTimestamp(),
       });
 
@@ -189,6 +211,7 @@ export function CommunityView({
 
       setContent('');
       setSelectedTrackId('');
+      showToast('Đã đăng bài viết thành công (+20 pts)!');
     } catch (err: any) {
       console.error('Error creating post:', err);
       setError('Không thể đăng bài viết. Vui lòng thử lại.');
@@ -231,6 +254,7 @@ export function CommunityView({
         authorName: user.displayName || user.email?.split('@')[0] || 'Người nghe nhạc',
         authorPhoto: user.photoURL || '',
         isAuthorVip: isVip,
+        isAuthorAdmin: isAdmin,
         text,
         createdAt: serverTimestamp(),
       });
@@ -250,37 +274,100 @@ export function CommunityView({
     }
   };
 
+  // ADMIN OR AUTHOR: Delete Post
   const handleDeletePost = async (postId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bài viết này không?')) return;
-    try {
-      await deleteDoc(doc(db, 'communityPosts', postId));
-    } catch (err) {
-      console.error('Error deleting post:', err);
+    if (!window.confirm(isAdmin ? 'Quản trị viên: Bạn có chắc chắn muốn xóa vĩnh viễn bài viết này?' : 'Bạn có chắc chắn muốn xóa bài viết của mình không?')) return;
+    if (isAdmin) {
+      const res = await deleteCommunityPostByAdmin(postId);
+      showToast(res.message);
+    } else {
+      try {
+        await deleteDoc(doc(db, 'communityPosts', postId));
+        showToast('Đã xóa bài viết thành công.');
+      } catch (err) {
+        console.error('Error deleting post:', err);
+      }
     }
   };
 
-  const filteredPosts = posts.filter((p) => {
-    if (activeFilterTag === 'Tất cả') return true;
-    return p.tag === activeFilterTag;
-  });
+  // ADMIN: Pin / Unpin Post
+  const handleTogglePinPost = async (post: CommunityPost) => {
+    if (!isAdmin) return;
+    const res = await pinCommunityPostByAdmin(post.id, !post.isPinned);
+    showToast(res.message);
+  };
+
+  // ADMIN OR AUTHOR: Delete Comment
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    if (!window.confirm(isAdmin ? 'Quản trị viên: Bạn có chắc chắn muốn xóa bình luận này?' : 'Bạn có chắc chắn muốn xóa bình luận này?')) return;
+    if (isAdmin) {
+      const res = await deleteCommentByAdmin(postId, commentId);
+      showToast(res.message);
+    } else {
+      try {
+        await deleteDoc(doc(db, 'communityPosts', postId, 'comments', commentId));
+        await updateDoc(doc(db, 'communityPosts', postId), {
+          commentsCount: increment(-1),
+        });
+        showToast('Đã xóa bình luận.');
+      } catch (err) {
+        console.error('Error deleting comment:', err);
+      }
+    }
+  };
+
+  // Sort pinned posts first
+  const filteredPosts = posts
+    .filter((p) => {
+      if (activeFilterTag === 'Tất cả') return true;
+      return p.tag === activeFilterTag;
+    })
+    .sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return 0;
+    });
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-8 pb-36 sm:pb-40">
+    <div className="w-full max-w-4xl mx-auto space-y-6 sm:space-y-8">
+      {/* Toast Feedback */}
+      {toastMsg && (
+        <div className="fixed top-20 right-5 z-50 bg-zinc-900 border border-emerald-500/50 text-emerald-300 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+          <span>{toastMsg}</span>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800/80 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800/80 pb-6 gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <MessageSquare size={24} />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Cộng đồng Âm nhạc
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Cộng đồng Âm nhạc
+              </h1>
+              {isAdmin && (
+                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                  <ShieldCheck size={12} className="text-amber-400" />
+                  Đặc Quyền Quản Trị
+                </span>
+              )}
+            </div>
             <p className="text-xs sm:text-sm text-zinc-400">
               Không gian chia sẻ cảm xúc, review bản nhạc và kết nối cùng những người yêu nghệ thuật (+20 pts/bài)
             </p>
           </div>
         </div>
+
+        {isAdmin && (
+          <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-2 self-start sm:self-auto">
+            <ShieldCheck size={14} className="text-amber-400 shrink-0" />
+            <span>Admin có đặc quyền xóa mọi bài viết & bình luận</span>
+          </div>
+        )}
       </div>
 
       {/* Post Creation Box */}
@@ -301,7 +388,13 @@ export function CommunityView({
             <span className="text-sm font-semibold text-white">
               {user ? `Chia sẻ với tư cách @${user.displayName || user.email?.split('@')[0]}` : 'Đăng nhập để tham gia thảo luận'}
             </span>
-            {isVip && (
+            {isAdmin && (
+              <span className="text-[10px] font-black bg-amber-400 text-black px-1.5 py-0.2 rounded font-mono shadow-sm flex items-center gap-0.5">
+                <ShieldCheck size={10} />
+                ADMIN
+              </span>
+            )}
+            {isVip && !isAdmin && (
               <span className="text-[10px] font-extrabold bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded border border-amber-500/30 flex items-center gap-0.5">
                 <Crown size={10} className="fill-amber-400 text-amber-400" />
                 VIP
@@ -324,7 +417,9 @@ export function CommunityView({
             onChange={(e) => setContent(e.target.value)}
             placeholder={
               user
-                ? 'Bạn đang lắng nghe điều gì? Hãy chia sẻ cảm xúc hoặc gợi ý bài hát tâm đắc...'
+                ? isAdmin
+                  ? 'Viết bài viết hoặc thông báo cộng đồng với tư cách Quản trị viên...'
+                  : 'Bạn đang lắng nghe điều gì? Hãy chia sẻ cảm xúc hoặc gợi ý bài hát tâm đắc...'
                 : 'Vui lòng đăng nhập tài khoản để viết bài thảo luận cùng cộng đồng...'
             }
             className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-2xl p-4 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:bg-zinc-800 transition-all resize-none"
@@ -363,10 +458,10 @@ export function CommunityView({
             <button
               type="submit"
               disabled={submitting}
-              className="flex items-center gap-2 bg-white hover:bg-zinc-200 text-black font-semibold px-5 py-2 rounded-xl text-xs sm:text-sm transition-all shadow-md active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 bg-white hover:bg-zinc-200 text-black font-semibold px-5 py-2 rounded-xl text-xs sm:text-sm transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} />}
-              <span>Đăng bài (+20 pts)</span>
+              <span>{isAdmin ? 'Đăng bài (Admin)' : 'Đăng bài (+20 pts)'}</span>
             </button>
           </div>
         </form>
@@ -426,9 +521,21 @@ export function CommunityView({
                 key={post.id}
                 id={`community-post-${post.id}`}
                 className={`bg-zinc-900 border rounded-3xl p-5 sm:p-6 shadow-xl space-y-4 transition-all hover:border-zinc-700/80 ${
-                  post.isAuthorVip ? 'border-amber-500/30 ring-1 ring-amber-500/10' : 'border-zinc-800'
+                  post.isPinned
+                    ? 'border-amber-500/60 ring-2 ring-amber-500/20 bg-gradient-to-b from-amber-950/20 to-zinc-900'
+                    : post.isAuthorVip
+                    ? 'border-amber-500/30 ring-1 ring-amber-500/10'
+                    : 'border-zinc-800'
                 }`}
               >
+                {/* Pinned Announcement Ribbon */}
+                {post.isPinned && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-[11px] font-extrabold text-amber-300">
+                    <Pin size={12} className="fill-amber-400 text-amber-400 rotate-45" />
+                    <span>BÀI VIẾT ĐÃ ĐƯỢC QUẢN TRỊ VIÊN GHIM LÊN ĐẦU</span>
+                  </div>
+                )}
+
                 {/* Author Info & Tag */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -444,7 +551,12 @@ export function CommunityView({
                           <User size={18} />
                         </div>
                       )}
-                      {post.isAuthorVip && (
+                      {post.isAuthorAdmin && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 flex items-center justify-center text-black shadow-md" title="Quản trị viên">
+                          <ShieldCheck size={11} className="stroke-[2.5]" />
+                        </div>
+                      )}
+                      {!post.isAuthorAdmin && post.isAuthorVip && (
                         <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center text-black shadow-md">
                           <Crown size={10} fill="currentColor" />
                         </div>
@@ -456,7 +568,12 @@ export function CommunityView({
                         <h4 className="text-sm font-bold text-white tracking-tight">
                           {post.authorName}
                         </h4>
-                        {post.isAuthorVip && (
+                        {post.isAuthorAdmin && (
+                          <span className="text-[9px] font-black bg-amber-400 text-black px-1.5 py-0.2 rounded font-mono shadow-sm">
+                            ADMIN
+                          </span>
+                        )}
+                        {!post.isAuthorAdmin && post.isAuthorVip && (
                           <span className="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded border border-amber-500/40">
                             VIP
                           </span>
@@ -470,15 +587,32 @@ export function CommunityView({
                     </div>
                   </div>
 
-                  {isAuthor && (
-                    <button
-                      onClick={() => handleDeletePost(post.id)}
-                      className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
-                      title="Xóa bài viết"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
+                  {/* Actions for Admin / Author */}
+                  <div className="flex items-center gap-1">
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleTogglePinPost(post)}
+                        className={`p-2 rounded-xl transition-colors ${
+                          post.isPinned
+                            ? 'bg-amber-500 text-black'
+                            : 'text-zinc-400 hover:text-amber-300 hover:bg-zinc-800'
+                        }`}
+                        title={post.isPinned ? 'Bỏ ghim bài viết' : 'Ghim bài viết lên đầu (Admin)'}
+                      >
+                        <Pin size={15} className={post.isPinned ? 'fill-current rotate-45' : ''} />
+                      </button>
+                    )}
+
+                    {(isAuthor || isAdmin) && (
+                      <button
+                        onClick={() => handleDeletePost(post.id)}
+                        className="text-zinc-500 hover:text-red-400 p-2 rounded-xl hover:bg-red-500/10 transition-colors"
+                        title={isAdmin ? 'Xóa bài viết vi phạm (Quyền Admin)' : 'Xóa bài viết'}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Content */}
@@ -573,33 +707,64 @@ export function CommunityView({
                           Chưa có bình luận nào. Hãy chia sẻ ý kiến của bạn!
                         </p>
                       ) : (
-                        comments.map((c) => (
-                          <div key={c.id} className="flex items-start gap-2.5 bg-zinc-950/40 p-3 rounded-2xl border border-zinc-800/60">
-                            <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0 text-xs font-bold relative">
-                              {c.authorName[0]?.toUpperCase() || 'U'}
-                              {c.isAuthorVip && (
-                                <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 flex items-center justify-center text-black">
-                                  <Crown size={7} fill="currentColor" />
+                        comments.map((c) => {
+                          const canDeleteComment = isAdmin || (user && user.uid === c.authorId);
+                          return (
+                            <div key={c.id} className="flex items-start justify-between gap-2.5 bg-zinc-950/60 p-3 rounded-2xl border border-zinc-800/70 group">
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0 text-xs font-bold relative">
+                                  {c.authorName[0]?.toUpperCase() || 'U'}
+                                  {c.isAuthorAdmin && (
+                                    <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-400 flex items-center justify-center text-black">
+                                      <ShieldCheck size={9} className="stroke-[3]" />
+                                    </div>
+                                  )}
+                                  {!c.isAuthorAdmin && c.isAuthorVip && (
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 flex items-center justify-center text-black">
+                                      <Crown size={7} fill="currentColor" />
+                                    </div>
+                                  )}
                                 </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-xs font-bold text-zinc-300 block">
+                                      {c.authorName}
+                                    </span>
+                                    {c.isAuthorAdmin && (
+                                      <span className="text-[8px] font-black bg-amber-400 text-black px-1 rounded">
+                                        ADMIN
+                                      </span>
+                                    )}
+                                    {!c.isAuthorAdmin && c.isAuthorVip && (
+                                      <span className="text-[8px] font-bold bg-amber-500/20 text-amber-300 px-1 rounded">
+                                        VIP
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-zinc-300 mt-0.5 leading-relaxed break-words">
+                                    {c.text}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Delete Comment Button for Admin / Author */}
+                              {canDeleteComment && (
+                                <button
+                                  onClick={() => handleDeleteComment(post.id, c.id)}
+                                  className={
+                                    isAdmin
+                                      ? "text-red-400 hover:text-white p-1.5 px-2 rounded-lg bg-red-500/10 hover:bg-red-600 border border-red-500/30 transition-all shrink-0 cursor-pointer flex items-center gap-1 text-[11px] font-bold shadow-sm"
+                                      : "text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer"
+                                  }
+                                  title={isAdmin ? 'Xóa bình luận này trực tiếp (Quyền Admin)' : 'Xóa bình luận'}
+                                >
+                                  <Trash2 size={13} />
+                                  {isAdmin && <span>Xóa</span>}
+                                </button>
                               )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-zinc-300 block">
-                                  {c.authorName}
-                                </span>
-                                {c.isAuthorVip && (
-                                  <span className="text-[8px] font-bold bg-amber-500/20 text-amber-300 px-1 rounded">
-                                    VIP
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
-                                {c.text}
-                              </p>
-                            </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </div>
 
@@ -607,7 +772,7 @@ export function CommunityView({
                     <div className="flex items-center gap-2 pt-1">
                       <input
                         type="text"
-                        placeholder={user ? "Viết bình luận của bạn (+5 pts)..." : "Đăng nhập để bình luận"}
+                        placeholder={user ? (isAdmin ? "Viết bình luận với tư cách Quản trị viên..." : "Viết bình luận của bạn (+5 pts)...") : "Đăng nhập để bình luận"}
                         disabled={!user}
                         value={commentInputMap[post.id] || ''}
                         onChange={(e) =>
@@ -624,7 +789,7 @@ export function CommunityView({
                       <button
                         onClick={() => handleAddComment(post.id)}
                         disabled={!user || commentLoadingMap[post.id]}
-                        className="bg-white hover:bg-zinc-200 text-black p-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
+                        className="bg-white hover:bg-zinc-200 text-black p-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
                         title="Gửi"
                       >
                         {commentLoadingMap[post.id] ? (

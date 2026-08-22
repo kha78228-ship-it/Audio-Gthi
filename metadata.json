@@ -1,6 +1,6 @@
 {
-  "name": "Web Audio Player",
-  "description": "Nền tảng nghe nhạc trực tuyến với Trang chủ, Kho Audio, Cộng đồng, Điểm Audio, Cài đặt Đặc quyền VIP và Trang Nạp VIP (Gói tuần 15k, tháng 20k, 3 tháng 45k, 6 tháng 80k, 1 năm 150k kèm mã ưu đãi).",
-  "requestFramePermissions": [],
+  "name": "Haevy Audio",
+  "description": "Hệ sinh thái Haevy toàn diện tích hợp Âm nhạc & Audio Studio Tác Giả, AI Voice Studio, Chế độ Cặp Đôi (I Love Haevy), Nhắn tin Kết bạn (Haevy Message), và Hệ thống Quản lý Tài Chính Thông Minh (Haevy Finance) với Sổ Thu Chi, Quản lý Đa Ví Ngân Hàng, Ngân Sách 50/30/20, Mục Tiêu Tiết Kiệm, Sổ Vay Nợ, Hóa Đơn Định Kỳ, Báo Cáo Phân Tích Dòng Tiền và Quỹ Chung Cặp Đôi.",
+  "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

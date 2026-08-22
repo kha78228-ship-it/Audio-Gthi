@@ -48,6 +48,24 @@
       },
       "required": ["packageId", "packageName", "durationDays", "finalAmount", "paymentMethod", "createdAt"]
     },
+    "pointOrders": {
+      "title": "Points/Coins Topup Order",
+      "description": "Topup transactions for Audio Points / Coins packages",
+      "type": "object",
+      "properties": {
+        "packageId": { "type": "string" },
+        "packageName": { "type": "string" },
+        "pointsAwarded": { "type": "number" },
+        "originalAmount": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "finalAmount": { "type": "number" },
+        "promoCodeApplied": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["packageId", "packageName", "pointsAwarded", "finalAmount", "paymentMethod", "createdAt"]
+    },
     "pointTransactions": {
       "title": "Point Transaction",
       "description": "History of earned and spent audio points",
@@ -113,9 +131,228 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["authorId", "authorName", "text", "createdAt"]
+    },
+    "referralCodes": {
+      "title": "Admin Referral Code",
+      "description": "6-character referral promo codes created by admin with max 100 redemptions each",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "maxLength": 6, "minLength": 6 },
+        "maxUses": { "type": "number" },
+        "usedCount": { "type": "number" },
+        "usedByUids": { "type": "array", "items": { "type": "string" } },
+        "rewardPoints": { "type": "number" },
+        "rewardVipDays": { "type": "number" },
+        "createdBy": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "maxUses", "usedCount", "rewardPoints", "createdBy", "createdAt"]
+    },
+    "authorVerifications": {
+      "title": "Author Verification",
+      "description": "Author eKYC verification submissions and status",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "stageName": { "type": "string" },
+        "email": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "idCardNumber": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "verified", "rejected"] },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "fullName", "stageName", "status", "submittedAt"]
+    },
+    "giftDonations": {
+      "title": "Author Gift Donation",
+      "description": "Virtual gifts sent to authors using Audio Points",
+      "type": "object",
+      "properties": {
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "authorStageName": { "type": "string" },
+        "giftId": { "type": "string" },
+        "giftName": { "type": "string" },
+        "giftIcon": { "type": "string" },
+        "pointsCost": { "type": "number" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderUid", "authorUid", "giftId", "giftName", "pointsCost", "createdAt"]
+    },
+    "anonymousPasses": {
+      "title": "Anonymous VIP Pass",
+      "description": "Guest VIP passes with 3-digit (1 month) or 1-week duration without login",
+      "type": "object",
+      "properties": {
+        "passCode": { "type": "string" },
+        "type": { "type": "string", "enum": ["3_digit_month", "1_week"] },
+        "durationDays": { "type": "number" },
+        "usedCount": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["passCode", "durationDays", "type", "createdAt"]
+    },
+    "systemAuditLogs": {
+      "title": "System Audit Log",
+      "description": "Comprehensive transparency audit trail tracking all administrative and user activities without omissions",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string" },
+        "actionTitle": { "type": "string" },
+        "actorId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "actorEmail": { "type": "string" },
+        "actorRole": { "type": "string", "enum": ["admin", "user", "author"] },
+        "targetType": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetName": { "type": "string" },
+        "details": { "type": "string" },
+        "severity": { "type": "string", "enum": ["info", "warning", "danger", "critical"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["action", "actionTitle", "actorId", "actorName", "details", "severity", "createdAt"]
+    },
+    "systemAnnouncements": {
+      "title": "System Announcement",
+      "description": "Global broadcast messages and maintenance notices published by administrators",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "event", "urgent", "maintenance"] },
+        "isActive": { "type": "boolean" },
+        "isPinned": { "type": "boolean" },
+        "targetAudience": { "type": "string", "enum": ["all", "vip", "authors"] },
+        "createdBy": { "type": "string" },
+        "createdByName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "type", "isActive", "createdBy", "createdAt"]
+    },
+    "systemSettings": {
+      "title": "System Setting Config",
+      "description": "Platform global configuration variables and toggles",
+      "type": "object",
+      "properties": {
+        "maintenanceMode": { "type": "boolean" },
+        "maintenanceMessage": { "type": "string" },
+        "allowRegistration": { "type": "boolean" },
+        "allowAuthorSubmissions": { "type": "boolean" },
+        "vipDiscountPercentage": { "type": "number" },
+        "globalPointMultiplier": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["maintenanceMode", "allowRegistration", "globalPointMultiplier"]
+    },
+    "thoughtBubbles": {
+      "title": "Thought Bubble Note",
+      "description": "User short status notes and thought bubbles displayed on friend avatars",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userAccountId": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "isUserVip": { "type": "boolean" },
+        "isAuthorVerified": { "type": "boolean" },
+        "authorStageName": { "type": "string" },
+        "text": { "type": "string", "maxLength": 140 },
+        "emoji": { "type": "string" },
+        "bgColor": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "text", "createdAt"]
+    },
+    "friendPhotoPosts": {
+      "title": "Friend Photo Post",
+      "description": "Photos captured via in-app camera or uploaded from device by friends with captions",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAccountId": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "isAuthorVip": { "type": "boolean" },
+        "isAuthorVerified": { "type": "boolean" },
+        "authorStageName": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "caption": { "type": "string" },
+        "captureSource": { "type": "string", "enum": ["camera", "upload"] },
+        "location": { "type": "string" },
+        "mood": { "type": "string" },
+        "likes": { "type": "array", "items": { "type": "string" } },
+        "commentsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "authorName", "photoUrl", "caption", "captureSource", "createdAt"]
+    },
+    "friendPhotoComments": {
+      "title": "Friend Photo Comment",
+      "description": "Comments on friend photo posts",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "isAuthorVip": { "type": "boolean" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "authorName", "text", "createdAt"]
+    },
+    "couples": {
+      "title": "Couple Space",
+      "description": "Love and marriage relationship space for two linked accounts",
+      "type": "object",
+      "properties": {
+        "pairCode": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "active", "cancelled"] },
+        "relationshipType": { "type": "string", "enum": ["dating", "engaged", "married"] },
+        "anniversaryDate": { "type": "string" },
+        "coupleTitle": { "type": "string" },
+        "theme": { "type": "string" },
+        "lovePoints": { "type": "number" },
+        "sharedSongIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["pairCode", "status", "relationshipType", "anniversaryDate", "coupleTitle", "createdAt"]
     }
   },
   "firestore": {
+    "/couples/{coupleId}": {
+      "entity": "couples",
+      "description": "Couples space shared between two lovers or spouses"
+    },
+    "/couples/{coupleId}/anniversaryGuesses/{guessId}": {
+      "entity": "couples",
+      "description": "Anniversary date guessing mini-game"
+    },
+    "/couples/{coupleId}/customQuizzes/{quizId}": {
+      "entity": "couples",
+      "description": "Custom partner understanding quizzes"
+    },
+    "/couples/{coupleId}/loveCards/{cardId}": {
+      "entity": "couples",
+      "description": "Daily love card deck answers"
+    },
+    "/couples/{coupleId}/voiceMoments/{momentId}": {
+      "entity": "couples",
+      "description": "Voice promises and sound capsules"
+    },
+    "/couples/{coupleId}/memories/{memoryId}": {
+      "entity": "couples",
+      "description": "Shared photo album and milestone timeline"
+    },
     "/users/{userId}": {
       "entity": "users",
       "description": "User profile keyed by auth UID"
@@ -123,6 +360,10 @@
     "/users/{userId}/vipOrders/{orderId}": {
       "entity": "vipOrders",
       "description": "VIP subscription orders and payment records"
+    },
+    "/users/{userId}/pointOrders/{orderId}": {
+      "entity": "pointOrders",
+      "description": "Points/Coins topup orders and payment records"
     },
     "/users/{userId}/pointTransactions/{txId}": {
       "entity": "pointTransactions",
@@ -139,6 +380,46 @@
     "/communityPosts/{postId}/comments/{commentId}": {
       "entity": "comments",
       "description": "Comments on a community post"
+    },
+    "/referralCodes/{codeId}": {
+      "entity": "referralCodes",
+      "description": "Admin generated referral promo codes with 100 usage limits"
+    },
+    "/anonymousPasses/{passId}": {
+      "entity": "anonymousPasses",
+      "description": "Admin and system guest VIP passes"
+    },
+    "/giftDonations/{giftId}": {
+      "entity": "giftDonations",
+      "description": "Public author gift donations"
+    },
+    "/authorVerifications/{verificationId}": {
+      "entity": "authorVerifications",
+      "description": "Author eKYC verifications"
+    },
+    "/systemAuditLogs/{logId}": {
+      "entity": "systemAuditLogs",
+      "description": "Global activity audit logs for system transparency"
+    },
+    "/systemAnnouncements/{announcementId}": {
+      "entity": "systemAnnouncements",
+      "description": "Global announcements and broadcast alerts"
+    },
+    "/systemSettings/{configId}": {
+      "entity": "systemSettings",
+      "description": "System wide runtime settings and maintenance mode configuration"
+    },
+    "/thoughtBubbles/{bubbleId}": {
+      "entity": "thoughtBubbles",
+      "description": "Friend thought bubbles and status notes displayed on user avatars"
+    },
+    "/friendPhotoPosts/{postId}": {
+      "entity": "friendPhotoPosts",
+      "description": "Photos captured via in-app camera or uploaded from device by friends with descriptions"
+    },
+    "/friendPhotoPosts/{postId}/comments/{commentId}": {
+      "entity": "friendPhotoComments",
+      "description": "Comments on friend photo posts"
     }
   }
 }

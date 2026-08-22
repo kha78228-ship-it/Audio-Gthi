@@ -15,3 +15,211 @@
     background: #52525b;
   }
 }
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes chainSlideRight {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 120px 0;
+  }
+}
+
+@keyframes chainSlideLeft {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -120px 0;
+  }
+}
+
+@keyframes chainEnterLeft {
+  0% {
+    transform: translateX(-100%) rotate(-12deg);
+    opacity: 0;
+  }
+  70% {
+    transform: translateX(5%) rotate(-12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) rotate(-12deg);
+    opacity: 1;
+  }
+}
+
+@keyframes chainEnterRight {
+  0% {
+    transform: translateX(100%) rotate(12deg);
+    opacity: 0;
+  }
+  70% {
+    transform: translateX(-5%) rotate(12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) rotate(12deg);
+    opacity: 1;
+  }
+}
+
+@keyframes chainRetractLeft {
+  0% {
+    transform: translateX(0) rotate(-12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-120%) rotate(-12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes chainRetractRight {
+  0% {
+    transform: translateX(0) rotate(12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120%) rotate(12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes padlockSnapIn {
+  0% {
+    transform: scale(0.3) translateY(-100px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15) translateY(10px);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(0.95) translateY(-4px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes lockShackleSnap {
+  0% {
+    transform: translateY(-16px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes lockFloat {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.03);
+  }
+}
+
+@keyframes lockAuraPulse {
+  0%, 100% {
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.4), 0 0 70px rgba(239, 68, 68, 0.25);
+    border-color: rgba(245, 158, 11, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 60px rgba(245, 158, 11, 0.8), 0 0 110px rgba(239, 68, 68, 0.5);
+    border-color: rgba(251, 191, 36, 0.9);
+  }
+}
+
+@keyframes laserScan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0.3;
+  }
+}
+
+.animate-chain-enter-left {
+  animation: chainEnterLeft 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-chain-enter-right {
+  animation: chainEnterRight 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-chain-retract-left {
+  animation: chainRetractLeft 0.6s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+.animate-chain-retract-right {
+  animation: chainRetractRight 0.6s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+.animate-padlock-snap {
+  animation: padlockSnapIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-shackle-snap {
+  animation: lockShackleSnap 0.3s ease-in forwards;
+}
+
+.animate-chain-slide-1 {
+  animation: chainSlideRight 3s linear infinite;
+}
+
+.animate-chain-slide-2 {
+  animation: chainSlideLeft 3s linear infinite;
+}
+
+.animate-lock-float {
+  animation: lockFloat 3.5s ease-in-out infinite;
+}
+
+.animate-lock-aura {
+  animation: lockAuraPulse 2.5s ease-in-out infinite;
+}
+
+.animate-laser-scan {
+  animation: laserScan 2.5s ease-in-out infinite;
+}
+
+.animate-marquee-slow {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee-normal {
+  display: flex;
+  width: max-content;
+  animation: marquee 20s linear infinite;
+}
+
+.animate-marquee-fast {
+  display: flex;
+  width: max-content;
+  animation: marquee 10s linear infinite;
+}
+
+.animate-marquee-slow:hover,
+.animate-marquee-normal:hover,
+.animate-marquee-fast:hover {
+  animation-play-state: paused;
+}

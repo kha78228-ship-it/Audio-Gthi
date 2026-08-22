@@ -5,25 +5,68 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  updateProfile,
+  updateProfile, 
   signOut 
 } from 'firebase/auth';
 import { 
   doc, 
   setDoc, 
   getDoc,
+  getDocs,
   onSnapshot, 
   serverTimestamp, 
   collection, 
   addDoc, 
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  arrayUnion,
   increment 
 } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../lib/firebase';
-import { VipTier, VipSettings, PointTransaction, VipPackage, VipOrder } from '../types';
+import { 
+  VipTier, 
+  VipSettings, 
+  PointTransaction, 
+  VipPackage, 
+  VipOrder,
+  PointTopupPackage,
+  PointTopupOrder,
+  ReferralCode,
+  AnonymousPass,
+  AnonymousVipSession,
+  UserAccountData,
+  AuthorVerification,
+  AuthorVerificationStatus,
+  Track,
+  SystemAuditLog,
+  AdminRole,
+  SubAdminPermissions,
+  SystemAnnouncement,
+  SystemGlobalConfig
+} from '../types';
+import { INITIAL_TRACKS } from '../data';
+
+interface CustomAuthUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  isLocalSession?: boolean;
+  isAnonymous?: boolean;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: User | CustomAuthUser | null;
   loading: boolean;
+  accountId: string;
+  role: AdminRole;
+  adminRole: AdminRole;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isSubAdmin: boolean;
+  subAdminPermissions: SubAdminPermissions;
   favorites: string[];
   audioPoints: number;
   totalEarnedPoints: number;
@@ -33,8 +76,28 @@ interface AuthContextType {
   vipExpiresAt: string | null;
   isVip: boolean;
   vipSettings: VipSettings;
+  anonymousVipSession: AnonymousVipSession | null;
+  isAnonymousAccount: boolean;
+  loginAsAnonymous: (passCode?: string) => Promise<{ success: boolean; message: string; guestId: string }>;
+  // Author & Verification State
+  authorStatus: AuthorVerificationStatus;
+  isAuthorVerified: boolean;
+  authorStageName: string;
+  authorBio: string;
+  authorVerificationData: AuthorVerification | null;
+  logSystemActivity: (params: {
+    action: SystemAuditLog['action'];
+    actionTitle: string;
+    targetType: SystemAuditLog['targetType'];
+    targetId?: string;
+    targetName?: string;
+    details: string;
+    metadata?: Record<string, any>;
+    severity?: SystemAuditLog['severity'];
+  }) => Promise<void>;
   toggleFavorite: (trackId: string) => Promise<void>;
   addAudioPoints: (amount: number, title: string, type: PointTransaction['type']) => Promise<void>;
+  deductAudioPoints: (amount: number, title: string, type?: PointTransaction['type']) => Promise<{ success: boolean; message: string }>;
   incrementListenTime: (minutes: number) => Promise<void>;
   performDailyCheckin: () => Promise<{ success: boolean; message: string; pointsAwarded: number }>;
   redeemVipWithPoints: (tier: VipTier, durationDays: number, pointsCost: number) => Promise<{ success: boolean; message: string }>;
@@ -46,11 +109,116 @@ interface AuthContextType {
     promoCodeApplied?: string;
     paymentMethod: VipOrder['paymentMethod'];
   }) => Promise<{ success: boolean; message: string; orderId?: string }>;
+  purchasePointsPackage: (params: {
+    pkg: PointTopupPackage;
+    finalAmount: number;
+    originalAmount: number;
+    discountAmount: number;
+    promoCodeApplied?: string;
+    paymentMethod: PointTopupOrder['paymentMethod'];
+  }) => Promise<{ success: boolean; message: string; orderId?: string }>;
+  giftVipPlanToUser: (params: {
+    recipientIdentifier: string;
+    pkg: VipPackage;
+    finalAmount: number;
+    paymentMethod: VipOrder['paymentMethod'];
+    message?: string;
+  }) => Promise<{ success: boolean; message: string; recipientName?: string; orderId?: string }>;
+  transferCoinsToUser: (params: {
+    recipientIdentifier: string;
+    amount: number;
+    message?: string;
+  }) => Promise<{ success: boolean; message: string; recipientName?: string }>;
   activateTrialVip: () => Promise<void>;
   updateVipSettings: (settings: Partial<VipSettings>) => Promise<void>;
+  createBlankAnonymousAccount: () => { guestId: string; message: string };
+  activateAnonymousPass: (code: string) => Promise<{ success: boolean; message: string; durationDays: number; type: '3_digit_month' | '1_week' }>;
+  clearAnonymousVipSession: () => void;
+  redeemReferralCode: (code: string) => Promise<{ success: boolean; message: string; pointsAwarded?: number; daysAwarded?: number }>;
+  // Author Methods
+  submitAuthorVerification: (data: {
+    fullName: string;
+    stageName: string;
+    email: string;
+    phoneNumber: string;
+    idCardNumber: string;
+    idCardIssueDate: string;
+    idCardFrontUrl: string;
+    idCardBackUrl: string;
+    facePhotoUrl: string;
+    musicGenre: string;
+    bio: string;
+    socialLink?: string;
+  }) => Promise<{ success: boolean; message: string }>;
+  publishAuthorTrack: (trackData: {
+    title: string;
+    artist?: string;
+    genre: string;
+    url: string;
+    coverUrl: string;
+    durationSec?: number;
+    isVipOnly?: boolean;
+    bitrate?: string;
+    description?: string;
+    lyrics?: string;
+  }) => Promise<{ success: boolean; message: string; trackId?: string }>;
+  deleteAuthorTrack: (trackId: string) => Promise<{ success: boolean; message: string }>;
+  sendGiftToAuthor: (params: {
+    authorUid: string;
+    authorStageName: string;
+    giftId: string;
+    giftName: string;
+    giftIcon: string;
+    pointsCost: number;
+    message?: string;
+    trackId?: string;
+    trackTitle?: string;
+  }) => Promise<{ success: boolean; message: string }>;
+  // Admin Methods
+  approveAuthorVerification: (verificationId: string, targetUserId: string, stageName: string) => Promise<{ success: boolean; message: string }>;
+  rejectAuthorVerification: (verificationId: string, targetUserId: string, reason: string) => Promise<{ success: boolean; message: string }>;
+  revokeAuthorStatus: (targetUserId: string) => Promise<{ success: boolean; message: string }>;
+  createReferralCode: (params: { code?: string; rewardPoints?: number; rewardVipDays?: number; description?: string }) => Promise<{ success: boolean; message: string; code?: string }>;
+  deleteReferralCode: (codeId: string) => Promise<void>;
+  createAnonymousPass: (params: { passCode: string; type: '3_digit_month' | '1_week'; description?: string }) => Promise<{ success: boolean; message: string }>;
+  deleteAnonymousPass: (passId: string) => Promise<void>;
+  updateUserVipByAdmin: (targetUid: string, tier: VipTier, durationDays: number) => Promise<{ success: boolean; message: string }>;
+  adjustUserPointsByAdmin: (targetUid: string, pointsDelta: number, reason: string) => Promise<{ success: boolean; message: string }>;
+  deleteCommentByAdmin: (postId: string, commentId: string) => Promise<{ success: boolean; message: string }>;
+  deleteCommunityPostByAdmin: (postId: string) => Promise<{ success: boolean; message: string }>;
+  pinCommunityPostByAdmin: (postId: string, isPinned: boolean) => Promise<{ success: boolean; message: string }>;
+  deleteAudioTrackByAdmin: (trackId: string) => Promise<{ success: boolean; message: string }>;
+  toggleTrackVipStatusByAdmin: (trackId: string, currentVip: boolean) => Promise<{ success: boolean; message: string }>;
+  banUserAccountByAdmin: (targetUid: string, isBanned: boolean, reason?: string) => Promise<{ success: boolean; message: string }>;
+  
+  // Sub-Admin Management
+  assignSubAdmin: (targetUid: string, role: AdminRole, permissions: SubAdminPermissions) => Promise<{ success: boolean; message: string }>;
+  revokeSubAdmin: (targetUid: string) => Promise<{ success: boolean; message: string }>;
+  updateSubAdminPermissions: (targetUid: string, permissions: SubAdminPermissions) => Promise<{ success: boolean; message: string }>;
+
+  // System Broadcast Announcements
+  systemAnnouncements: SystemAnnouncement[];
+  createSystemAnnouncement: (data: {
+    title: string;
+    content: string;
+    type: 'info' | 'event' | 'urgent' | 'maintenance';
+    targetAudience: 'all' | 'vip' | 'authors';
+    isPinned?: boolean;
+    durationHours?: number;
+  }) => Promise<{ success: boolean; message: string }>;
+  deleteSystemAnnouncement: (announcementId: string) => Promise<{ success: boolean; message: string }>;
+  togglePinAnnouncement: (announcementId: string, isPinned: boolean) => Promise<{ success: boolean; message: string }>;
+
+  // Global System Configuration & Maintenance
+  systemGlobalConfig: SystemGlobalConfig;
+  updateSystemGlobalConfig: (config: Partial<SystemGlobalConfig>) => Promise<{ success: boolean; message: string }>;
+
+  // Batch Operations
+  batchRewardUsers: (targetUids: string[], points: number, vipDays: number, reason: string) => Promise<{ success: boolean; message: string; count: number }>;
+
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
-  signUpWithEmail: (email: string, pass: string, name?: string) => Promise<void>;
+  signUpWithEmail: (email: string, pass: string, name?: string, referralCode?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -60,13 +228,95 @@ const DEFAULT_VIP_SETTINGS: VipSettings = {
   spatial3D: true,
   showVipBadge: true,
   autoDownloadOffline: false,
+  smartEqualizer: 'bass_ultra',
+  audioCrossfadeSec: 4,
+  karaokeMode: true,
+  sleepTimerFadeout: true,
+  goldenCommentAura: true,
+  customTheme: 'royal_gold',
+};
+
+const DEFAULT_GLOBAL_CONFIG: SystemGlobalConfig = {
+  maintenanceMode: false,
+  maintenanceMessage: 'Hệ thống đang được nâng cấp định kỳ nhằm nâng cao chất lượng dịch vụ âm thanh.',
+  pointMultiplier: 1,
+  vipDiscountPercent: 0,
+  allowNewRegistrations: true,
+  allowAuthorRegistrations: true,
+  allowAnonymousPasses: true,
+  dailyCheckinBonus: 100,
+};
+
+const ANON_SESSION_KEY = 'audiohub_anon_vip_session';
+const LOCAL_USER_KEY = 'audiohub_custom_auth_user';
+
+// Helper to generate unique human-readable account ID
+function generateAccountId(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  const numeric = Math.abs(hash % 900000) + 100000;
+  return `AH-${numeric}`;
+}
+
+// Global System Activity Logger (Audit Trail with zero omissions)
+export const recordSystemAuditLog = async (params: {
+  action: SystemAuditLog['action'];
+  actionTitle: string;
+  actorId: string;
+  actorName: string;
+  actorEmail?: string;
+  actorRole: 'admin' | 'user' | 'author';
+  targetType: SystemAuditLog['targetType'];
+  targetId?: string;
+  targetName?: string;
+  details: string;
+  metadata?: Record<string, any>;
+  severity?: SystemAuditLog['severity'];
+}) => {
+  try {
+    await addDoc(collection(db, 'systemAuditLogs'), {
+      action: params.action,
+      actionTitle: params.actionTitle,
+      actorId: params.actorId,
+      actorName: params.actorName,
+      actorEmail: params.actorEmail || '',
+      actorRole: params.actorRole || 'user',
+      targetType: params.targetType,
+      targetId: params.targetId || '',
+      targetName: params.targetName || '',
+      details: params.details,
+      metadata: params.metadata || {},
+      severity: params.severity || 'info',
+      createdAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn('System audit log recording notice:', e);
+  }
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | CustomAuthUser | null>(() => {
+    try {
+      const savedLocal = localStorage.getItem(LOCAL_USER_KEY);
+      if (savedLocal) {
+        return JSON.parse(savedLocal);
+      }
+    } catch (e) {
+      console.warn('Error reading saved local user:', e);
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
+  const [accountId, setAccountId] = useState<string>('GUEST-000000');
+  const [role, setRole] = useState<AdminRole>('user');
+  const [subAdminPermissions, setSubAdminPermissions] = useState<SubAdminPermissions>({});
+  const [systemAnnouncements, setSystemAnnouncements] = useState<SystemAnnouncement[]>([]);
+  const [systemGlobalConfig, setSystemGlobalConfig] = useState<SystemGlobalConfig>(DEFAULT_GLOBAL_CONFIG);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [audioPoints, setAudioPoints] = useState<number>(0);
   const [totalEarnedPoints, setTotalEarnedPoints] = useState<number>(0);
@@ -76,27 +326,111 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [vipExpiresAt, setVipExpiresAt] = useState<string | null>(null);
   const [vipSettings, setVipSettings] = useState<VipSettings>(DEFAULT_VIP_SETTINGS);
 
-  // Derive isVip boolean
-  const isVip = 
+  // Author & Verification State
+  const [authorStatus, setAuthorStatus] = useState<AuthorVerificationStatus>('none');
+  const [isAuthorVerified, setIsAuthorVerified] = useState<boolean>(false);
+  const [authorStageName, setAuthorStageName] = useState<string>('');
+  const [authorBio, setAuthorBio] = useState<string>('');
+  const [authorVerificationData, setAuthorVerificationData] = useState<AuthorVerification | null>(null);
+
+  // Anonymous Guest VIP Session
+  const [anonymousVipSession, setAnonymousVipSession] = useState<AnonymousVipSession | null>(() => {
+    try {
+      const saved = localStorage.getItem(ANON_SESSION_KEY);
+      if (saved) {
+        const parsed: AnonymousVipSession = JSON.parse(saved);
+        if (parsed.isActive && new Date(parsed.expiresAt).getTime() > Date.now()) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading anon vip session:', e);
+    }
+    return null;
+  });
+
+  // Admin & Sub-Admin Hierarchy Checks
+  const isSuperAdmin = 
+    Boolean(user?.email && user.email.toLowerCase() === 'kha78228@gmail.com') ||
+    role === 'super_admin' || role === 'admin';
+
+  const isSubAdmin = role === 'sub_admin' || role === 'moderator';
+
+  const isAdmin = isSuperAdmin || isSubAdmin;
+
+  const adminRole: AdminRole = isSuperAdmin ? 'super_admin' : isSubAdmin ? role : 'user';
+
+  const effectivePermissions: SubAdminPermissions = isSuperAdmin ? {
+    canManageAuthors: true,
+    canManageTracks: true,
+    canManageCommunity: true,
+    canManageUsers: true,
+    canCreateVipAndPasses: true,
+    canPostAnnouncements: true,
+    canManageSystemConfig: true,
+    canBatchReward: true,
+    canViewAuditLogs: true,
+  } : {
+    canManageAuthors: Boolean(subAdminPermissions?.canManageAuthors),
+    canManageTracks: Boolean(subAdminPermissions?.canManageTracks),
+    canManageCommunity: Boolean(subAdminPermissions?.canManageCommunity),
+    canManageUsers: Boolean(subAdminPermissions?.canManageUsers),
+    canCreateVipAndPasses: Boolean(subAdminPermissions?.canCreateVipAndPasses),
+    canPostAnnouncements: Boolean(subAdminPermissions?.canPostAnnouncements),
+    canManageSystemConfig: Boolean(subAdminPermissions?.canManageSystemConfig),
+    canBatchReward: Boolean(subAdminPermissions?.canBatchReward),
+    canViewAuditLogs: Boolean(subAdminPermissions?.canViewAuditLogs),
+  };
+
+  // Derive isVip boolean considering both registered VIP & Anonymous VIP Session
+  const isRegisteredVip = 
     vipTier !== 'free' && 
     (vipExpiresAt === null || new Date(vipExpiresAt).getTime() > Date.now());
 
+  const isAnonVipActive = 
+    Boolean(anonymousVipSession?.isActive && new Date(anonymousVipSession.expiresAt).getTime() > Date.now());
+
+  const isAnonymousAccount = Boolean(
+    (user && ('isAnonymous' in user ? user.isAnonymous : (user as any).isAnonymous)) ||
+    (anonymousVipSession?.isActive && !user)
+  );
+
+  const effectiveIsVip = isRegisteredVip || isAnonVipActive;
+  const effectiveVipTier: VipTier = isRegisteredVip ? vipTier : isAnonVipActive ? 'vip' : 'free';
+  const effectiveVipExpiresAt = isRegisteredVip ? vipExpiresAt : isAnonVipActive ? anonymousVipSession?.expiresAt || null : null;
+
+  // Effective Account ID
+  const effectiveAccountId = user 
+    ? accountId 
+    : anonymousVipSession?.isActive 
+    ? anonymousVipSession.guestId 
+    : 'GUEST-CHUA-DANG-NHAP';
+
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-
       if (currentUser) {
+        setUser(currentUser);
+        localStorage.removeItem(LOCAL_USER_KEY);
+        setLoading(false);
+
         const userRef = doc(db, 'users', currentUser.uid);
+        const isDefaultAdmin = currentUser.email?.toLowerCase() === 'kha78228@gmail.com';
+        const generatedId = generateAccountId(currentUser.uid);
+
+        // Immediately populate fallback account state so UI works seamlessly even offline
+        setAccountId(generatedId);
+        if (isDefaultAdmin) setRole('admin');
+
         try {
           const snap = await getDoc(userRef);
           if (!snap.exists()) {
             // New user registration bonus: 100 free Audio Points!
-            const now = new Date().toISOString();
             await setDoc(userRef, {
+              accountId: generatedId,
               email: currentUser.email || '',
               displayName: currentUser.displayName || 'Người dùng',
               photoURL: currentUser.photoURL || '',
+              role: isDefaultAdmin ? 'admin' : 'user',
               audioPoints: 100,
               totalEarnedPoints: 100,
               totalListenedMinutes: 0,
@@ -107,33 +441,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               favoriteTrackIds: [],
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
-            });
+            }, { merge: true });
+
+            setAccountId(generatedId);
+            setRole(isDefaultAdmin ? 'admin' : 'user');
 
             // Log welcome bonus
-            await addDoc(collection(db, 'users', currentUser.uid, 'pointTransactions'), {
-              title: 'Thưởng đăng ký thành viên mới',
-              amount: 100,
-              type: 'bonus',
-              createdAt: serverTimestamp(),
-            });
+            try {
+              await addDoc(collection(db, 'users', currentUser.uid, 'pointTransactions'), {
+                title: 'Thưởng đăng ký thành viên mới',
+                amount: 100,
+                type: 'bonus',
+                createdAt: serverTimestamp(),
+              });
+            } catch (txErr) {
+              console.warn('Welcome bonus transaction delayed:', txErr);
+            }
+          } else {
+            const data = snap.data();
+            const currentAccountId = data.accountId || generatedId;
+            const currentRole = isDefaultAdmin ? 'admin' : (data.role || 'user');
+            
+            // Ensure accountId and admin role are persisted
+            if (!data.accountId || (isDefaultAdmin && data.role !== 'admin')) {
+              await setDoc(userRef, { accountId: currentAccountId, role: currentRole }, { merge: true });
+            }
+            setAccountId(currentAccountId);
+            setRole(currentRole);
           }
         } catch (err) {
-          console.error('Error ensuring user doc:', err);
+          // Graceful fallback when Firestore is offline or initializing
+          console.warn('Firestore offline/initializing, maintaining active session:', err);
+          setAccountId(generatedId);
+          if (isDefaultAdmin) setRole('admin');
         }
       } else {
-        setFavorites([]);
-        setAudioPoints(0);
-        setTotalEarnedPoints(0);
-        setVipTier('free');
-        setVipExpiresAt(null);
-        setVipSettings(DEFAULT_VIP_SETTINGS);
+        // Check if there is a local custom user
+        const savedLocal = localStorage.getItem(LOCAL_USER_KEY);
+        if (savedLocal) {
+          try {
+            const localUser: CustomAuthUser = JSON.parse(savedLocal);
+            setUser(localUser);
+            const isDefaultAdmin = localUser.email?.toLowerCase() === 'kha78228@gmail.com';
+            const genId = generateAccountId(localUser.uid);
+            setAccountId(genId);
+            setRole(isDefaultAdmin ? 'admin' : 'user');
+          } catch (e) {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+          setFavorites([]);
+          setAudioPoints(0);
+          setTotalEarnedPoints(0);
+          setVipTier('free');
+          setVipExpiresAt(null);
+          setRole('user');
+          setVipSettings(DEFAULT_VIP_SETTINGS);
+        }
+        setLoading(false);
       }
     });
 
     return () => unsubscribeAuth();
   }, []);
 
-  // Listen to user profile, points, and VIP in Firestore
+  // Listen to user profile in Firestore
   useEffect(() => {
     if (!user) return;
 
@@ -146,6 +519,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (Array.isArray(data.favoriteTrackIds)) {
             setFavorites(data.favoriteTrackIds);
           }
+          if (data.accountId) {
+            setAccountId(data.accountId);
+          }
+          if (data.role) {
+            setRole(user.email?.toLowerCase() === 'kha78228@gmail.com' ? 'super_admin' : data.role);
+          }
+          if (data.subAdminPermissions) {
+            setSubAdminPermissions(data.subAdminPermissions);
+          } else {
+            setSubAdminPermissions({});
+          }
           setAudioPoints(typeof data.audioPoints === 'number' ? data.audioPoints : 0);
           setTotalEarnedPoints(typeof data.totalEarnedPoints === 'number' ? data.totalEarnedPoints : 0);
           setTotalListenedMinutes(typeof data.totalListenedMinutes === 'number' ? data.totalListenedMinutes : 0);
@@ -155,6 +539,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (data.vipSettings) {
             setVipSettings({ ...DEFAULT_VIP_SETTINGS, ...data.vipSettings });
           }
+
+          // Author Verification States
+          const isVerified = Boolean(
+            data.isAuthorVerified || 
+            (user.email?.toLowerCase() === 'kha78228@gmail.com' && data.isAuthorVerified !== false)
+          );
+          setIsAuthorVerified(isVerified);
+          setAuthorStatus((data.authorStatus as AuthorVerificationStatus) || (isVerified ? 'verified' : 'none'));
+          setAuthorStageName(data.authorStageName || user.displayName || '');
+          setAuthorBio(data.authorBio || '');
         }
       },
       (error) => {
@@ -162,15 +556,1454 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => unsubscribeDoc();
+    // Listen to author verification document
+    const verifRef = doc(db, 'authorVerifications', user.uid);
+    const unsubscribeVerif = onSnapshot(
+      verifRef,
+      (vSnap) => {
+        if (vSnap.exists()) {
+          const vData = vSnap.data() as AuthorVerification;
+          setAuthorVerificationData({ ...vData, id: vSnap.id });
+          if (vData.status) {
+            setAuthorStatus(vData.status);
+            if (vData.status === 'verified') {
+              setIsAuthorVerified(true);
+            }
+          }
+        } else {
+          setAuthorVerificationData(null);
+        }
+      },
+      (err) => {
+        console.warn('Author verification snap note:', err);
+      }
+    );
+
+    return () => {
+      unsubscribeDoc();
+      unsubscribeVerif();
+    };
   }, [user]);
+
+  // Listen to System Broadcast Announcements
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'systemAnnouncements'));
+      const unsub = onSnapshot(q, (snap) => {
+        const list: SystemAnnouncement[] = [];
+        snap.forEach((d) => {
+          list.push({ id: d.id, ...(d.data() as any) });
+        });
+        // Sort pinned first, then newest
+        list.sort((a, b) => {
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
+        setSystemAnnouncements(list);
+      }, (err) => {
+        console.warn('System announcements listener note:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Announcements init notice:', e);
+    }
+  }, []);
+
+  // Listen to Global System Configuration
+  useEffect(() => {
+    try {
+      const configRef = doc(db, 'systemSettings', 'globalConfig');
+      const unsub = onSnapshot(configRef, (snap) => {
+        if (snap.exists()) {
+          setSystemGlobalConfig({ ...DEFAULT_GLOBAL_CONFIG, ...(snap.data() as any) });
+        }
+      }, (err) => {
+        console.warn('Global config listener note:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Global config init notice:', e);
+    }
+  }, []);
+
+  // Login or Activate Anonymous Account (Full rights except Studio, destroyed on logout)
+  const loginAsAnonymous = async (passCode?: string): Promise<{ success: boolean; message: string; guestId: string }> => {
+    const cleanCode = (passCode || '').trim().toUpperCase();
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const guestId = `ANON-${randomNum}`;
+    const anonUid = `anon-${Date.now()}-${randomNum}`;
+
+    let durationDays = 0;
+    let isVipActive = false;
+    let bonusPoints = 50; // Starter points for anonymous user
+    let perkMessage = 'Tài khoản Trắng cơ bản';
+    let passType: '3_digit_month' | '1_week' = '1_week';
+
+    if (cleanCode) {
+      const is3Digits = /^\d{3}$/.test(cleanCode);
+      let passDays = is3Digits ? 30 : 7;
+      passType = is3Digits ? '3_digit_month' : '1_week';
+
+      try {
+        const passesRef = collection(db, 'anonymousPasses');
+        const q = query(passesRef, where('passCode', '==', cleanCode));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const passDoc = snap.docs[0];
+          const passData = passDoc.data();
+          passDays = passData.durationDays || (passData.type === '3_digit_month' ? 30 : 7);
+          passType = passData.type || (passDays >= 30 ? '3_digit_month' : '1_week');
+          await updateDoc(doc(db, 'anonymousPasses', passDoc.id), {
+            usedCount: increment(1),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      } catch (e) {
+        console.warn('Pass check notice:', e);
+      }
+
+      isVipActive = true;
+      durationDays = passDays;
+      bonusPoints = 150;
+      perkMessage = `Đặc quyền VIP (${durationDays} ngày) & +150 Điểm`;
+    }
+
+    const now = new Date();
+    const expiresDate = isVipActive ? new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000) : null;
+
+    const anonymousUser: CustomAuthUser = {
+      uid: anonUid,
+      email: null,
+      displayName: `Khách Ẩn Danh #${randomNum}`,
+      photoURL: null,
+      isLocalSession: true,
+      isAnonymous: true,
+    };
+
+    const anonSession: AnonymousVipSession = {
+      isActive: isVipActive,
+      guestId,
+      passCode: cleanCode || `BLANK-${randomNum}`,
+      durationDays,
+      activatedAt: now.toISOString(),
+      expiresAt: expiresDate ? expiresDate.toISOString() : '',
+      type: passType,
+    };
+
+    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(anonymousUser));
+    if (isVipActive) {
+      localStorage.setItem(ANON_SESSION_KEY, JSON.stringify(anonSession));
+      setAnonymousVipSession(anonSession);
+    } else {
+      localStorage.removeItem(ANON_SESSION_KEY);
+      setAnonymousVipSession(null);
+    }
+
+    setUser(anonymousUser);
+    setAccountId(guestId);
+    setRole('user');
+    setAudioPoints(bonusPoints);
+    setTotalEarnedPoints(bonusPoints);
+    setTotalListenedMinutes(0);
+    setFavorites([]);
+    setIsAuthorVerified(false);
+    setAuthorStatus('none');
+
+    if (isVipActive && expiresDate) {
+      setVipTier('vip');
+      setVipExpiresAt(expiresDate.toISOString());
+    } else {
+      setVipTier('free');
+      setVipExpiresAt(null);
+    }
+
+    return {
+      success: true,
+      message: `Đăng nhập Ẩn danh [${guestId}] thành công! ${perkMessage}. Khi đăng xuất, tài khoản này sẽ tự động hủy hoàn toàn.`,
+      guestId,
+    };
+  };
+
+  // Activate Anonymous VIP Pass without Login (bridges to loginAsAnonymous)
+  const activateAnonymousPass = async (code: string): Promise<{ success: boolean; message: string; durationDays: number; type: '3_digit_month' | '1_week' }> => {
+    const res = await loginAsAnonymous(code);
+    const cleanCode = code.trim().toUpperCase();
+    const is3Digits = /^\d{3}$/.test(cleanCode);
+    const durationDays = is3Digits ? 30 : 7;
+    return {
+      success: res.success,
+      message: res.message,
+      durationDays,
+      type: is3Digits ? '3_digit_month' : '1_week',
+    };
+  };
+
+  const clearAnonymousVipSession = () => {
+    localStorage.removeItem(ANON_SESSION_KEY);
+    setAnonymousVipSession(null);
+  };
+
+  // Create a completely new Blank Anonymous Account (Trắng thông tin)
+  const createBlankAnonymousAccount = (): { guestId: string; message: string } => {
+    const randomGuestNum = Math.floor(1000 + Math.random() * 9000);
+    const guestId = `ANON-${randomGuestNum}`;
+    loginAsAnonymous();
+    return {
+      guestId,
+      message: `Đã đăng nhập tài khoản Ẩn Danh mới [${guestId}] trắng thông tin thành công! Bạn có đầy đủ quyền lợi nghe nhạc, bình luận, tích điểm (trừ Studio). Khi đăng xuất, tài khoản sẽ tự động xóa.`,
+    };
+  };
+
+  // Redeem Referral Code (6-character alphanumeric uppercase code with 100 uses limit)
+  const redeemReferralCode = async (code: string): Promise<{ success: boolean; message: string; pointsAwarded?: number; daysAwarded?: number }> => {
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode) {
+      return { success: false, message: 'Vui lòng nhập mã giới thiệu 6 ký tự.' };
+    }
+
+    if (cleanCode.length !== 6) {
+      return { success: false, message: 'Mã giới thiệu hợp lệ phải gồm đúng 6 ký tự (chữ hoa và số).' };
+    }
+
+    if (!user) {
+      // If not logged in, offer to activate anonymous pass or prompt login
+      return { success: false, message: 'Vui lòng đăng nhập để nhận thưởng Điểm Audio và ngày VIP từ mã giới thiệu!' };
+    }
+
+    try {
+      const codesRef = collection(db, 'referralCodes');
+      const q = query(codesRef, where('code', '==', cleanCode));
+      const snap = await getDocs(q);
+
+      let rewardPoints = 200;
+      let rewardVipDays = 7;
+      let targetDocId: string | null = null;
+
+      if (!snap.empty) {
+        const codeDoc = snap.docs[0];
+        const data = codeDoc.data();
+
+        if (data.isActive === false) {
+          return { success: false, message: 'Mã giới thiệu này hiện đang tạm khóa hoặc đã hết hạn.' };
+        }
+
+        const maxUses = typeof data.maxUses === 'number' ? data.maxUses : 100;
+        const usedCount = typeof data.usedCount === 'number' ? data.usedCount : 0;
+        const usedByUids: string[] = Array.isArray(data.usedByUids) ? data.usedByUids : [];
+
+        if (usedCount >= maxUses) {
+          return { success: false, message: `Mã giới thiệu này đã đạt tối đa ${maxUses} lượt nhập!` };
+        }
+
+        if (usedByUids.includes(user.uid)) {
+          return { success: false, message: 'Bạn đã từng sử dụng mã giới thiệu này trước đây rồi.' };
+        }
+
+        rewardPoints = data.rewardPoints || 200;
+        rewardVipDays = data.rewardVipDays || 7;
+        targetDocId = codeDoc.id;
+
+        // Record usage
+        await updateDoc(doc(db, 'referralCodes', targetDocId), {
+          usedCount: increment(1),
+          usedByUids: arrayUnion(user.uid),
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        // Fallback default built-in seed codes like VIP100, KHA782, VN2026, AUD100
+        const builtInValid = ['VIP100', 'KHA782', 'VN2026', 'AUD100', 'PRO100', 'LUCKY6'].includes(cleanCode);
+        if (!builtInValid) {
+          return { success: false, message: 'Mã giới thiệu không tồn tại hoặc không chính xác.' };
+        }
+      }
+
+      // Award points and VIP days to user
+      let baseTime = Date.now();
+      if (vipExpiresAt && new Date(vipExpiresAt).getTime() > Date.now()) {
+        baseTime = new Date(vipExpiresAt).getTime();
+      }
+      const newExpiresAt = new Date(baseTime + rewardVipDays * 24 * 60 * 60 * 1000).toISOString();
+
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(
+        userRef,
+        {
+          audioPoints: increment(rewardPoints),
+          totalEarnedPoints: increment(rewardPoints),
+          vipTier: 'vip',
+          vipExpiresAt: newExpiresAt,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Log point transaction
+      await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+        title: `Nhập mã giới thiệu [${cleanCode}] (+${rewardVipDays} ngày VIP)`,
+        amount: rewardPoints,
+        type: 'bonus',
+        createdAt: serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        message: `Kích hoạt thành công mã giới thiệu [${cleanCode}]! Bạn nhận được +${rewardPoints} Điểm Audio và +${rewardVipDays} ngày VIP.`,
+        pointsAwarded: rewardPoints,
+        daysAwarded: rewardVipDays,
+      };
+    } catch (err: any) {
+      console.error('Error redeeming referral code:', err);
+      return { success: false, message: 'Không thể xử lý mã giới thiệu. Vui lòng thử lại.' };
+    }
+  };
+
+  // Author Verification: Submit profile for approval (Email, Phone, CCCD, Face photo)
+  const submitAuthorVerification = async (data: {
+    fullName: string;
+    stageName: string;
+    email: string;
+    phoneNumber: string;
+    idCardNumber: string;
+    idCardIssueDate: string;
+    idCardFrontUrl: string;
+    idCardBackUrl: string;
+    facePhotoUrl: string;
+    musicGenre: string;
+    bio: string;
+    socialLink?: string;
+  }): Promise<{ success: boolean; message: string }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để gửi hồ sơ xác minh tác giả.' };
+    }
+
+    try {
+      const verifRef = doc(db, 'authorVerifications', user.uid);
+      const isOwnerAdmin = user.email?.toLowerCase() === 'kha78228@gmail.com';
+      const initialStatus: AuthorVerificationStatus = isOwnerAdmin ? 'verified' : 'pending';
+
+      const verifPayload: AuthorVerification = {
+        id: user.uid,
+        userId: user.uid,
+        fullName: data.fullName.trim(),
+        stageName: data.stageName.trim(),
+        email: data.email.trim(),
+        emailVerified: true,
+        phoneNumber: data.phoneNumber.trim(),
+        phoneVerified: true,
+        idCardNumber: data.idCardNumber.trim(),
+        idCardIssueDate: data.idCardIssueDate.trim(),
+        idCardFrontUrl: data.idCardFrontUrl,
+        idCardBackUrl: data.idCardBackUrl,
+        facePhotoUrl: data.facePhotoUrl,
+        musicGenre: data.musicGenre,
+        bio: data.bio.trim(),
+        socialLink: data.socialLink?.trim() || '',
+        status: initialStatus,
+        submittedAt: serverTimestamp(),
+        reviewedAt: isOwnerAdmin ? serverTimestamp() : null,
+        reviewedBy: isOwnerAdmin ? 'auto_admin' : '',
+      };
+
+      await setDoc(verifRef, verifPayload);
+
+      // Update user doc
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(
+        userRef,
+        {
+          authorStatus: initialStatus,
+          isAuthorVerified: isOwnerAdmin ? true : false,
+          authorStageName: data.stageName.trim(),
+          authorBio: data.bio.trim(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Bonus points for submitting eKYC verification
+      await addAudioPoints(100, 'Thưởng gửi hồ sơ xác minh tác giả eKYC', 'bonus');
+
+      return {
+        success: true,
+        message: isOwnerAdmin 
+          ? 'Hồ sơ tác giả của Quản trị viên đã được xác minh tự động thành công!' 
+          : 'Hồ sơ xác minh tác giả đã gửi thành công! Quản trị viên sẽ kiểm tra CCCD, SĐT, Email và Khuôn mặt để duyệt trong vòng 24h.',
+      };
+    } catch (err: any) {
+      console.error('Error submitting author verification:', err);
+      return { success: false, message: 'Lỗi khi gửi hồ sơ xác minh. Vui lòng thử lại.' };
+    }
+  };
+
+  // Author: Publish Audio Track
+  const publishAuthorTrack = async (trackData: {
+    title: string;
+    artist?: string;
+    genre: string;
+    url: string;
+    coverUrl: string;
+    durationSec?: number;
+    isVipOnly?: boolean;
+    bitrate?: string;
+    description?: string;
+    lyrics?: string;
+  }): Promise<{ success: boolean; message: string; trackId?: string }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để đăng tác phẩm Audio.' };
+    }
+
+    try {
+      const isVerified = isAuthorVerified || isAdmin;
+      const cleanTitle = trackData.title.trim();
+      const cleanArtist = (trackData.artist || authorStageName || user.displayName || 'Tác giả').trim();
+      const coverUrl = trackData.coverUrl.trim() || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80';
+      const isVipOnly = Boolean(trackData.isVipOnly);
+      const bitrate = trackData.bitrate || (isVipOnly ? '320kbps Hi-Fi' : '192kbps');
+
+      const trackDocRef = await addDoc(collection(db, 'customTracks'), {
+        title: cleanTitle,
+        artist: cleanArtist,
+        genre: trackData.genre || 'Khác',
+        url: trackData.url.trim(),
+        coverUrl,
+        durationSec: trackData.durationSec || 210,
+        plays: 0,
+        likesCount: 0,
+        isVipOnly,
+        bitrate,
+        description: trackData.description?.trim() || '',
+        lyrics: trackData.lyrics?.trim() || '',
+        isAuthorVerified: isVerified,
+        stageName: authorStageName || cleanArtist,
+        addedBy: user.uid,
+        addedByName: user.displayName || cleanArtist,
+        status: 'published',
+        createdAt: serverTimestamp(),
+      });
+
+      // Reward audio points for publishing audio!
+      await addAudioPoints(50, `Đăng tải tác phẩm: ${cleanTitle}`, 'upload');
+
+      return {
+        success: true,
+        message: `Đăng tác phẩm "${cleanTitle}" thành công! Bài hát đã được đưa lên Kho Audio và Cộng đồng.`,
+        trackId: trackDocRef.id,
+      };
+    } catch (err: any) {
+      console.error('Error publishing author track:', err);
+      return { success: false, message: 'Lỗi khi đăng Audio lên hệ thống. Vui lòng thử lại.' };
+    }
+  };
+
+  // Author: Delete Audio Track
+  const deleteAuthorTrack = async (trackId: string): Promise<{ success: boolean; message: string }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập.' };
+    }
+
+    try {
+      const cleanId = trackId.replace('custom-', '');
+      await deleteDoc(doc(db, 'customTracks', cleanId));
+      return { success: true, message: 'Đã xóa tác phẩm Audio thành công.' };
+    } catch (err: any) {
+      console.error('Error deleting author track:', err);
+      return { success: false, message: 'Lỗi khi xóa bài hát.' };
+    }
+  };
+
+  // Author & Fans: Send Virtual Gift to Author with Audio Points
+  const sendGiftToAuthor = async (params: {
+    authorUid: string;
+    authorStageName: string;
+    giftId: string;
+    giftName: string;
+    giftIcon: string;
+    pointsCost: number;
+    message?: string;
+    trackId?: string;
+    trackTitle?: string;
+  }): Promise<{ success: boolean; message: string }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để tặng quà cho tác giả!' };
+    }
+
+    if (audioPoints < params.pointsCost) {
+      return { 
+        success: false, 
+        message: `Bạn không đủ Điểm Audio (cần ${params.pointsCost.toLocaleString()} pts, hiện có ${audioPoints.toLocaleString()} pts). Hãy nghe nhạc tích lũy thêm điểm hoặc nạp gói VIP!` 
+      };
+    }
+
+    try {
+      // 1. Deduct points from sender state & database
+      const newSenderPoints = Math.max(0, audioPoints - params.pointsCost);
+      setAudioPoints(newSenderPoints);
+
+      const senderRef = doc(db, 'users', user.uid);
+      await setDoc(senderRef, {
+        audioPoints: increment(-params.pointsCost),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      // 2. Add points transaction record for sender
+      await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+        title: `Tặng ${params.giftIcon} ${params.giftName} cho tác giả "${params.authorStageName}"`,
+        amount: -params.pointsCost,
+        type: 'gift_author',
+        createdAt: serverTimestamp(),
+      });
+
+      // 3. Award points to author (if valid user ID and not self)
+      if (params.authorUid && params.authorUid !== user.uid && params.authorUid !== 'chillhop-official') {
+        try {
+          const authorRef = doc(db, 'users', params.authorUid);
+          await setDoc(authorRef, {
+            audioPoints: increment(params.pointsCost),
+            totalEarnedPoints: increment(params.pointsCost),
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
+
+          // Log author transaction
+          await addDoc(collection(db, 'users', params.authorUid, 'pointTransactions'), {
+            title: `Nhận ${params.giftIcon} ${params.giftName} từ ${user.displayName || 'Khán giả'} (+${params.pointsCost} pts)`,
+            amount: params.pointsCost,
+            type: 'receive_gift',
+            createdAt: serverTimestamp(),
+          });
+        } catch (authErr) {
+          console.warn('Could not update remote author points directly:', authErr);
+        }
+      }
+
+      // 4. Record global donation gift event in Firestore
+      await addDoc(collection(db, 'giftDonations'), {
+        senderUid: user.uid,
+        senderName: user.displayName || 'Khán giả yêu nhạc',
+        senderAccountId: effectiveAccountId,
+        senderPhoto: user.photoURL || '',
+        isSenderVip: effectiveIsVip,
+        authorUid: params.authorUid || 'author_default',
+        authorStageName: params.authorStageName,
+        giftId: params.giftId,
+        giftName: params.giftName,
+        giftIcon: params.giftIcon,
+        pointsCost: params.pointsCost,
+        message: params.message?.trim() || '',
+        trackId: params.trackId || '',
+        trackTitle: params.trackTitle || '',
+        createdAt: serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        message: `Đã gửi tặng ${params.giftIcon} ${params.giftName} (${params.pointsCost.toLocaleString()} Điểm Audio) thành công đến tác giả ${params.authorStageName}!`,
+      };
+    } catch (err: any) {
+      console.error('Error sending gift to author:', err);
+      return { success: false, message: 'Lỗi khi tặng quà: ' + (err.message || 'Vui lòng thử lại sau.') };
+    }
+  };
+
+  // ADMIN: Approve Author Verification
+  const approveAuthorVerification = async (verificationId: string, targetUserId: string, stageName: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền duyệt tác giả.' };
+    }
+
+    try {
+      const verifRef = doc(db, 'authorVerifications', verificationId);
+      await updateDoc(verifRef, {
+        status: 'verified',
+        reviewedAt: serverTimestamp(),
+        reviewedBy: user?.email || 'admin',
+      });
+
+      const userRef = doc(db, 'users', targetUserId);
+      await setDoc(
+        userRef,
+        {
+          isAuthorVerified: true,
+          authorStatus: 'verified',
+          authorStageName: stageName || 'Tác giả',
+          audioPoints: increment(300),
+          totalEarnedPoints: increment(300),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Add reward transaction
+      await addDoc(collection(db, 'users', targetUserId, 'pointTransactions'), {
+        title: 'Thưởng 300 pts khi được duyệt Tác Giả Âm Nhạc Chính Thức ✓',
+        amount: 300,
+        type: 'bonus',
+        createdAt: serverTimestamp(),
+      });
+
+      return { success: true, message: `Đã phê duyệt xác minh Tác giả chính thức cho ${stageName || targetUserId}!` };
+    } catch (err: any) {
+      console.error('Error approving author verification:', err);
+      return { success: false, message: 'Lỗi khi phê duyệt hồ sơ tác giả.' };
+    }
+  };
+
+  // ADMIN: Reject Author Verification
+  const rejectAuthorVerification = async (verificationId: string, targetUserId: string, reason: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền từ chối hồ sơ.' };
+    }
+
+    try {
+      const verifRef = doc(db, 'authorVerifications', verificationId);
+      await updateDoc(verifRef, {
+        status: 'rejected',
+        adminNote: reason || 'Thông tin giấy tờ CCCD/khuôn mặt chưa khớp hoặc mờ.',
+        reviewedAt: serverTimestamp(),
+        reviewedBy: user?.email || 'admin',
+      });
+
+      const userRef = doc(db, 'users', targetUserId);
+      await setDoc(
+        userRef,
+        {
+          isAuthorVerified: false,
+          authorStatus: 'rejected',
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      return { success: true, message: 'Đã từ chối hồ sơ xác minh tác giả kèm lý do phản hồi.' };
+    } catch (err: any) {
+      console.error('Error rejecting author verification:', err);
+      return { success: false, message: 'Lỗi khi từ chối hồ sơ.' };
+    }
+  };
+
+  // ADMIN: Revoke Author Status
+  const revokeAuthorStatus = async (targetUserId: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền thu hồi quyền tác giả.' };
+    }
+
+    try {
+      const userRef = doc(db, 'users', targetUserId);
+      await setDoc(
+        userRef,
+        {
+          isAuthorVerified: false,
+          authorStatus: 'none',
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      return { success: true, message: 'Đã thu hồi quyền Tác giả của người dùng thành công.' };
+    } catch (err: any) {
+      console.error('Error revoking author status:', err);
+      return { success: false, message: 'Lỗi khi thu hồi quyền tác giả.' };
+    }
+  };
+
+  // ADMIN: Create 6-character referral code with 100 uses
+  const createReferralCode = async (params: {
+    code?: string;
+    rewardPoints?: number;
+    rewardVipDays?: number;
+    description?: string;
+  }): Promise<{ success: boolean; message: string; code?: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên (Admin) mới có quyền tạo mã giới thiệu.' };
+    }
+
+    let code = params.code?.trim().toUpperCase() || '';
+    if (!code) {
+      // Auto-generate 6-char alphanumeric code (e.g. A9K3X7)
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+    }
+
+    if (code.length !== 6 || !/^[A-Z0-9]{6}$/.test(code)) {
+      return { success: false, message: 'Mã giới thiệu phải gồm đúng 6 ký tự chữ hoa hoặc số (Ví dụ: VIP100, A8K9X2).' };
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, 'referralCodes'), {
+        code,
+        maxUses: 100,
+        usedCount: 0,
+        usedByUids: [],
+        rewardPoints: params.rewardPoints || 200,
+        rewardVipDays: params.rewardVipDays || 7,
+        description: params.description || 'Mã giới thiệu đặc quyền VIP',
+        createdBy: user?.email || 'admin',
+        isActive: true,
+        createdAt: serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        message: `Tạo mã giới thiệu [${code}] thành công với giới hạn 100 lượt nhập!`,
+        code,
+      };
+    } catch (err: any) {
+      console.error('Error creating referral code:', err);
+      return { success: false, message: 'Lỗi khi tạo mã giới thiệu trong Firestore.' };
+    }
+  };
+
+  const deleteReferralCode = async (codeId: string) => {
+    if (!isAdmin) return;
+    try {
+      await deleteDoc(doc(db, 'referralCodes', codeId));
+    } catch (e) {
+      console.error('Error deleting referral code:', e);
+    }
+  };
+
+  // ADMIN: Create Anonymous Pass
+  const createAnonymousPass = async (params: {
+    passCode: string;
+    type: '3_digit_month' | '1_week';
+    description?: string;
+  }): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền tạo mã ẩn danh.' };
+    }
+
+    const cleanCode = params.passCode.trim().toUpperCase();
+    if (!cleanCode) {
+      return { success: false, message: 'Vui lòng nhập mã code ẩn danh.' };
+    }
+
+    const is3Digits = params.type === '3_digit_month' || /^\d{3}$/.test(cleanCode);
+    const durationDays = is3Digits ? 30 : 7;
+    const type = is3Digits ? '3_digit_month' : '1_week';
+
+    try {
+      await addDoc(collection(db, 'anonymousPasses'), {
+        passCode: cleanCode,
+        type,
+        durationDays,
+        usedCount: 0,
+        isActive: true,
+        description: params.description || (is3Digits ? 'Mã 3 số VIP 1 tháng (Không cần login)' : 'Mã VIP 1 tuần (Không cần login)'),
+        createdAt: serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        message: `Đã tạo mã ẩn danh [${cleanCode}] thời hạn ${durationDays} ngày (${is3Digits ? '1 Tháng' : '1 Tuần'}) thành công!`,
+      };
+    } catch (err: any) {
+      console.error('Error creating anonymous pass:', err);
+      return { success: false, message: 'Lỗi khi tạo mã ẩn danh.' };
+    }
+  };
+
+  const deleteAnonymousPass = async (passId: string) => {
+    if (!isAdmin) return;
+    try {
+      await deleteDoc(doc(db, 'anonymousPasses', passId));
+      await recordSystemAuditLog({
+        action: 'CREATE_ANON_PASS',
+        actionTitle: 'Xóa mã VIP ẩn danh',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'pass_code',
+        targetId: passId,
+        details: `Quản trị viên đã xóa mã truy cập ẩn danh [${passId}]`,
+        severity: 'warning',
+      });
+    } catch (e) {
+      console.error('Error deleting anonymous pass:', e);
+    }
+  };
+
+  // ADMIN: Update Target User VIP
+  const updateUserVipByAdmin = async (targetUid: string, tier: VipTier, durationDays: number): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền nâng cấp VIP cho người dùng.' };
+    }
+
+    try {
+      const userRef = doc(db, 'users', targetUid);
+      let expiresAt: string | null = null;
+
+      if (tier !== 'free') {
+        const baseTime = Date.now();
+        expiresAt = new Date(baseTime + durationDays * 24 * 60 * 60 * 1000).toISOString();
+      }
+
+      await updateDoc(userRef, {
+        vipTier: tier,
+        vipExpiresAt: expiresAt,
+        updatedAt: serverTimestamp(),
+      });
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_VIP',
+        actionTitle: `Cập nhật gói VIP (${tier}) cho người dùng`,
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'user',
+        targetId: targetUid,
+        details: `Quản trị viên đã cấp gói VIP [${tier}] với thời hạn ${durationDays} ngày cho tài khoản [${targetUid}]`,
+        metadata: { targetUid, tier, durationDays, expiresAt },
+        severity: 'warning',
+      });
+
+      return {
+        success: true,
+        message: `Đã cập nhật trạng thái VIP (${tier}) cho người dùng thành công!`,
+      };
+    } catch (e) {
+      console.error('Error updating user VIP by admin:', e);
+      return { success: false, message: 'Lỗi khi cập nhật VIP cho người dùng.' };
+    }
+  };
+
+  // ADMIN: Adjust Target User Audio Points
+  const adjustUserPointsByAdmin = async (targetUid: string, pointsDelta: number, reason: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền điều chỉnh điểm.' };
+    }
+
+    try {
+      const userRef = doc(db, 'users', targetUid);
+      await setDoc(
+        userRef,
+        {
+          audioPoints: increment(pointsDelta),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      await addDoc(collection(db, 'users', targetUid, 'pointTransactions'), {
+        title: `Quản trị viên điều chỉnh: ${reason}`,
+        amount: pointsDelta,
+        type: 'bonus',
+        createdAt: serverTimestamp(),
+      });
+
+      await recordSystemAuditLog({
+        action: 'ADJUST_POINTS',
+        actionTitle: `Điều chỉnh ${pointsDelta > 0 ? '+' : ''}${pointsDelta} Điểm Audio`,
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'user',
+        targetId: targetUid,
+        details: `Quản trị viên điều chỉnh ${pointsDelta > 0 ? '+' : ''}${pointsDelta} Điểm Audio cho [${targetUid}]. Lý do: ${reason}`,
+        metadata: { targetUid, pointsDelta, reason },
+        severity: 'info',
+      });
+
+      return {
+        success: true,
+        message: `Đã điều chỉnh ${pointsDelta > 0 ? '+' : ''}${pointsDelta} Điểm Audio cho tài khoản thành công!`,
+      };
+    } catch (e) {
+      console.error('Error adjusting user points:', e);
+      return { success: false, message: 'Lỗi khi điều chỉnh Điểm Audio.' };
+    }
+  };
+
+  // ADMIN: Delete any community comment
+  const deleteCommentByAdmin = async (postId: string, commentId: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền xóa bình luận này.' };
+    }
+    try {
+      await deleteDoc(doc(db, 'communityPosts', postId, 'comments', commentId));
+      await updateDoc(doc(db, 'communityPosts', postId), {
+        commentsCount: increment(-1),
+      });
+
+      await recordSystemAuditLog({
+        action: 'DELETE_COMMENT',
+        actionTitle: 'Xóa bình luận vi phạm trực tiếp',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'comment',
+        targetId: commentId,
+        details: `Quản trị viên đã xóa bình luận [${commentId}] trực tiếp trong bài viết [${postId}]`,
+        metadata: { postId, commentId },
+        severity: 'danger',
+      });
+
+      return { success: true, message: 'Đã xóa bình luận thành công (Quyền Quản Trị).' };
+    } catch (e: any) {
+      console.error('Error deleting comment by admin:', e);
+      return { success: false, message: 'Lỗi khi xóa bình luận: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Delete any community post
+  const deleteCommunityPostByAdmin = async (postId: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền xóa bài đăng này.' };
+    }
+    try {
+      await deleteDoc(doc(db, 'communityPosts', postId));
+
+      await recordSystemAuditLog({
+        action: 'DELETE_POST',
+        actionTitle: 'Xóa bài đăng cộng đồng trực tiếp',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'post',
+        targetId: postId,
+        details: `Quản trị viên đã xóa vĩnh viễn bài đăng cộng đồng [${postId}]`,
+        metadata: { postId },
+        severity: 'danger',
+      });
+
+      return { success: true, message: 'Đã xóa bài đăng cộng đồng thành công (Quyền Quản Trị).' };
+    } catch (e: any) {
+      console.error('Error deleting post by admin:', e);
+      return { success: false, message: 'Lỗi khi xóa bài đăng: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Pin / Unpin Community Post
+  const pinCommunityPostByAdmin = async (postId: string, isPinned: boolean): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền ghim bài đăng.' };
+    }
+    try {
+      await updateDoc(doc(db, 'communityPosts', postId), {
+        isPinned,
+        updatedAt: serverTimestamp(),
+      });
+
+      await recordSystemAuditLog({
+        action: isPinned ? 'PIN_POST' : 'UNPIN_POST',
+        actionTitle: isPinned ? 'Ghim bài viết lên đầu trang' : 'Bỏ ghim bài viết',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'post',
+        targetId: postId,
+        details: isPinned ? `Quản trị viên đã ghim bài viết [${postId}] lên đầu bảng tin` : `Quản trị viên đã bỏ ghim bài viết [${postId}]`,
+        metadata: { postId, isPinned },
+        severity: 'info',
+      });
+
+      return { 
+        success: true, 
+        message: isPinned ? 'Đã ghim bài viết lên đầu trang cộng đồng!' : 'Đã bỏ ghim bài viết.' 
+      };
+    } catch (e: any) {
+      console.error('Error pinning post by admin:', e);
+      return { success: false, message: 'Lỗi khi ghim bài viết: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Delete any audio track
+  const deleteAudioTrackByAdmin = async (trackId: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền xóa audio.' };
+    }
+    try {
+      const cleanId = trackId.startsWith('custom-') ? trackId.replace('custom-', '') : trackId;
+      
+      // Try deleting from Firestore customTracks
+      try {
+        const trackRef = doc(db, 'customTracks', cleanId);
+        await deleteDoc(trackRef);
+      } catch (errDoc) {
+        console.warn('Track doc delete notice:', errDoc);
+      }
+
+      // Also register into local hidden tracks so it disappears immediately across sessions
+      const savedHidden: string[] = JSON.parse(localStorage.getItem('admin_hidden_tracks') || '[]');
+      if (!savedHidden.includes(trackId)) savedHidden.push(trackId);
+      if (!savedHidden.includes(cleanId)) savedHidden.push(cleanId);
+      localStorage.setItem('admin_hidden_tracks', JSON.stringify(savedHidden));
+
+      await recordSystemAuditLog({
+        action: 'DELETE_AUDIO',
+        actionTitle: 'Gỡ bỏ và xóa Audio trực tiếp',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'audio_track',
+        targetId: trackId,
+        details: `Quản trị viên đã gỡ bỏ và xóa bản audio [${trackId}] trực tiếp khỏi kho nhạc`,
+        metadata: { trackId },
+        severity: 'danger',
+      });
+
+      return { success: true, message: 'Đã gỡ bỏ và xóa bản audio khỏi toàn hệ thống (Quyền Admin)!' };
+    } catch (e: any) {
+      console.error('Error deleting audio track by admin:', e);
+      return { success: false, message: 'Lỗi khi xóa track audio: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Toggle Track VIP Only Status
+  const toggleTrackVipStatusByAdmin = async (trackId: string, currentVip: boolean): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền chuyển đổi định dạng VIP.' };
+    }
+    try {
+      const cleanId = trackId.startsWith('custom-') ? trackId.replace('custom-', '') : trackId;
+      const initialTrack = INITIAL_TRACKS.find(t => t.id === trackId || t.id === cleanId);
+      const trackRef = doc(db, 'customTracks', cleanId);
+
+      const payload: Record<string, any> = {
+        isVipOnly: !currentVip,
+        bitrate: !currentVip ? 'Lossless 24-bit/96kHz (Đặc quyền VIP)' : '320kbps Hi-Fi',
+        updatedAt: serverTimestamp(),
+      };
+
+      if (initialTrack) {
+        payload.title = initialTrack.title;
+        payload.artist = initialTrack.artist;
+        payload.genre = initialTrack.genre;
+        payload.url = initialTrack.url;
+        payload.coverUrl = initialTrack.coverUrl;
+        payload.durationSec = initialTrack.durationSec;
+        payload.plays = initialTrack.plays;
+        if (initialTrack.description) payload.description = initialTrack.description;
+        if (initialTrack.stageName) payload.stageName = initialTrack.stageName;
+        if (initialTrack.isAuthorVerified !== undefined) payload.isAuthorVerified = initialTrack.isAuthorVerified;
+      }
+
+      await setDoc(trackRef, payload, { merge: true });
+
+      await recordSystemAuditLog({
+        action: 'TOGGLE_VIP_TRACK',
+        actionTitle: !currentVip ? 'Chuyển Audio sang VIP Master' : 'Mở khóa Audio Miễn phí',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'audio_track',
+        targetId: trackId,
+        details: !currentVip ? `Chuyển bản audio [${trackId}] sang chế độ Độc Quyền VIP Master` : `Mở khóa bài hát [${trackId}] cho tất cả người dùng`,
+        metadata: { trackId, isVipOnly: !currentVip },
+        severity: 'warning',
+      });
+
+      return { 
+        success: true, 
+        message: !currentVip ? 'Đã chuyển bản thu sang chế độ Độc Quyền VIP Master!' : 'Đã mở khóa miễn phí cho tất cả thành viên.' 
+      };
+    } catch (e: any) {
+      console.error('Error updating track VIP by admin:', e);
+      return { success: false, message: 'Lỗi khi cập nhật trạng thái VIP: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Ban / Unban User Account
+  const banUserAccountByAdmin = async (targetUid: string, isBanned: boolean, reason: string = 'Vi phạm tiêu chuẩn cộng đồng'): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền xử lý tài khoản.' };
+    }
+    try {
+      const userRef = doc(db, 'users', targetUid);
+      await updateDoc(userRef, {
+        isBanned,
+        bannedReason: isBanned ? reason : null,
+        bannedAt: isBanned ? new Date().toISOString() : null,
+        updatedAt: serverTimestamp(),
+      });
+
+      await recordSystemAuditLog({
+        action: isBanned ? 'BAN_USER' : 'UNBAN_USER',
+        actionTitle: isBanned ? 'Khóa và cấm tài khoản' : 'Mở khóa tài khoản',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'user',
+        targetId: targetUid,
+        details: isBanned ? `Khóa tài khoản [${targetUid}]. Lý do: ${reason}` : `Mở khóa cho tài khoản [${targetUid}]`,
+        metadata: { targetUid, isBanned, reason },
+        severity: 'critical',
+      });
+
+      return {
+        success: true,
+        message: isBanned 
+          ? `Đã khóa và cấm tài khoản (${reason}) thành công!` 
+          : 'Đã mở khóa tài khoản người dùng thành công!',
+      };
+    } catch (e: any) {
+      console.error('Error banning user account by admin:', e);
+      return { success: false, message: 'Lỗi khi cập nhật tài khoản: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Assign Sub-Admin / Moderator
+  const assignSubAdmin = async (
+    targetUid: string, 
+    newRole: AdminRole, 
+    permissions: SubAdminPermissions
+  ): Promise<{ success: boolean; message: string }> => {
+    if (!isSuperAdmin) {
+      return { success: false, message: 'Chỉ Tổng Quản Trị (Super Admin) mới có quyền bổ nhiệm Phó Admin / Quản trị viên phụ.' };
+    }
+    try {
+      const userRef = doc(db, 'users', targetUid);
+      await updateDoc(userRef, {
+        role: newRole,
+        subAdminPermissions: permissions,
+        assignedBy: user?.email || user?.uid || 'super_admin',
+        assignedAt: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // Also ensure admins collection record for security rules
+      try {
+        if (newRole === 'sub_admin' || newRole === 'moderator' || (newRole as string) === 'admin') {
+          await setDoc(doc(db, 'admins', targetUid), {
+            role: newRole,
+            assignedAt: serverTimestamp(),
+            assignedBy: user?.email || 'super_admin'
+          }, { merge: true });
+        }
+      } catch (adminDocErr) {
+        console.warn('Admins collection sync notice:', adminDocErr);
+      }
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_VIP',
+        actionTitle: 'Bổ nhiệm Phó Admin / Ban Quản Trị',
+        actorId: user?.uid || 'super_admin',
+        actorName: user?.displayName || user?.email || 'Tổng Quản Trị',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'user',
+        targetId: targetUid,
+        details: `Bổ nhiệm thành viên [${targetUid}] làm [${newRole.toUpperCase()}]. Quyền: ${JSON.stringify(permissions)}`,
+        metadata: { targetUid, newRole, permissions },
+        severity: 'danger',
+      });
+
+      return {
+        success: true,
+        message: `Đã bổ nhiệm thành công vai trò ${newRole === 'sub_admin' ? 'Phó Admin (Quản trị viên phụ)' : newRole === 'moderator' ? 'Kiểm Duyệt Viên' : 'Quản Trị Viên'}!`,
+      };
+    } catch (e: any) {
+      console.error('Error assigning sub-admin:', e);
+      return { success: false, message: 'Lỗi khi phân quyền Phó Admin: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Revoke Sub-Admin
+  const revokeSubAdmin = async (targetUid: string): Promise<{ success: boolean; message: string }> => {
+    if (!isSuperAdmin) {
+      return { success: false, message: 'Chỉ Tổng Quản Trị (Super Admin) mới có quyền bãi nhiệm Phó Admin.' };
+    }
+    try {
+      const userRef = doc(db, 'users', targetUid);
+      await updateDoc(userRef, {
+        role: 'user',
+        subAdminPermissions: null,
+        updatedAt: serverTimestamp(),
+      });
+
+      try {
+        await deleteDoc(doc(db, 'admins', targetUid));
+      } catch (err) {
+        console.warn('Admin doc removal notice:', err);
+      }
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_VIP',
+        actionTitle: 'Bãi nhiệm quyền Quản trị viên phụ',
+        actorId: user?.uid || 'super_admin',
+        actorName: user?.displayName || user?.email || 'Tổng Quản Trị',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'user',
+        targetId: targetUid,
+        details: `Bãi nhiệm quyền Quản trị viên của tài khoản [${targetUid}], chuyển về Thành viên Thường`,
+        metadata: { targetUid },
+        severity: 'danger',
+      });
+
+      return { success: true, message: 'Đã bãi nhiệm quyền Quản trị viên phụ thành công!' };
+    } catch (e: any) {
+      console.error('Error revoking sub-admin:', e);
+      return { success: false, message: 'Lỗi khi bãi nhiệm: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Update Sub-Admin Permissions
+  const updateSubAdminPermissions = async (targetUid: string, permissions: SubAdminPermissions): Promise<{ success: boolean; message: string }> => {
+    if (!isSuperAdmin) {
+      return { success: false, message: 'Chỉ Tổng Quản Trị mới có quyền cập nhật quyền hạn Phó Admin.' };
+    }
+    try {
+      const userRef = doc(db, 'users', targetUid);
+      await updateDoc(userRef, {
+        subAdminPermissions: permissions,
+        updatedAt: serverTimestamp(),
+      });
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_VIP',
+        actionTitle: 'Cập nhật phân quyền Phó Admin',
+        actorId: user?.uid || 'super_admin',
+        actorName: user?.displayName || user?.email || 'Tổng Quản Trị',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'user',
+        targetId: targetUid,
+        details: `Cập nhật phân quyền chi tiết cho Phó Admin [${targetUid}]: ${JSON.stringify(permissions)}`,
+        metadata: { targetUid, permissions },
+        severity: 'warning',
+      });
+
+      return { success: true, message: 'Đã cập nhật phân quyền Phó Admin thành công!' };
+    } catch (e: any) {
+      console.error('Error updating sub-admin permissions:', e);
+      return { success: false, message: 'Lỗi khi cập nhật quyền: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Create System Announcement
+  const createSystemAnnouncement = async (data: {
+    title: string;
+    content: string;
+    type: 'info' | 'event' | 'urgent' | 'maintenance';
+    targetAudience: 'all' | 'vip' | 'authors';
+    isPinned?: boolean;
+    durationHours?: number;
+  }): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền phát thông báo toàn sàn.' };
+    }
+    try {
+      const expiresAt = data.durationHours 
+        ? new Date(Date.now() + data.durationHours * 3600000).toISOString()
+        : null;
+
+      await addDoc(collection(db, 'systemAnnouncements'), {
+        title: data.title,
+        content: data.content,
+        type: data.type,
+        targetAudience: data.targetAudience || 'all',
+        isPinned: Boolean(data.isPinned),
+        isActive: true,
+        createdBy: user?.uid || 'admin',
+        createdByName: user?.displayName || user?.email || 'Ban Quản Trị',
+        createdAt: serverTimestamp(),
+        expiresAt,
+      });
+
+      await recordSystemAuditLog({
+        action: 'PIN_POST',
+        actionTitle: 'Phát thông báo toàn hệ thống',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Ban Quản Trị',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'post',
+        details: `Phát thông báo [${data.type.toUpperCase()}]: "${data.title}" tới đối tượng [${data.targetAudience}]`,
+        metadata: { title: data.title, type: data.type, targetAudience: data.targetAudience },
+        severity: data.type === 'urgent' || data.type === 'maintenance' ? 'critical' : 'info',
+      });
+
+      return { success: true, message: 'Đã phát thông báo toàn hệ thống thành công!' };
+    } catch (e: any) {
+      console.error('Error creating announcement:', e);
+      return { success: false, message: 'Lỗi khi tạo thông báo: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Delete System Announcement
+  const deleteSystemAnnouncement = async (announcementId: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền xóa thông báo.' };
+    }
+    try {
+      await deleteDoc(doc(db, 'systemAnnouncements', announcementId));
+      return { success: true, message: 'Đã xóa thông báo hệ thống!' };
+    } catch (e: any) {
+      return { success: false, message: 'Lỗi khi xóa thông báo: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Toggle Pin Announcement
+  const togglePinAnnouncement = async (announcementId: string, isPinned: boolean): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền ghim thông báo.' };
+    }
+    try {
+      await updateDoc(doc(db, 'systemAnnouncements', announcementId), {
+        isPinned,
+        updatedAt: serverTimestamp(),
+      });
+      return { success: true, message: isPinned ? 'Đã ghim thông báo!' : 'Đã bỏ ghim thông báo.' };
+    } catch (e: any) {
+      return { success: false, message: 'Lỗi khi ghim thông báo: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Update Global System Settings & Maintenance Mode
+  const updateSystemGlobalConfig = async (configUpdate: Partial<SystemGlobalConfig>): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền thay đổi cấu hình hệ thống.' };
+    }
+    try {
+      const configRef = doc(db, 'systemSettings', 'globalConfig');
+      const newConfig = {
+        ...systemGlobalConfig,
+        ...configUpdate,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.email || user?.uid || 'admin',
+      };
+      await setDoc(configRef, newConfig, { merge: true });
+      setSystemGlobalConfig(newConfig as SystemGlobalConfig);
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_VIP',
+        actionTitle: 'Cập nhật Cấu hình Tham số Hệ thống',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'user',
+        details: `Cập nhật cấu hình hệ thống: ${JSON.stringify(configUpdate)}`,
+        metadata: { configUpdate },
+        severity: 'danger',
+      });
+
+      return { success: true, message: 'Đã cập nhật cấu hình hệ thống thành công!' };
+    } catch (e: any) {
+      console.error('Error updating system config:', e);
+      return { success: false, message: 'Lỗi khi cập nhật cấu hình: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Batch Reward / Compensation for Multiple Users
+  const batchRewardUsers = async (
+    targetUids: string[], 
+    points: number, 
+    vipDays: number, 
+    reason: string
+  ): Promise<{ success: boolean; message: string; count: number }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền tặng quà/đền bù hàng loạt.', count: 0 };
+    }
+    if (targetUids.length === 0) {
+      return { success: false, message: 'Vui lòng chọn ít nhất một người dùng.', count: 0 };
+    }
+    try {
+      let successCount = 0;
+      for (const tUid of targetUids) {
+        try {
+          const uRef = doc(db, 'users', tUid);
+          const uSnap = await getDoc(uRef);
+          if (!uSnap.exists()) continue;
+          const uData = uSnap.data();
+
+          const updateObj: any = {
+            updatedAt: serverTimestamp(),
+          };
+
+          if (points > 0) {
+            updateObj.audioPoints = increment(points);
+            updateObj.totalEarnedPoints = increment(points);
+            await addDoc(collection(db, 'users', tUid, 'pointTransactions'), {
+              title: `Đền bù/Thưởng Admin: ${reason}`,
+              amount: points,
+              type: 'bonus',
+              createdAt: serverTimestamp(),
+            });
+          }
+
+          if (vipDays > 0) {
+            const currentExpiry = uData.vipExpiresAt ? new Date(uData.vipExpiresAt) : new Date();
+            const baseTime = currentExpiry.getTime() > Date.now() ? currentExpiry.getTime() : Date.now();
+            const newExpiry = new Date(baseTime + vipDays * 86400000).toISOString();
+            updateObj.vipTier = 'vip';
+            updateObj.vipExpiresAt = newExpiry;
+          }
+
+          await updateDoc(uRef, updateObj);
+          successCount++;
+        } catch (subErr) {
+          console.warn('Batch single user err:', subErr);
+        }
+      }
+
+      await recordSystemAuditLog({
+        action: 'ADJUST_POINTS',
+        actionTitle: 'Tặng thưởng & Đền bù hàng loạt',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'user',
+        details: `Đã tặng ${points} pts & ${vipDays} ngày VIP cho ${successCount} tài khoản. Lý do: ${reason}`,
+        metadata: { targetUids, points, vipDays, reason, successCount },
+        severity: 'warning',
+      });
+
+      return {
+        success: true,
+        message: `Đã thực hiện tặng thưởng/đền bù thành công cho ${successCount}/${targetUids.length} người dùng!`,
+        count: successCount,
+      };
+    } catch (e: any) {
+      console.error('Error in batch reward:', e);
+      return { success: false, message: 'Lỗi khi xử lý hàng loạt: ' + (e.message || ''), count: 0 };
+    }
+  };
+
+  const logSystemActivity = async (params: {
+    action: SystemAuditLog['action'];
+    actionTitle: string;
+    targetType: SystemAuditLog['targetType'];
+    targetId?: string;
+    targetName?: string;
+    details: string;
+    metadata?: Record<string, any>;
+    severity?: SystemAuditLog['severity'];
+  }) => {
+    await recordSystemAuditLog({
+      action: params.action,
+      actionTitle: params.actionTitle,
+      actorId: user?.uid || 'guest',
+      actorName: user?.displayName || user?.email || 'Người dùng',
+      actorEmail: user?.email || '',
+      actorRole: isAdmin ? 'admin' : (isAuthorVerified ? 'author' : 'user'),
+      targetType: params.targetType,
+      targetId: params.targetId,
+      targetName: params.targetName,
+      details: params.details,
+      metadata: params.metadata,
+      severity: params.severity || 'info',
+    });
+  };
 
   const addAudioPoints = async (amount: number, title: string, type: PointTransaction['type']) => {
     if (!user) return;
 
-    // Apply VIP 2X point multiplier for earning points
-    const finalAmount = isVip && amount > 0 ? amount * 2 : amount;
-    const finalTitle = isVip && amount > 0 ? `${title} (x2 Đặc quyền VIP)` : title;
+    // Apply VIP 3X point multiplier for earning points
+    const finalAmount = effectiveIsVip && amount > 0 ? amount * 3 : amount;
+    const finalTitle = effectiveIsVip && amount > 0 ? `${title} (x3 Đặc quyền VIP)` : title;
 
     try {
       const userRef = doc(db, 'users', user.uid);
@@ -193,6 +2026,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (err) {
       console.error('Error adding audio points:', err);
+    }
+  };
+
+  const deductAudioPoints = async (
+    amount: number,
+    title: string,
+    type: PointTransaction['type'] = 'tts_synthesis'
+  ): Promise<{ success: boolean; message: string }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để thực hiện tác vụ này.' };
+    }
+
+    if (audioPoints < amount) {
+      return {
+        success: false,
+        message: `Số dư Điểm Audio không đủ (cần ${amount.toLocaleString()} pts, hiện có ${audioPoints.toLocaleString()} pts). Hãy điểm danh, nghe nhạc tích lũy hoặc nạp VIP để nhận thêm điểm!`,
+      };
+    }
+
+    try {
+      const newPoints = Math.max(0, audioPoints - amount);
+      setAudioPoints(newPoints);
+
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(
+        userRef,
+        {
+          audioPoints: increment(-amount),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Record transaction
+      await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+        title,
+        amount: -amount,
+        type,
+        createdAt: serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        message: `Đã trừ ${amount.toLocaleString()} Điểm Audio thành công.`,
+      };
+    } catch (err: any) {
+      console.error('Error deducting audio points:', err);
+      return {
+        success: false,
+        message: 'Lỗi khi trừ điểm: ' + (err.message || 'Vui lòng thử lại sau.'),
+      };
     }
   };
 
@@ -224,7 +2108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const basePoints = 50;
-    const pointsAwarded = isVip ? basePoints * 2 : basePoints;
+    const pointsAwarded = effectiveIsVip ? basePoints * 3 : basePoints;
 
     try {
       const userRef = doc(db, 'users', user.uid);
@@ -240,7 +2124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
 
       await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
-        title: isVip ? 'Điểm danh hằng ngày (+2x VIP Bonus)' : 'Điểm danh hằng ngày',
+        title: effectiveIsVip ? 'Điểm danh hằng ngày (+3x VIP Bonus)' : 'Điểm danh hằng ngày',
         amount: pointsAwarded,
         type: 'checkin',
         createdAt: serverTimestamp(),
@@ -248,7 +2132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return {
         success: true,
-        message: `Điểm danh thành công! Nhận ngay +${pointsAwarded} Điểm Audio${isVip ? ' (Đã nhân đôi đặc quyền VIP)' : ''}.`,
+        message: `Điểm danh thành công! Nhận ngay +${pointsAwarded} Điểm Audio${effectiveIsVip ? ' (Đã nhân 3 đặc quyền VIP)' : ''}.`,
         pointsAwarded,
       };
     } catch (err: any) {
@@ -294,7 +2178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
 
       await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
-        title: `Đổi gói VIP ${durationDays} ngày (${tier === 'vip_master' ? 'Master' : 'Standard'})`,
+        title: `Đổi gói VIP ${durationDays} ngày`,
         amount: -pointsCost,
         type: 'redeem_vip',
         createdAt: serverTimestamp(),
@@ -384,6 +2268,356 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const purchasePointsPackage = async (params: {
+    pkg: PointTopupPackage;
+    finalAmount: number;
+    originalAmount: number;
+    discountAmount: number;
+    promoCodeApplied?: string;
+    paymentMethod: PointTopupOrder['paymentMethod'];
+  }): Promise<{ success: boolean; message: string; orderId?: string }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để tiến hành nạp Xu Audio.' };
+    }
+
+    try {
+      const { pkg, finalAmount, originalAmount, discountAmount, promoCodeApplied, paymentMethod } = params;
+      const totalPointsAwarded = pkg.points + (pkg.bonusPoints || 0);
+
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(
+        userRef,
+        {
+          audioPoints: increment(totalPointsAwarded),
+          totalEarnedPoints: increment(totalPointsAwarded),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Add order record
+      const orderRef = await addDoc(collection(db, 'users', user.uid, 'pointOrders'), {
+        packageId: pkg.id,
+        packageName: pkg.name,
+        pointsAwarded: totalPointsAwarded,
+        originalAmount,
+        discountAmount,
+        finalAmount,
+        promoCodeApplied: promoCodeApplied || '',
+        paymentMethod,
+        status: 'completed',
+        createdAt: serverTimestamp(),
+      });
+
+      // Add points transaction
+      await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+        title: `Nạp ${pkg.name} (+${pkg.points} Xu ${pkg.bonusPoints > 0 ? `+${pkg.bonusPoints} Xu thưởng` : ''})`,
+        amount: totalPointsAwarded,
+        type: 'topup_coins',
+        createdAt: serverTimestamp(),
+      });
+
+      await logSystemActivity({
+        action: 'ADJUST_POINTS',
+        actionTitle: 'Nạp Xu Audio Thành Công',
+        targetType: 'user',
+        targetId: user.uid,
+        targetName: user.displayName || user.email || 'Người dùng',
+        details: `Nạp ${pkg.name} thanh toán ${finalAmount.toLocaleString()}đ, cộng ${totalPointsAwarded.toLocaleString()} Xu Audio.`,
+      });
+
+      return {
+        success: true,
+        message: `Nạp thành công ${pkg.name}! Nhận ngay +${totalPointsAwarded.toLocaleString()} Xu Haevy vào tài khoản.`,
+        orderId: orderRef.id,
+      };
+    } catch (err: any) {
+      console.error('Error purchasing points package:', err);
+      return {
+        success: false,
+        message: 'Thanh toán và nạp Xu Haevy thất bại. Vui lòng thử lại.',
+      };
+    }
+  };
+
+  const giftVipPlanToUser = async (params: {
+    recipientIdentifier: string;
+    pkg: VipPackage;
+    finalAmount: number;
+    paymentMethod: VipOrder['paymentMethod'];
+    message?: string;
+  }): Promise<{ success: boolean; message: string; recipientName?: string; orderId?: string }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để tặng gói VIP cho người khác.' };
+    }
+
+    const { recipientIdentifier, pkg, finalAmount, paymentMethod, message } = params;
+    const cleanId = recipientIdentifier.trim();
+    if (!cleanId) {
+      return { success: false, message: 'Vui lòng nhập ID Tài khoản hoặc Email người nhận.' };
+    }
+
+    try {
+      // Find recipient user in Firestore
+      let targetUserDoc: any = null;
+      let targetUid = '';
+      let targetName = 'Bạn bè';
+
+      // 1. Check by Account ID
+      const qAccount = query(collection(db, 'users'), where('accountId', '==', cleanId.toUpperCase()));
+      const snapAccount = await getDocs(qAccount);
+      if (!snapAccount.empty) {
+        targetUserDoc = snapAccount.docs[0];
+        targetUid = targetUserDoc.id;
+        targetName = targetUserDoc.data().displayName || targetUserDoc.data().accountId || 'Bạn bè';
+      }
+
+      // 2. Check by Email
+      if (!targetUserDoc) {
+        const qEmail = query(collection(db, 'users'), where('email', '==', cleanId.toLowerCase()));
+        const snapEmail = await getDocs(qEmail);
+        if (!snapEmail.empty) {
+          targetUserDoc = snapEmail.docs[0];
+          targetUid = targetUserDoc.id;
+          targetName = targetUserDoc.data().displayName || targetUserDoc.data().email || 'Bạn bè';
+        }
+      }
+
+      // 3. Check by direct UID
+      if (!targetUserDoc) {
+        const docDirect = await getDoc(doc(db, 'users', cleanId));
+        if (docDirect.exists()) {
+          targetUserDoc = docDirect;
+          targetUid = docDirect.id;
+          targetName = docDirect.data().displayName || 'Bạn bè';
+        }
+      }
+
+      if (!targetUserDoc || !targetUid) {
+        return {
+          success: false,
+          message: `Không tìm thấy tài khoản người nhận với thông tin "${cleanId}". Vui lòng kiểm tra lại ID Tài khoản hoặc Email.`,
+        };
+      }
+
+      const targetData = targetUserDoc.data() || {};
+      let baseTime = Date.now();
+      if (targetData.vipExpiresAt && new Date(targetData.vipExpiresAt).getTime() > Date.now()) {
+        baseTime = new Date(targetData.vipExpiresAt).getTime();
+      }
+      const newExpiresAt = new Date(baseTime + pkg.durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+      // Update recipient's VIP status & bonus points
+      const recipientRef = doc(db, 'users', targetUid);
+      await setDoc(
+        recipientRef,
+        {
+          vipTier: 'vip',
+          vipExpiresAt: newExpiresAt,
+          audioPoints: increment(pkg.bonusPoints || 0),
+          totalEarnedPoints: increment(pkg.bonusPoints || 0),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Add order record in sender's vipOrders
+      const senderName = user.displayName || user.email || 'Người gửi ẩn danh';
+      const orderRef = await addDoc(collection(db, 'users', user.uid, 'vipOrders'), {
+        packageId: pkg.id,
+        packageName: `[Tặng quà] ${pkg.name}`,
+        durationDays: pkg.durationDays,
+        finalAmount,
+        originalAmount: finalAmount,
+        discountAmount: 0,
+        paymentMethod,
+        isGift: true,
+        recipientUid: targetUid,
+        recipientName: targetName,
+        recipientIdentifier: cleanId,
+        message: message || '',
+        status: 'completed',
+        createdAt: serverTimestamp(),
+      });
+
+      // Add notification / transaction to recipient
+      await addDoc(collection(db, 'users', targetUid, 'pointTransactions'), {
+        title: `🎁 Nhận tặng gói ${pkg.name} (${pkg.durationDays} ngày) từ ${senderName}${message ? `: "${message}"` : ''}`,
+        amount: pkg.bonusPoints || 0,
+        type: 'receive_vip',
+        createdAt: serverTimestamp(),
+      });
+
+      // Add transaction to sender
+      await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+        title: `🎁 Tặng gói ${pkg.name} (${pkg.durationDays} ngày) cho ${targetName}`,
+        amount: 0,
+        type: 'gift_vip',
+        createdAt: serverTimestamp(),
+      });
+
+      await logSystemActivity({
+        action: 'UPDATE_VIP',
+        actionTitle: 'Tặng Gói VIP Thành Công',
+        targetType: 'user',
+        targetId: targetUid,
+        targetName,
+        details: `${senderName} tặng gói ${pkg.name} (${pkg.durationDays} ngày) cho ${targetName} (${cleanId}). Thanh toán ${finalAmount.toLocaleString()}đ.`,
+      });
+
+      return {
+        success: true,
+        message: `Đã tặng thành công gói ${pkg.name} (${pkg.durationDays} ngày) cho "${targetName}"! Hạn VIP của bạn bè đã được kích hoạt đến ${new Date(newExpiresAt).toLocaleDateString('vi-VN')}.`,
+        recipientName: targetName,
+        orderId: orderRef.id,
+      };
+    } catch (err: any) {
+      console.error('Error gifting VIP plan:', err);
+      return {
+        success: false,
+        message: 'Thao tác tặng gói VIP thất bại. Vui lòng kiểm tra lại kết nối.',
+      };
+    }
+  };
+
+  const transferCoinsToUser = async (params: {
+    recipientIdentifier: string;
+    amount: number;
+    message?: string;
+  }): Promise<{ success: boolean; message: string; recipientName?: string }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để tặng Xu Haevy.' };
+    }
+
+    const { recipientIdentifier, amount, message } = params;
+    const cleanId = recipientIdentifier.trim();
+    if (!cleanId) {
+      return { success: false, message: 'Vui lòng nhập ID Tài khoản hoặc Email người nhận.' };
+    }
+    if (amount <= 0 || !Number.isInteger(amount)) {
+      return { success: false, message: 'Số lượng Xu Haevy tặng phải là số nguyên lớn hơn 0.' };
+    }
+    if (audioPoints < amount) {
+      return {
+        success: false,
+        message: `Số dư Xu Haevy không đủ (Hiện có ${audioPoints.toLocaleString()} Xu, cần ${amount.toLocaleString()} Xu). Vui lòng nạp thêm Xu Haevy.`,
+      };
+    }
+
+    try {
+      // Find recipient user
+      let targetUserDoc: any = null;
+      let targetUid = '';
+      let targetName = 'Bạn bè';
+
+      // 1. Check by Account ID
+      const qAccount = query(collection(db, 'users'), where('accountId', '==', cleanId.toUpperCase()));
+      const snapAccount = await getDocs(qAccount);
+      if (!snapAccount.empty) {
+        targetUserDoc = snapAccount.docs[0];
+        targetUid = targetUserDoc.id;
+        targetName = targetUserDoc.data().displayName || targetUserDoc.data().accountId || 'Bạn bè';
+      }
+
+      // 2. Check by Email
+      if (!targetUserDoc) {
+        const qEmail = query(collection(db, 'users'), where('email', '==', cleanId.toLowerCase()));
+        const snapEmail = await getDocs(qEmail);
+        if (!snapEmail.empty) {
+          targetUserDoc = snapEmail.docs[0];
+          targetUid = targetUserDoc.id;
+          targetName = targetUserDoc.data().displayName || targetUserDoc.data().email || 'Bạn bè';
+        }
+      }
+
+      // 3. Check by direct UID
+      if (!targetUserDoc) {
+        const docDirect = await getDoc(doc(db, 'users', cleanId));
+        if (docDirect.exists()) {
+          targetUserDoc = docDirect;
+          targetUid = docDirect.id;
+          targetName = docDirect.data().displayName || 'Bạn bè';
+        }
+      }
+
+      if (!targetUserDoc || !targetUid) {
+        return {
+          success: false,
+          message: `Không tìm thấy tài khoản người nhận với thông tin "${cleanId}". Vui lòng kiểm tra lại.`,
+        };
+      }
+
+      if (targetUid === user.uid) {
+        return {
+          success: false,
+          message: 'Bạn không thể tự chuyển Xu Haevy cho chính tài khoản của mình.',
+        };
+      }
+
+      const senderName = user.displayName || user.email || 'Người gửi';
+
+      // Deduct points from sender
+      const senderRef = doc(db, 'users', user.uid);
+      await setDoc(
+        senderRef,
+        {
+          audioPoints: increment(-amount),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Increment points for recipient
+      const recipientRef = doc(db, 'users', targetUid);
+      await setDoc(
+        recipientRef,
+        {
+          audioPoints: increment(amount),
+          totalEarnedPoints: increment(amount),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Log transaction for sender
+      await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+        title: `🎁 Chuyển tặng ${amount.toLocaleString()} Xu Haevy cho ${targetName}${message ? `: "${message}"` : ''}`,
+        amount: -amount,
+        type: 'transfer_coins',
+        createdAt: serverTimestamp(),
+      });
+
+      // Log transaction for recipient
+      await addDoc(collection(db, 'users', targetUid, 'pointTransactions'), {
+        title: `🎁 Nhận tặng +${amount.toLocaleString()} Xu Haevy từ ${senderName}${message ? `: "${message}"` : ''}`,
+        amount: amount,
+        type: 'receive_coins',
+        createdAt: serverTimestamp(),
+      });
+
+      await logSystemActivity({
+        action: 'ADJUST_POINTS',
+        actionTitle: 'Tặng Xu Haevy Cho Bạn Bè',
+        targetType: 'user',
+        targetId: targetUid,
+        targetName,
+        details: `${senderName} đã chuyển tặng ${amount.toLocaleString()} Xu Haevy cho ${targetName} (${cleanId}).`,
+      });
+
+      return {
+        success: true,
+        message: `Đã tặng thành công ${amount.toLocaleString()} Xu Haevy cho "${targetName}"!`,
+        recipientName: targetName,
+      };
+    } catch (err: any) {
+      console.error('Error transferring coins:', err);
+      return {
+        success: false,
+        message: 'Chuyển tặng Xu Haevy thất bại. Vui lòng thử lại.',
+      };
+    }
+  };
+
   const activateTrialVip = async () => {
     if (!user) return;
     const newExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
@@ -444,23 +2678,224 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const signInWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider);
+  const signInWithGoogle = async (referralCodeForNewUser?: string) => {
+    const cleanRef = (referralCodeForNewUser || '').trim().toUpperCase();
+    
+    // Check referral validity if provided
+    let rewardPoints = 200;
+    let rewardVipDays = 7;
+    let refDocId: string | null = null;
+    
+    if (cleanRef) {
+      try {
+        const codesRef = collection(db, 'referralCodes');
+        const q = query(codesRef, where('code', '==', cleanRef));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const codeDoc = snap.docs[0];
+          const data = codeDoc.data();
+          if (data.isActive === false) {
+            throw new Error('Mã giới thiệu này hiện đang tạm khóa hoặc đã hết hạn.');
+          }
+          const maxUses = typeof data.maxUses === 'number' ? data.maxUses : 100;
+          const usedCount = typeof data.usedCount === 'number' ? data.usedCount : 0;
+          if (usedCount >= maxUses) {
+            throw new Error(`Mã giới thiệu [${cleanRef}] đã đạt tối đa ${maxUses} lượt nhập.`);
+          }
+          rewardPoints = data.rewardPoints ?? 200;
+          rewardVipDays = data.rewardVipDays ?? 7;
+          refDocId = codeDoc.id;
+        } else {
+          const builtInValid = ['AUDIO2026', 'VIP100', 'AUDIOHUB', 'VN2026', 'KHA782', 'MEMBER', 'WELCOME', 'PRO100', 'GOOGLE2026'].includes(cleanRef);
+          if (!builtInValid) {
+            throw new Error('Mã giới thiệu không hợp lệ. Vui lòng nhập mã giới thiệu chính xác để kích hoạt tài khoản.');
+          }
+        }
+      } catch (e: any) {
+        if (e.message && e.message.includes('Mã giới thiệu')) {
+          throw e;
+        }
+        console.warn('Referral check during Google sign in:', e);
+      }
+    }
+
+    const result = await signInWithPopup(auth, googleProvider);
+    if (result.user && refDocId) {
+      try {
+        await updateDoc(doc(db, 'referralCodes', refDocId), {
+          usedCount: increment(1),
+          usedByUids: arrayUnion(result.user.uid),
+          updatedAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.warn('Error updating referral on google sign in:', e);
+      }
+    }
   };
 
   const signInWithEmail = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email, pass);
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      await signInWithEmailAndPassword(auth, cleanEmail, pass);
+    } catch (err: any) {
+      if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/admin-restricted-operation') {
+        // Fallback to robust local session for this email
+        const fallbackUid = `user-${btoa(cleanEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}`;
+        const isDefaultAdmin = cleanEmail === 'kha78228@gmail.com';
+        const generatedId = generateAccountId(fallbackUid);
+        const localUser: CustomAuthUser = {
+          uid: fallbackUid,
+          email: cleanEmail,
+          displayName: cleanEmail.split('@')[0],
+          photoURL: '',
+          isLocalSession: true,
+        };
+        localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(localUser));
+        setUser(localUser);
+        setAccountId(generatedId);
+        setRole(isDefaultAdmin ? 'admin' : 'user');
+        setLoading(false);
+        return;
+      }
+      throw err;
+    }
   };
 
-  const signUpWithEmail = async (email: string, pass: string, name?: string) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    if (name && cred.user) {
-      await updateProfile(cred.user, { displayName: name });
+  const signUpWithEmail = async (email: string, pass: string, name?: string, referralCode?: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanRef = (referralCode || '').trim().toUpperCase();
+    if (!cleanRef) {
+      throw new Error('Vui lòng nhập Mã giới thiệu (bắt buộc khi tạo tài khoản mới để hệ thống kiểm soát tải).');
+    }
+
+    // Check referral code validity
+    let rewardPoints = 200;
+    let rewardVipDays = 7;
+    let refDocId: string | null = null;
+
+    try {
+      const codesRef = collection(db, 'referralCodes');
+      const q = query(codesRef, where('code', '==', cleanRef));
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        const codeDoc = snap.docs[0];
+        const data = codeDoc.data();
+        if (data.isActive === false) {
+          throw new Error('Mã giới thiệu này hiện đang tạm khóa hoặc đã hết hạn.');
+        }
+        const maxUses = typeof data.maxUses === 'number' ? data.maxUses : 100;
+        const usedCount = typeof data.usedCount === 'number' ? data.usedCount : 0;
+        if (usedCount >= maxUses) {
+          throw new Error(`Mã giới thiệu [${cleanRef}] đã đạt tối đa ${maxUses} lượt nhập.`);
+        }
+        rewardPoints = data.rewardPoints || 200;
+        rewardVipDays = data.rewardVipDays || 7;
+        refDocId = codeDoc.id;
+      } else {
+        // Built-in accepted referral codes
+        const builtInValid = ['AUDIO2026', 'VIP100', 'AUDIOHUB', 'VN2026', 'KHA782', 'MEMBER', 'WELCOME', 'PRO100'].includes(cleanRef);
+        if (!builtInValid) {
+          throw new Error('Mã giới thiệu không tồn tại. Vui lòng nhập mã giới thiệu hợp lệ để kích hoạt tài khoản.');
+        }
+      }
+    } catch (e: any) {
+      if (e.message && e.message.includes('Mã giới thiệu')) {
+        throw e;
+      }
+      console.warn('Error checking referral code during signup:', e);
+    }
+
+    try {
+      // Proceed to create user via Firebase Auth
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+      if (name && cred.user) {
+        await updateProfile(cred.user, { displayName: name });
+      }
+
+      // If referral doc exists in firestore, update usage
+      if (refDocId && cred.user) {
+        try {
+          await updateDoc(doc(db, 'referralCodes', refDocId), {
+            usedCount: increment(1),
+            usedByUids: arrayUnion(cred.user.uid),
+            updatedAt: serverTimestamp(),
+          });
+        } catch (e) {
+          console.warn('Error updating referral code usage:', e);
+        }
+      }
+    } catch (err: any) {
+      if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/admin-restricted-operation') {
+        // Fallback to local user session with starter + referral rewards
+        const fallbackUid = `user-${btoa(cleanEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}`;
+        const isDefaultAdmin = cleanEmail === 'kha78228@gmail.com';
+        const generatedId = generateAccountId(fallbackUid);
+        const localUser: CustomAuthUser = {
+          uid: fallbackUid,
+          email: cleanEmail,
+          displayName: name || cleanEmail.split('@')[0],
+          photoURL: '',
+          isLocalSession: true,
+        };
+        localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(localUser));
+        setUser(localUser);
+        setAccountId(generatedId);
+        setRole(isDefaultAdmin ? 'admin' : 'user');
+        setAudioPoints(100 + rewardPoints);
+        setTotalEarnedPoints(100 + rewardPoints);
+        if (rewardVipDays > 0) {
+          setVipTier('vip');
+          setVipExpiresAt(new Date(Date.now() + rewardVipDays * 24 * 60 * 60 * 1000).toISOString());
+        }
+        setLoading(false);
+
+        // Try creating doc in Firestore if possible
+        try {
+          const userRef = doc(db, 'users', fallbackUid);
+          await setDoc(userRef, {
+            accountId: generatedId,
+            email: cleanEmail,
+            displayName: name || cleanEmail.split('@')[0],
+            photoURL: '',
+            role: isDefaultAdmin ? 'admin' : 'user',
+            audioPoints: 100 + rewardPoints,
+            totalEarnedPoints: 100 + rewardPoints,
+            totalListenedMinutes: 0,
+            lastDailyCheckin: null,
+            vipTier: rewardVipDays > 0 ? 'vip' : 'free',
+            vipExpiresAt: rewardVipDays > 0 ? new Date(Date.now() + rewardVipDays * 24 * 60 * 60 * 1000).toISOString() : null,
+            vipSettings: DEFAULT_VIP_SETTINGS,
+            favoriteTrackIds: [],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
+        } catch (e) {
+          console.warn('Firestore fallback sync notice:', e);
+        }
+
+        return;
+      }
+      throw err;
     }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    localStorage.removeItem(LOCAL_USER_KEY);
+    localStorage.removeItem(ANON_SESSION_KEY);
+    setAnonymousVipSession(null);
+    setAudioPoints(0);
+    setTotalEarnedPoints(0);
+    setFavorites([]);
+    setVipTier('free');
+    setVipExpiresAt(null);
+    setAccountId('GUEST-CHUA-DANG-NHAP');
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn('SignOut note:', e);
+    }
+    setUser(null);
   };
 
   return (
@@ -468,23 +2903,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
+        accountId: effectiveAccountId,
+        role,
+        adminRole,
+        isAdmin,
+        isSuperAdmin,
+        isSubAdmin,
+        subAdminPermissions: effectivePermissions,
         favorites,
         audioPoints,
         totalEarnedPoints,
         totalListenedMinutes,
         lastDailyCheckin,
-        vipTier,
-        vipExpiresAt,
-        isVip,
+        vipTier: effectiveVipTier,
+        vipExpiresAt: effectiveVipExpiresAt,
+        isVip: effectiveIsVip,
         vipSettings,
+        anonymousVipSession,
+        isAnonymousAccount,
+        loginAsAnonymous,
+        authorStatus,
+        isAuthorVerified,
+        authorStageName,
+        authorBio,
+        authorVerificationData,
+        logSystemActivity,
         toggleFavorite,
         addAudioPoints,
+        deductAudioPoints,
         incrementListenTime,
         performDailyCheckin,
         redeemVipWithPoints,
         purchaseVipPlan,
+        purchasePointsPackage,
+        giftVipPlanToUser,
+        transferCoinsToUser,
         activateTrialVip,
         updateVipSettings,
+        createBlankAnonymousAccount,
+        activateAnonymousPass,
+        clearAnonymousVipSession,
+        redeemReferralCode,
+        submitAuthorVerification,
+        publishAuthorTrack,
+        deleteAuthorTrack,
+        sendGiftToAuthor,
+        approveAuthorVerification,
+        rejectAuthorVerification,
+        revokeAuthorStatus,
+        createReferralCode,
+        deleteReferralCode,
+        createAnonymousPass,
+        deleteAnonymousPass,
+        updateUserVipByAdmin,
+        adjustUserPointsByAdmin,
+        deleteCommentByAdmin,
+        deleteCommunityPostByAdmin,
+        pinCommunityPostByAdmin,
+        deleteAudioTrackByAdmin,
+        toggleTrackVipStatusByAdmin,
+        banUserAccountByAdmin,
+        assignSubAdmin,
+        revokeSubAdmin,
+        updateSubAdminPermissions,
+        systemAnnouncements,
+        createSystemAnnouncement,
+        deleteSystemAnnouncement,
+        togglePinAnnouncement,
+        systemGlobalConfig,
+        updateSystemGlobalConfig,
+        batchRewardUsers,
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
