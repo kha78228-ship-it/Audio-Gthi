@@ -28,6 +28,7 @@ interface MessagesFriendsViewProps {
 
 export function MessagesFriendsView({
   onOpenAuth,
+  onPlayTrack,
   initialRecipientUid,
   onClearInitialRecipient,
   activeSubTab,
@@ -106,6 +107,7 @@ export function MessagesFriendsView({
       {activeMessageTab === 'chat' && (
         <ChatTab
           onOpenAuth={onOpenAuth}
+          onPlayTrack={onPlayTrack}
           onGoToFriendsTab={() => setActiveMessageTab('friends')}
           initialRecipientUid={targetChatRecipientUid}
           onClearInitialRecipient={() => {

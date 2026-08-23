@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   ArrowLeft, 
   Phone, 
@@ -30,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Conversation, ChatMessage, ConversationParticipant, Track } from '../../types';
+import { useUserPresence } from '../../services/presenceService';
 import { 
   sendChatMessage, 
   markConversationAsRead, 
@@ -48,12 +50,14 @@ interface FullScreenChatViewProps {
   conversation: Conversation;
   onBack: () => void;
   onPlayTrack?: (track: Track) => void;
+  onOpenAuth?: () => void;
 }
 
 export function FullScreenChatView({
   conversation,
   onBack,
-  onPlayTrack
+  onPlayTrack,
+  onOpenAuth
 }: FullScreenChatViewProps) {
   const { user, accountId, isVip, isAuthorVerified, authorStageName } = useAuth();
 
@@ -101,17 +105,27 @@ export function FullScreenChatView({
 
   // Determine recipient details
   const getRecipient = (): ConversationParticipant => {
-    if (!user || !conversation.participantDetails) {
-      return { uid: '', displayName: 'Người dùng', accountId: 'HV-USER', photoURL: '', isVip: false, isAuthorVerified: false };
+    const currentUid = user?.uid || `guest_${accountId || 'user'}`;
+    const otherUid = conversation.participants.find(p => p !== currentUid) || conversation.participants[0] || '';
+    if (!conversation.participantDetails) {
+      return { 
+        uid: otherUid, 
+        displayName: 'Bạn Bè', 
+        accountId: 'HV-USER', 
+        photoURL: '', 
+        isVip: false, 
+        isAuthorVerified: false 
+      };
     }
-    const otherUid = conversation.participants.find(p => p !== user.uid) || '';
-    return conversation.participantDetails[otherUid] || {
-      uid: otherUid,
-      displayName: 'Bạn Bè',
-      accountId: 'HV-USER',
-      photoURL: '',
-      isVip: false,
-      isAuthorVerified: false
+    const details: any = conversation.participantDetails[otherUid] || {};
+    return {
+      uid: details.uid || otherUid,
+      displayName: details.displayName || details.stageName || 'Bạn Bè',
+      accountId: details.accountId || 'HV-USER',
+      photoURL: details.photoURL || '',
+      isVip: Boolean(details.isVip),
+      isAuthorVerified: Boolean(details.isAuthorVerified),
+      authorStageName: details.authorStageName || details.stageName || ''
     };
   };
 
@@ -119,9 +133,11 @@ export function FullScreenChatView({
 
   // 1. Subscribe to conversation messages
   useEffect(() => {
-    if (!user || !conversation.id) return;
+    if (!conversation.id) return;
 
-    markConversationAsRead(conversation.id, user.uid);
+    if (user?.uid) {
+      markConversationAsRead(conversation.id, user.uid);
+    }
 
     const msgQuery = query(
       collection(db, 'conversations', conversation.id, 'messages'),
@@ -132,10 +148,27 @@ export function FullScreenChatView({
     const unsubscribe = onSnapshot(
       msgQuery,
       (snapshot) => {
-        const list: ChatMessage[] = snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        } as ChatMessage));
+        const list: ChatMessage[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            conversationId: data.conversationId || conversation.id,
+            senderUid: data.senderUid || data.senderId || '',
+            senderName: data.senderName || 'Người dùng',
+            senderPhoto: data.senderPhoto || '',
+            isSenderVip: Boolean(data.isSenderVip),
+            isSenderAuthor: Boolean(data.isSenderAuthor),
+            senderAuthorStageName: data.senderAuthorStageName || '',
+            text: data.text || '',
+            imageUrl: data.imageUrl,
+            voiceUrl: data.voiceUrl,
+            voiceDurationSec: data.voiceDurationSec,
+            callLog: data.callLog,
+            sharedTrack: data.sharedTrack || data.trackAttachment,
+            reactions: data.reactions || {},
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date())
+          } as ChatMessage;
+        });
         setMessages(list);
 
         setTimeout(() => {
@@ -148,7 +181,7 @@ export function FullScreenChatView({
     );
 
     return () => unsubscribe();
-  }, [conversation.id, user]);
+  }, [conversation.id, user?.uid]);
 
   // 2. Voice recording setup
   const handleStartRecording = async () => {
@@ -170,23 +203,25 @@ export function FullScreenChatView({
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
           const base64Audio = reader.result as string;
-          if (user) {
-            await sendChatMessage({
-              conversationId: conversation.id,
-              sender: {
-                uid: user.uid,
-                displayName: user.displayName || 'Người dùng',
-                photoURL: user.photoURL || '',
-                isVip,
-                isAuthorVerified,
-                authorStageName
-              },
-              recipientUid: recipient.uid,
-              voiceUrl: base64Audio,
-              voiceDurationSec: recordingSeconds || 1,
-              text: `[Đoạn ghi âm 🎙️ ${recordingSeconds}s]`
-            });
-          }
+          const senderUid = user?.uid || `guest_${accountId || 'user'}`;
+          const senderName = user?.displayName || authorStageName || 'Người dùng';
+          const senderPhoto = user?.photoURL || '';
+
+          await sendChatMessage({
+            conversationId: conversation.id,
+            sender: {
+              uid: senderUid,
+              displayName: senderName,
+              photoURL: senderPhoto,
+              isVip,
+              isAuthorVerified,
+              authorStageName
+            },
+            recipientUid: recipient.uid,
+            voiceUrl: base64Audio,
+            voiceDurationSec: recordingSeconds || 1,
+            text: `[Đoạn ghi âm 🎙️ ${recordingSeconds}s]`
+          });
         };
         stream.getTracks().forEach((track) => track.stop());
       };
@@ -241,16 +276,24 @@ export function FullScreenChatView({
   };
 
   const handleSendImage = async () => {
-    if (!selectedImageBase64 || !user || sending) return;
+    if (!selectedImageBase64 || sending) return;
+    if (!user && onOpenAuth) {
+      onOpenAuth();
+      return;
+    }
     setSending(true);
 
     try {
+      const senderUid = user?.uid || `guest_${accountId || 'user'}`;
+      const senderName = user?.displayName || authorStageName || 'Người dùng';
+      const senderPhoto = user?.photoURL || '';
+
       await sendChatMessage({
         conversationId: conversation.id,
         sender: {
-          uid: user.uid,
-          displayName: user.displayName || 'Người dùng',
-          photoURL: user.photoURL || '',
+          uid: senderUid,
+          displayName: senderName,
+          photoURL: senderPhoto,
           isVip,
           isAuthorVerified,
           authorStageName
@@ -272,27 +315,66 @@ export function FullScreenChatView({
   // 4. Send standard text message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputText.trim() || !user || sending) return;
-
     const textToSend = inputText.trim();
+    if (!textToSend || sending) return;
+
+    if (!user && onOpenAuth) {
+      onOpenAuth();
+      return;
+    }
+
     setInputText('');
     setShowEmojiPicker(false);
     setSending(true);
 
+    const senderUid = user?.uid || `guest_${accountId || 'user'}`;
+    const senderName = user?.displayName || authorStageName || 'Người dùng';
+    const senderPhoto = user?.photoURL || '';
+
+    // Optimistic message update for immediate responsive feel
+    const tempMsgId = `temp_${Date.now()}`;
+    const optimisticMsg: ChatMessage = {
+      id: tempMsgId,
+      conversationId: conversation.id,
+      senderUid,
+      senderName,
+      senderPhoto,
+      isSenderVip: isVip,
+      isSenderAuthor: isAuthorVerified,
+      senderAuthorStageName: authorStageName,
+      text: textToSend,
+      reactions: {},
+      createdAt: new Date()
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+
     try {
-      await sendChatMessage({
+      const res = await sendChatMessage({
         conversationId: conversation.id,
         sender: {
-          uid: user.uid,
-          displayName: user.displayName || 'Người dùng',
-          photoURL: user.photoURL || '',
+          uid: senderUid,
+          displayName: senderName,
+          photoURL: senderPhoto,
           isVip,
           isAuthorVerified,
           authorStageName
         },
         recipientUid: recipient.uid,
+        recipient: {
+          uid: recipient.uid,
+          displayName: recipient.displayName,
+          photoURL: recipient.photoURL
+        },
         text: textToSend
       });
+
+      if (!res.success) {
+        console.error('Send message failed:', res.message);
+      }
     } catch (err) {
       console.error('Error sending message:', err);
     } finally {
@@ -409,8 +491,8 @@ export function FullScreenChatView({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col w-full h-full text-white select-none overflow-hidden animate-in fade-in duration-200">
+  const chatModal = (
+    <div className="fixed inset-0 z-[999999] bg-zinc-950 flex flex-col w-screen h-screen text-white select-none overflow-hidden animate-in fade-in duration-200">
       {/* 1. Full Screen Top Header Bar */}
       <header className="h-16 sm:h-20 bg-zinc-900/90 border-b border-zinc-800/80 px-3 sm:px-6 flex items-center justify-between shrink-0 shadow-2xl backdrop-blur-xl z-20">
         {/* Left Side: Exit Button + Recipient Avatar & Name (Directly adjacent) */}
@@ -858,8 +940,15 @@ export function FullScreenChatView({
               {/* Text Input */}
               <input
                 type="text"
+                autoFocus
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
                 placeholder={`Nhắn tin cho ${recipient.displayName}...`}
                 className="flex-1 min-w-0 bg-zinc-950 border border-zinc-800 rounded-2xl px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-sky-400 shadow-inner"
               />
@@ -880,7 +969,7 @@ export function FullScreenChatView({
 
       {/* 5. Active Call Modal (Voice Call or Video Call Overlay) */}
       {activeCallType && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-8 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[999999] bg-zinc-950/95 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-8 animate-in fade-in duration-300">
           {/* Call Top Details */}
           <div className="text-center pt-8 space-y-2">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-700 text-xs font-bold text-white shadow-lg">
@@ -1003,7 +1092,7 @@ export function FullScreenChatView({
       {/* 6. Image Lightbox Zoom Modal */}
       {zoomedImageUrl && (
         <div 
-          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-[999999] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in"
           onClick={() => setZoomedImageUrl(null)}
         >
           <div className="relative max-w-3xl w-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
@@ -1020,4 +1109,6 @@ export function FullScreenChatView({
       )}
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(chatModal, document.body) : chatModal;
 }

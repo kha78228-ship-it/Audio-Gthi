@@ -9,7 +9,7 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Initialize Firestore with exact databaseId and auto-detect long polling for optimal connection stability
+// Initialize Firestore with exact databaseId and auto-detect long polling for rock-solid iframe/proxy connectivity
 const databaseId = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
   ? firebaseConfig.firestoreDatabaseId
   : undefined;

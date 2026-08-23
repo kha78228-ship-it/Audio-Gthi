@@ -37,6 +37,11 @@ service cloud.firestore {
         allow read, write: if true;
       }
 
+      // User 6-Layer Security Shield & credentials config
+      match /security/{docId} {
+        allow read, write: if true;
+      }
+
       // User VIP subscription orders
       match /vipOrders/{orderId} {
         allow read, write: if true;
@@ -174,6 +179,12 @@ service cloud.firestore {
       }
     }
 
+    // User Real-time Presence & 10s Heartbeat System
+    match /userPresence/{presenceId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // System Transparency & Activity Audit Logs (zero omissions)
     match /systemAuditLogs/{logId} {
       allow read: if true;
@@ -213,6 +224,31 @@ service cloud.firestore {
         allow update: if true;
         allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
       }
+    }
+
+    // Haevy Games: x2 Đám Đông (Crowd 2X Prediction Game)
+    match /crowdQuestions/{questionId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    match /crowdBets/{betId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update, delete: if isSignedIn() || isAdmin() || true;
+    }
+
+    // Haevy Games: Đoán Bài Hát (Audio Quiz Tracks)
+    match /audioQuizTracks/{trackId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Customer Service Support Tickets & Feedback
+    match /supportTickets/{ticketId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isSignedIn() || isAdmin();
     }
   }
 }

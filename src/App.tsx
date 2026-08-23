@@ -21,7 +21,7 @@ import { SleepTimerModal } from './components/SleepTimerModal';
 import { MessagesFriendsView } from './components/MessagesFriendsView';
 import { CoupleRomanceView } from './components/CoupleRomanceView';
 import { FinanceView } from './components/FinanceView';
-import { HaevyGamesView } from './components/HaevyGamesView';
+import { HaevyGamesView, HaevyGamesSubTab } from './components/HaevyGamesView';
 import { HaevyStudioView } from './components/HaevyStudioView';
 import { AuthorChannelView } from './components/AuthorChannelView';
 import { PublishAudioModal } from './components/PublishAudioModal';
@@ -45,15 +45,15 @@ function MainApp() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.85);
+  const [volume, setVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlayerDismissed, setIsPlayerDismissed] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState<string>('Tất cả');
   const [messageSubTab, setMessageSubTab] = useState<'chat' | 'feed' | 'friends'>('chat');
   const [coupleSubTab, setCoupleSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
   const [financeSubTab, setFinanceSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
-  const [adminSubTab, setAdminSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4'>('page1');
-  const [gamesSubTab, setGamesSubTab] = useState<'home' | 'leaderboard'>('home');
+  const [adminSubTab, setAdminSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6'>('page1');
+  const [gamesSubTab, setGamesSubTab] = useState<HaevyGamesSubTab>('home');
   const [studioSubTab, setStudioSubTab] = useState<'page1' | 'page2' | 'page3'>('page1');
   const [vipSubTab, setVipSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4'>('page1');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -216,6 +216,7 @@ function MainApp() {
           break;
         case 'games':
           setActiveTab('games');
+          setGamesSubTab('home');
           break;
       }
     }
@@ -500,7 +501,7 @@ function MainApp() {
       <SystemAnnouncementBanner />
 
       {/* Main Tab Content */}
-      <main className="flex-1 flex flex-col justify-start w-full max-w-full pb-36 sm:pb-40">
+      <main className={`flex-1 flex flex-col justify-start w-full max-w-full ${activeTab === 'profile' ? 'pb-8 sm:pb-12' : 'pb-36 sm:pb-40'}`}>
         {/* If user is specifically viewing an author's channel */}
         {viewingAuthor ? (
           <AuthorChannelView
@@ -638,6 +639,8 @@ function MainApp() {
               <UserProfileView
                 onOpenAuth={() => handleOpenAuth('signin')}
                 onGoToTopup={() => setActiveTab('topup')}
+                onGoToHome={() => setActiveTab('home')}
+                onSelectTab={setActiveTab}
                 onOpenAuthorStudio={handleOpenAuthorStudio}
                 onOpenAuthorVerification={handleOpenAuthorVerification}
                 onOpenPublishAudio={handleOpenPublishAudio}
@@ -658,6 +661,10 @@ function MainApp() {
                 onOpenAuth={() => handleOpenAuth('signin')}
                 adminSubTab={adminSubTab}
                 onSelectAdminSubTab={setAdminSubTab}
+                allTracks={allTracks}
+                onPlayTrack={handlePlayTrack}
+                currentTrack={currentTrack}
+                isPlaying={isPlaying}
               />
             )}
 
@@ -692,8 +699,8 @@ function MainApp() {
         )}
       </main>
 
-      {/* Persistent Bottom Taskbar with Mini Player and Navigation Tabs (Hidden when full-screen Ecosystem Drawer is open) */}
-      {!isModesDrawerOpen && (
+      {/* Persistent Bottom Taskbar with Mini Player and Navigation Tabs (Hidden when full-screen Ecosystem Drawer is open or when on Profile View) */}
+      {!isModesDrawerOpen && activeTab !== 'profile' && (
         <BottomTaskbar
           currentMode={currentMode}
           onSelectMode={handleSelectMode}

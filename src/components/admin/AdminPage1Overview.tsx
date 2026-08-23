@@ -23,7 +23,8 @@ import {
   TrendingUp,
   Heart,
   Wallet,
-  Headphones
+  Headphones,
+  Zap
 } from 'lucide-react';
 import { UserAccountData, Track, AuthorVerification, ReferralCode, AnonymousPass, CommunityPost, SystemAuditLog, SystemAnnouncement } from '../../types';
 
@@ -36,7 +37,7 @@ interface AdminPage1OverviewProps {
   communityPosts: CommunityPost[];
   auditLogs: SystemAuditLog[];
   systemAnnouncements: SystemAnnouncement[];
-  onNavigateToPage: (page: 'page1' | 'page2' | 'page3' | 'page4') => void;
+  onNavigateToPage: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => void;
 }
 
 export function AdminPage1Overview({
@@ -100,8 +101,8 @@ export function AdminPage1Overview({
           </div>
         </div>
 
-        {/* Quick 4-Page Quick Navigation Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-6 pt-6 border-t border-zinc-800/80">
+        {/* Quick 5-Page Quick Navigation Tabs */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mt-6 pt-6 border-t border-zinc-800/80">
           <button
             onClick={() => onNavigateToPage('page1')}
             className="p-3 rounded-2xl bg-amber-500 text-black font-extrabold text-xs flex items-center justify-between shadow-lg shadow-amber-500/20 cursor-pointer text-left transition-all"
@@ -148,6 +149,17 @@ export function AdminPage1Overview({
               <span>Trang 4: Nuôi Admin</span>
             </div>
             <ArrowRight size={13} className="text-zinc-500" />
+          </button>
+
+          <button
+            onClick={() => onNavigateToPage('page5')}
+            className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-amber-300 hover:text-white font-bold text-xs flex items-center justify-between cursor-pointer text-left transition-all col-span-2 sm:col-span-1 shadow-lg shadow-amber-500/5"
+          >
+            <div className="flex items-center gap-2">
+              <Sliders size={16} className="text-amber-400 animate-pulse" />
+              <span>Trang 5: Sửa Trang Chủ</span>
+            </div>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/30 text-amber-200 border border-amber-400/40 font-bold">Mới</span>
           </button>
         </div>
       </div>
@@ -308,6 +320,28 @@ export function AdminPage1Overview({
                 </div>
               </div>
               <span className="text-xs font-mono font-bold text-emerald-400">Hoạt Động</span>
+            </div>
+
+            {/* Games & Crowd 2X Mode */}
+            <div 
+              onClick={() => onNavigateToPage('page6')}
+              className="bg-zinc-950 p-3 rounded-2xl border border-indigo-500/30 hover:border-indigo-500/60 transition-all flex items-center justify-between gap-4 cursor-pointer group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                  <Zap size={20} className="text-amber-400 fill-amber-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    Haevy Games • ×2 Đám Đông
+                    <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 text-[9px] rounded font-bold">MỚI</span>
+                  </h4>
+                  <p className="text-[11px] text-zinc-400">Đấu trường dự đoán 2 phương án A vs B, phe số đông ăn x2 Xu</p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-bold text-indigo-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                Trang 6 <ArrowRight size={13} />
+              </span>
             </div>
           </div>
         </div>

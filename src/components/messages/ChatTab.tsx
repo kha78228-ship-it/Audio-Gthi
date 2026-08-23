@@ -253,6 +253,7 @@ export function ChatTab({
         conversation={selectedConversation}
         onBack={() => setSelectedConversation(null)}
         onPlayTrack={onPlayTrack}
+        onOpenAuth={onOpenAuth}
       />
     );
   }

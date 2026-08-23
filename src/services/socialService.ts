@@ -158,12 +158,13 @@ export async function sendChatMessage(params: {
 
     await addDoc(messagesCol, msgData);
 
-    // Update conversation metadata
+    // Update conversation metadata with setDoc merge to guarantee it never fails
     const convRef = doc(db, 'conversations', convId);
     const convSnap = await getDoc(convRef);
     const prevUnread = recipientUid && convSnap.exists() ? (convSnap.data()?.unreadCounts?.[recipientUid] || 0) : 0;
 
     const updatePayload: any = {
+      id: convId,
       lastMessageText: previewText || 'Tin nhắn mới',
       lastMessageSenderId: params.sender.uid,
       lastMessageSenderUid: params.sender.uid,
@@ -175,7 +176,12 @@ export async function sendChatMessage(params: {
       updatePayload[`unreadCounts.${recipientUid}`] = prevUnread + 1;
     }
 
-    await updateDoc(convRef, updatePayload);
+    if (!convSnap.exists()) {
+      updatePayload.participants = [params.sender.uid, recipientUid].filter(Boolean);
+      updatePayload.createdAt = serverTimestamp();
+    }
+
+    await setDoc(convRef, updatePayload, { merge: true });
 
     return { success: true };
   } catch (err: any) {
@@ -190,9 +196,9 @@ export async function sendChatMessage(params: {
 export async function markConversationAsRead(conversationId: string, currentUid: string): Promise<void> {
   try {
     const convRef = doc(db, 'conversations', conversationId);
-    await updateDoc(convRef, {
+    await setDoc(convRef, {
       [`unreadCounts.${currentUid}`]: 0
-    });
+    }, { merge: true });
   } catch (err) {
     console.error('Error marking conversation read:', err);
   }

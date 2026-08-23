@@ -39,12 +39,18 @@ import {
   Zap,
   Gift,
   BookOpen,
-  Droplets
+  Droplets,
+  Sliders,
+  Music,
+  Flame,
+  Dices,
+  Target
 } from 'lucide-react';
 import { Track, ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { HaevyGamesSubTab } from './HaevyGamesView';
 
 interface BottomTaskbarProps {
   currentMode: EcosystemMode;
@@ -58,10 +64,10 @@ interface BottomTaskbarProps {
   onSelectCoupleSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
   financeSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
   onSelectFinanceSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
-  adminSubTab?: 'page1' | 'page2' | 'page3' | 'page4';
-  onSelectAdminSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4') => void;
-  gamesSubTab?: 'home' | 'leaderboard';
-  onSelectGamesSubTab?: (subTab: 'home' | 'leaderboard') => void;
+  adminSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6';
+  onSelectAdminSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => void;
+  gamesSubTab?: HaevyGamesSubTab;
+  onSelectGamesSubTab?: (subTab: HaevyGamesSubTab) => void;
   studioSubTab?: 'page1' | 'page2' | 'page3';
   onSelectStudioSubTab?: (subTab: 'page1' | 'page2' | 'page3') => void;
   vipSubTab?: 'page1' | 'page2' | 'page3' | 'page4';
@@ -301,6 +307,8 @@ export function BottomTaskbar({
           { id: 'page2', label: 'Đặc Quyền', icon: Crown, isModeSubTab: true },
           { id: 'page3', label: 'Duyệt Tác Giả', icon: ShieldCheck, isModeSubTab: true },
           { id: 'page4', label: 'Nuôi Admin', icon: Coins, isModeSubTab: true },
+          { id: 'page5', label: 'Sửa Home', icon: Sliders, isModeSubTab: true },
+          { id: 'page6', label: '×2 Đám Đông', icon: Zap, isModeSubTab: true },
         ];
       case 'studio':
         return [
@@ -311,6 +319,7 @@ export function BottomTaskbar({
       case 'games':
         return [
           { id: 'home', label: 'Trang Chủ', icon: Gamepad2, isModeSubTab: true },
+          { id: 'quests', label: 'Nhiệm Vụ', icon: Flame, isModeSubTab: true },
           { id: 'leaderboard', label: 'Bảng Xếp Hạng', icon: Trophy, isModeSubTab: true },
         ];
       default:
@@ -364,7 +373,7 @@ export function BottomTaskbar({
       if (item.isModeSubTab) {
         onSelectTab('admin');
         if (onSelectAdminSubTab) {
-          onSelectAdminSubTab(item.id as 'page1' | 'page2' | 'page3' | 'page4');
+          onSelectAdminSubTab(item.id as 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6');
         }
       } else {
         onSelectTab(item.id as ActiveTab);
@@ -373,7 +382,7 @@ export function BottomTaskbar({
       if (item.isModeSubTab) {
         onSelectTab('games');
         if (onSelectGamesSubTab) {
-          onSelectGamesSubTab(item.id as 'home' | 'leaderboard');
+          onSelectGamesSubTab(item.id as HaevyGamesSubTab);
         }
       } else {
         onSelectTab(item.id as ActiveTab);
@@ -563,7 +572,7 @@ export function BottomTaskbar({
             : currentMode === 'admin'
             ? activeTab === 'admin' && adminSubTab === item.id
             : currentMode === 'games'
-            ? activeTab === 'games' && gamesSubTab === item.id
+            ? activeTab === 'games' && (gamesSubTab === item.id || (!gamesSubTab && item.id === 'home') || (item.id === 'home' && gamesSubTab !== 'leaderboard' && gamesSubTab !== 'quests'))
             : currentMode === 'studio'
             ? activeTab === 'studio' && studioSubTab === item.id
             : activeTab === item.id;
@@ -607,6 +616,8 @@ export function BottomTaskbar({
                     ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 font-black shadow-lg shadow-rose-500/10 scale-[1.02]'
                     : currentMode === 'studio'
                     ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50 font-black shadow-lg shadow-purple-500/10 scale-[1.02]'
+                    : currentMode === 'games'
+                    ? 'bg-indigo-600/25 text-indigo-300 border border-indigo-500/50 font-black shadow-lg shadow-indigo-500/10 scale-[1.02]'
                     : 'bg-zinc-800/95 text-amber-300 border border-amber-500/40 font-black shadow-lg shadow-amber-500/10 scale-[1.02]'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/70'
               }`}
@@ -620,6 +631,8 @@ export function BottomTaskbar({
                     ? 'bg-rose-400 shadow-[0_0_10px_#f43f5e]'
                     : currentMode === 'studio'
                     ? 'bg-purple-400 shadow-[0_0_10px_#c084fc]'
+                    : currentMode === 'games'
+                    ? 'bg-indigo-400 shadow-[0_0_10px_#818cf8]'
                     : 'bg-amber-400 shadow-[0_0_10px_#f59e0b]'
                 }`} />
               )}
@@ -635,6 +648,8 @@ export function BottomTaskbar({
                         ? 'text-rose-400' 
                         : currentMode === 'studio'
                         ? 'text-purple-400'
+                        : currentMode === 'games'
+                        ? 'text-indigo-400'
                         : 'text-amber-400' 
                       : 'text-zinc-400'
                   } 

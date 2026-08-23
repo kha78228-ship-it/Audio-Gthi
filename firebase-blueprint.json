@@ -326,6 +326,92 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["pairCode", "status", "relationshipType", "anniversaryDate", "coupleTitle", "createdAt"]
+    },
+    "crowdQuestions": {
+      "title": "Crowd 2X Prediction Question",
+      "description": "Majority vote / Crowd 2X game questions created by Admin with 2 options",
+      "type": "object",
+      "properties": {
+        "question": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed", "settled", "cancelled"] },
+        "minBet": { "type": "number" },
+        "maxBet": { "type": "number" },
+        "totalParticipants": { "type": "number" },
+        "totalPool": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["question", "category", "status", "minBet", "maxBet", "createdAt"]
+    },
+    "crowdBets": {
+      "title": "Crowd 2X Bet Ticket",
+      "description": "User placed bets on Crowd 2X prediction questions",
+      "type": "object",
+      "properties": {
+        "questionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "chosenOption": { "type": "string", "enum": ["A", "B"] },
+        "betAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "won", "lost", "refunded"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["questionId", "userId", "chosenOption", "betAmount", "status", "createdAt"]
+    },
+    "audioQuizTracks": {
+      "title": "Audio Quiz Track",
+      "description": "Songs and audio snippets uploaded by Admin for Melody Guessing mini-game",
+      "type": "object",
+      "properties": {
+        "songTitle": { "type": "string" },
+        "artist": { "type": "string" },
+        "genre": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["Dễ", "Trung Bình", "Khó"] },
+        "audioUrl": { "type": "string" },
+        "audioName": { "type": "string" },
+        "startOffsetSec": { "type": "number" },
+        "durationSec": { "type": "number" },
+        "options": { "type": "array" },
+        "triviaTip": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["songTitle", "artist", "options", "isActive"]
+    },
+    "securityShield": {
+      "title": "Account 6-Layer Security Shield",
+      "description": "User multi-layer authentication and security credentials state",
+      "type": "object",
+      "properties": {
+        "layer1PasswordEnabled": { "type": "boolean" },
+        "layer1LastVerifiedAt": { "type": "string" },
+        "layer2EmailOtpEnabled": { "type": "boolean" },
+        "layer2PrimaryEmail": { "type": "string" },
+        "layer3PinCodeEnabled": { "type": "boolean" },
+        "layer4RecoveryEmailEnabled": { "type": "boolean" },
+        "layer4RecoveryEmail": { "type": "string" },
+        "layer5FaceIdEnabled": { "type": "boolean" },
+        "layer6MasterActivationCode": { "type": "string" },
+        "securityScore": { "type": "number" },
+        "overallLockLevel": { "type": "string" }
+      },
+      "required": ["layer1PasswordEnabled", "securityScore", "overallLockLevel"]
+    },
+    "supportTickets": {
+      "title": "Support Ticket",
+      "description": "Customer service tickets and support requests",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userAccountId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string" },
+        "priority": { "type": "string" },
+        "messages": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "category", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -381,6 +467,10 @@
       "entity": "pointTransactions",
       "description": "Point earning and redemption records"
     },
+    "/users/{userId}/security/{docId}": {
+      "entity": "securityShield",
+      "description": "User multi-layer authentication and security credentials state"
+    },
     "/customTracks/{trackId}": {
       "entity": "customTracks",
       "description": "Shared audio tracks uploaded by community"
@@ -432,6 +522,22 @@
     "/friendPhotoPosts/{postId}/comments/{commentId}": {
       "entity": "friendPhotoComments",
       "description": "Comments on friend photo posts"
+    },
+    "/crowdQuestions/{questionId}": {
+      "entity": "crowdQuestions",
+      "description": "Majority vote Crowd 2X game questions created by Admin"
+    },
+    "/crowdBets/{betId}": {
+      "entity": "crowdBets",
+      "description": "User bets on Crowd 2X questions"
+    },
+    "/audioQuizTracks/{trackId}": {
+      "entity": "audioQuizTracks",
+      "description": "Audio clips and songs uploaded by Admin for Melody Guessing game"
+    },
+    "/supportTickets/{ticketId}": {
+      "entity": "supportTickets",
+      "description": "Customer service tickets and support requests"
     }
   }
 }

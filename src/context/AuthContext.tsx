@@ -44,9 +44,11 @@ import {
   AdminRole,
   SubAdminPermissions,
   SystemAnnouncement,
-  SystemGlobalConfig
+  SystemGlobalConfig,
+  AdminHomeCustomConfig
 } from '../types';
 import { INITIAL_TRACKS } from '../data';
+import { useGlobalPresenceHeartbeat } from '../services/presenceService';
 
 interface CustomAuthUser {
   uid: string;
@@ -220,6 +222,11 @@ interface AuthContextType {
   systemGlobalConfig: SystemGlobalConfig;
   updateSystemGlobalConfig: (config: Partial<SystemGlobalConfig>) => Promise<{ success: boolean; message: string }>;
 
+  // Admin Homepage Customization (Chỉnh sửa Trang Chủ Haevy Audio)
+  homeCustomConfig: AdminHomeCustomConfig;
+  updateHomeCustomConfig: (config: Partial<AdminHomeCustomConfig>) => Promise<{ success: boolean; message: string }>;
+  resetHomeCustomConfig: () => Promise<{ success: boolean; message: string }>;
+
   // Batch Operations
   batchRewardUsers: (targetUids: string[], points: number, vipDays: number, reason: string) => Promise<{ success: boolean; message: string; count: number }>;
 
@@ -252,6 +259,36 @@ const DEFAULT_GLOBAL_CONFIG: SystemGlobalConfig = {
   allowAuthorRegistrations: true,
   allowAnonymousPasses: true,
   dailyCheckinBonus: 100,
+};
+
+export const DEFAULT_HOME_CUSTOM_CONFIG: AdminHomeCustomConfig = {
+  isEnabled: false,
+  targetAudience: 'all',
+  targetAccountIds: [],
+  titleTag: 'Trang Chủ Tùy Biến Haevy Audio',
+  showAdminGreetingBanner: false,
+  greetingBannerText: 'Chào mừng bạn đến với Không Gian Âm Nhạc & Cốt Truyện Đặc Quyền Haevy Audio!',
+  greetingBannerSubtext: 'Khám phá các tuyệt phẩm được tuyển chọn bởi Ban Quản Trị hôm nay.',
+  greetingBannerIcon: 'sparkles',
+  greetingBannerColor: 'amber',
+  greetingBannerCtaText: 'Khám Phá Ngay',
+  greetingBannerCtaTab: 'library',
+  heroMode: 'auto',
+  showHeroSpotlight: true,
+  showGenresSection: true,
+  genresTitle: 'Khám phá theo thể loại',
+  showTrendingSection: true,
+  trendingTitle: 'Xu hướng nghe nhiều',
+  trendingSubtitle: 'Các bản audio thịnh hành trong tuần',
+  showAdminPicksSection: false,
+  adminPicksTitle: 'Lựa Chọn Của Ban Quản Trị ⭐',
+  adminPicksSubtitle: 'Những tác phẩm độc đáo & ấn tượng nhất do Admin đề cử riêng',
+  adminPicksTrackIds: [],
+  showCuratedCollections: true,
+  curatedCollectionsTitle: 'Bộ sưu tập chọn lọc',
+  curatedCollectionsSubtitle: 'Playlist tạo sẵn cho từng trạng thái tâm trí',
+  customBadgeText: '⭐ Giao diện được cá nhân hóa bởi Haevy Admin',
+  version: 1,
 };
 
 const ANON_SESSION_KEY = 'audiohub_anon_vip_session';
@@ -324,6 +361,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [subAdminPermissions, setSubAdminPermissions] = useState<SubAdminPermissions>({});
   const [systemAnnouncements, setSystemAnnouncements] = useState<SystemAnnouncement[]>([]);
   const [systemGlobalConfig, setSystemGlobalConfig] = useState<SystemGlobalConfig>(DEFAULT_GLOBAL_CONFIG);
+  const [homeCustomConfig, setHomeCustomConfig] = useState<AdminHomeCustomConfig>(() => {
+    try {
+      const saved = localStorage.getItem('haevy_home_custom_config');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Error reading saved home custom config:', e);
+    }
+    return DEFAULT_HOME_CUSTOM_CONFIG;
+  });
   const [favorites, setFavorites] = useState<string[]>([]);
   const [audioPoints, setAudioPoints] = useState<number>(0);
   const [totalEarnedPoints, setTotalEarnedPoints] = useState<number>(0);
@@ -412,6 +458,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     : anonymousVipSession?.isActive 
     ? anonymousVipSession.guestId 
     : 'GUEST-CHUA-DANG-NHAP';
+
+  // Global Real-Time Presence Heartbeat (Sends ping every 4s, marks offline if no signal for > 10s)
+  useGlobalPresenceHeartbeat(user, {
+    accountId: effectiveAccountId,
+    isVip: effectiveIsVip,
+    isAuthorVerified,
+    authorStageName
+  });
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
@@ -631,6 +685,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return () => unsub();
     } catch (e) {
       console.warn('Global config init notice:', e);
+    }
+  }, []);
+
+  // Listen to Admin Homepage Customization in Real-time
+  useEffect(() => {
+    try {
+      const homeDocRef = doc(db, 'systemSettings', 'homeCustomization');
+      const unsub = onSnapshot(homeDocRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          const merged: AdminHomeCustomConfig = {
+            ...DEFAULT_HOME_CUSTOM_CONFIG,
+            ...(data as any),
+          };
+          setHomeCustomConfig(merged);
+          localStorage.setItem('haevy_home_custom_config', JSON.stringify(merged));
+        } else {
+          setHomeCustomConfig(DEFAULT_HOME_CUSTOM_CONFIG);
+          localStorage.removeItem('haevy_home_custom_config');
+        }
+      }, (err) => {
+        console.warn('Home customization listener note:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Home customization init notice:', e);
     }
   }, []);
 
@@ -1922,6 +2002,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ADMIN: Update Homepage Customization Layout
+  const updateHomeCustomConfig = async (
+    configUpdate: Partial<AdminHomeCustomConfig>
+  ): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên Haevy mới có quyền chỉnh sửa Trang Chủ.' };
+    }
+    try {
+      const homeDocRef = doc(db, 'systemSettings', 'homeCustomization');
+      const currentVersion = homeCustomConfig.version || 1;
+      const payload: Partial<AdminHomeCustomConfig> = {
+        ...configUpdate,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.uid || 'admin',
+        updatedByName: user?.displayName || user?.email || 'Haevy Admin',
+        version: currentVersion + 1,
+      };
+
+      await setDoc(homeDocRef, payload, { merge: true });
+      const merged = { ...homeCustomConfig, ...payload };
+      setHomeCustomConfig(merged as AdminHomeCustomConfig);
+      localStorage.setItem('haevy_home_custom_config', JSON.stringify(merged));
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_HOME_LAYOUT',
+        actionTitle: 'Tùy biến Giao diện Trang Chủ Haevy Audio',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'home_customization',
+        details: `Cập nhật cấu hình Trang Chủ: Đối tượng = ${configUpdate.targetAudience || homeCustomConfig.targetAudience}, Bật = ${configUpdate.isEnabled !== undefined ? configUpdate.isEnabled : homeCustomConfig.isEnabled}`,
+        metadata: { configUpdate },
+        severity: 'warning',
+      });
+
+      return { success: true, message: 'Đã lưu và áp dụng giao diện Trang Chủ thành công!' };
+    } catch (e: any) {
+      console.error('Error updating home custom config:', e);
+      return { success: false, message: 'Lỗi khi lưu giao diện Trang Chủ: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Reset Homepage Customization to Default
+  const resetHomeCustomConfig = async (): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền thiết lập lại.' };
+    }
+    try {
+      const homeDocRef = doc(db, 'systemSettings', 'homeCustomization');
+      await setDoc(homeDocRef, {
+        ...DEFAULT_HOME_CUSTOM_CONFIG,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.uid || 'admin',
+        updatedByName: user?.displayName || user?.email || 'Haevy Admin',
+        version: 1,
+      });
+
+      setHomeCustomConfig(DEFAULT_HOME_CUSTOM_CONFIG);
+      localStorage.removeItem('haevy_home_custom_config');
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_HOME_LAYOUT',
+        actionTitle: 'Khôi phục Giao diện Trang Chủ mặc định',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'home_customization',
+        details: 'Khôi phục toàn bộ giao diện Trang Chủ về trạng thái nguyên bản của hệ thống.',
+        severity: 'info',
+      });
+
+      return { success: true, message: 'Đã khôi phục Trang Chủ về giao diện mặc định!' };
+    } catch (e: any) {
+      console.error('Error resetting home custom config:', e);
+      return { success: false, message: 'Lỗi khi đặt lại: ' + (e.message || '') };
+    }
+  };
+
   // ADMIN: Batch Reward / Compensation for Multiple Users
   const batchRewardUsers = async (
     targetUids: string[], 
@@ -2998,6 +3158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         togglePinAnnouncement,
         systemGlobalConfig,
         updateSystemGlobalConfig,
+        homeCustomConfig,
+        updateHomeCustomConfig,
+        resetHomeCustomConfig,
         batchRewardUsers,
         signInWithGoogle,
         signInWithEmail,

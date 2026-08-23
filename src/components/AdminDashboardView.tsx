@@ -38,19 +38,29 @@ import { AdminPage1Overview } from './admin/AdminPage1Overview';
 import { AdminPage2Privileges } from './admin/AdminPage2Privileges';
 import { AdminPage3Authors } from './admin/AdminPage3Authors';
 import { AdminPage4SupportAdmin } from './admin/AdminPage4SupportAdmin';
+import { AdminPage5HomepageEditor } from './admin/AdminPage5HomepageEditor';
+import { AdminPage6CrowdGame } from './admin/AdminPage6CrowdGame';
 
 interface AdminDashboardViewProps {
   onBackToHome?: () => void;
   onOpenAuth?: () => void;
-  adminSubTab?: 'page1' | 'page2' | 'page3' | 'page4';
-  onSelectAdminSubTab?: (tab: 'page1' | 'page2' | 'page3' | 'page4') => void;
+  adminSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6';
+  onSelectAdminSubTab?: (tab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => void;
+  allTracks?: Track[];
+  onPlayTrack?: (track: Track) => void;
+  currentTrack?: Track | null;
+  isPlaying?: boolean;
 }
 
 export function AdminDashboardView({
   onBackToHome,
   onOpenAuth,
   adminSubTab: controlledAdminSubTab,
-  onSelectAdminSubTab
+  onSelectAdminSubTab,
+  allTracks = [],
+  onPlayTrack,
+  currentTrack = null,
+  isPlaying = false,
 }: AdminDashboardViewProps) {
   const { 
     user, 
@@ -62,10 +72,10 @@ export function AdminDashboardView({
   } = useAuth();
 
   // Sub Tab state (controlled or uncontrolled fallback)
-  const [internalSubTab, setInternalSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4'>('page1');
+  const [internalSubTab, setInternalSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6'>('page1');
   const activePage = controlledAdminSubTab || internalSubTab;
 
-  const handlePageChange = (page: 'page1' | 'page2' | 'page3' | 'page4') => {
+  const handlePageChange = (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => {
     if (onSelectAdminSubTab) {
       onSelectAdminSubTab(page);
     }
@@ -344,6 +354,30 @@ export function AdminDashboardView({
         <AdminPage4SupportAdmin
           usersList={usersList}
           onRefreshUsers={fetchUsers}
+          showToast={showToast}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* PAGE 5: SỬA VÀ TÙY BIẾN TRANG CHỦ THEO Ý ADMIN (PHÂN KHÁCH HÀNG) */}
+      {/* ========================================================================= */}
+      {activePage === 'page5' && (
+        <AdminPage5HomepageEditor
+          allTracks={allTracks}
+          usersList={usersList}
+          onPlayTrack={onPlayTrack}
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          showToast={showToast}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* PAGE 6: QUẢN LÝ VÒNG ĐẤU & KẾT TOÁN ×2 ĐÁM ĐÔNG */}
+      {/* ========================================================================= */}
+      {activePage === 'page6' && (
+        <AdminPage6CrowdGame
+          usersList={usersList}
           showToast={showToast}
         />
       )}

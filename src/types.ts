@@ -33,7 +33,7 @@ export interface PointTransaction {
   id: string;
   title: string;
   amount: number; // positive for earn, negative for spend
-  type: 'listen' | 'checkin' | 'upload' | 'post' | 'comment' | 'redeem_vip' | 'bonus' | 'gift_author' | 'receive_gift' | 'tts_synthesis' | 'spend' | 'topup_coins' | 'gift_vip' | 'receive_vip' | 'transfer_coins' | 'receive_coins';
+  type: 'listen' | 'checkin' | 'upload' | 'post' | 'comment' | 'redeem_vip' | 'bonus' | 'gift_author' | 'receive_gift' | 'tts_synthesis' | 'spend' | 'topup_coins' | 'gift_vip' | 'receive_vip' | 'transfer_coins' | 'receive_coins' | 'game_crowd_bet' | 'game_crowd_win' | 'game_crowd_refund';
   createdAt: any;
 }
 
@@ -700,13 +700,14 @@ export interface SystemAuditLog {
     | 'CREATE_ANNOUNCEMENT'
     | 'DELETE_ANNOUNCEMENT'
     | 'UPDATE_SYSTEM_CONFIG'
+    | 'UPDATE_HOME_LAYOUT'
     | 'BATCH_REWARD';
   actionTitle: string;
   actorId: string;
   actorName: string;
   actorEmail?: string;
   actorRole: 'admin' | 'user' | 'author';
-  targetType: 'comment' | 'audio_track' | 'post' | 'user' | 'author_verification' | 'pass_code' | 'referral_code' | 'gift' | 'system_announcement' | 'system_config';
+  targetType: 'comment' | 'audio_track' | 'post' | 'user' | 'author_verification' | 'pass_code' | 'referral_code' | 'gift' | 'system_announcement' | 'system_config' | 'home_customization';
   targetId?: string;
   targetName?: string;
   details: string;
@@ -773,6 +774,69 @@ export interface SystemGlobalConfig {
   allowAuthorRegistrations: boolean;
   allowAnonymousPasses: boolean;
   dailyCheckinBonus: number;
+}
+
+export type HomeTargetAudience = 'all' | 'vip' | 'authors' | 'guests' | 'specific_accounts';
+export type HomeHeroStyle = 'classic_spotlight' | 'cinematic_wide' | 'storyline_epic' | 'minimal_clean' | 'cyber_glow';
+export type HomeHeroAction = 'play_track' | 'open_library' | 'open_vip' | 'open_studio' | 'open_community' | 'open_games' | 'open_author';
+
+export interface CuratedCollectionItem {
+  id: string;
+  title: string;
+  genre: string;
+  coverUrl: string;
+  description: string;
+  trackCount: number;
+}
+
+export interface AdminHomeCustomConfig {
+  isEnabled: boolean;
+  targetAudience: HomeTargetAudience;
+  targetAccountIds: string[]; // List of account IDs (e.g. HV-123456, AH-ADMIN) or UIDs/emails
+  titleTag?: string;
+  // Greeting Announcement Ribbon
+  showAdminGreetingBanner: boolean;
+  greetingBannerText: string;
+  greetingBannerSubtext?: string;
+  greetingBannerIcon: 'sparkles' | 'crown' | 'radio' | 'flame' | 'heart' | 'zap' | 'gift';
+  greetingBannerColor: 'amber' | 'purple' | 'emerald' | 'rose' | 'indigo' | 'cyber';
+  greetingBannerCtaText?: string;
+  greetingBannerCtaTab?: ActiveTab;
+  // Hero Spotlight
+  heroMode: 'auto' | 'custom_track' | 'custom_banner';
+  heroCustomTrackId?: string;
+  heroCustomTitle?: string;
+  heroCustomSubtitle?: string;
+  heroCustomTag?: string;
+  heroCustomCoverUrl?: string;
+  heroCustomCtaText?: string;
+  heroCustomAction?: HomeHeroAction;
+  heroCustomAuthorName?: string;
+  heroCustomAuthorUid?: string;
+  heroStyle?: HomeHeroStyle;
+  // Sections visibility & titles
+  showHeroSpotlight: boolean;
+  showGenresSection: boolean;
+  genresTitle?: string;
+  showTrendingSection: boolean;
+  trendingTitle?: string;
+  trendingSubtitle?: string;
+  // Admin Signature Picks
+  showAdminPicksSection: boolean;
+  adminPicksTitle?: string;
+  adminPicksSubtitle?: string;
+  adminPicksTrackIds: string[];
+  // Curated Collections
+  showCuratedCollections: boolean;
+  curatedCollectionsTitle?: string;
+  curatedCollectionsSubtitle?: string;
+  customCuratedCollections?: CuratedCollectionItem[];
+  // Meta
+  customBadgeText?: string;
+  updatedAt?: any;
+  updatedBy?: string;
+  updatedByName?: string;
+  version?: number;
 }
 
 // ==========================================
@@ -998,6 +1062,153 @@ export interface FriendPhotoComment {
   createdAt: any;
 }
 
+// ================= HAEVY GAMES: ×2 ĐÁM ĐÔNG (CROWD 2X PREDICTION) =================
+export interface CrowdGameOption {
+  id: 'A' | 'B';
+  text: string;
+  description?: string;
+  icon?: string;
+  totalBets: number; // Tổng số lượt người đặt cược
+  totalPool: number; // Tổng số Xu đã đặt vào phương án này
+}
 
+export interface CrowdGameQuestion {
+  id: string;
+  question: string; // Nội dung câu hỏi tranh luận
+  category: string; // 'Âm Nhạc' | 'Showbiz' | 'Xu Hướng & Trend' | 'Thể Thao' | 'Tranh Luận Vui' | 'Đời Sống' | 'Đố Vui'
+  description?: string;
+  optionA: CrowdGameOption;
+  optionB: CrowdGameOption;
+  minBet: number; // Tối thiểu: 10 xu
+  maxBet: number; // Tối đa: 2,000 xu (theo luật cược 2k xu)
+  status: 'open' | 'closed' | 'settled' | 'cancelled';
+  totalParticipants: number; // Tổng số lượt người tham gia
+  totalPool: number; // Tổng số xu trong vòng cược
+  winningOption?: 'A' | 'B' | 'draw' | null; // Bên có nhiều người đặt hơn sẽ thắng
+  settledExplanation?: string;
+  deadline?: string; // Hạn chót đặt cược
+  createdAt: any;
+  createdBy?: string;
+  settledAt?: any;
+  settledBy?: string;
+}
 
+export interface CrowdGameBet {
+  id: string;
+  questionId: string;
+  questionTitle: string;
+  userId: string;
+  userName: string;
+  userAccountId: string;
+  userPhoto?: string;
+  isUserVip?: boolean;
+  chosenOption: 'A' | 'B';
+  chosenOptionText: string;
+  betAmount: number; // Số xu cược (10 -> 2,000 Xu)
+  potentialReward: number; // betAmount * 2
+  status: 'pending' | 'won' | 'lost' | 'refunded';
+  rewardAmount?: number; // Số xu thực tế nhận được khi thắng (x2 cược)
+  createdAt: any;
+  settledAt?: any;
+}
+
+// ================= HAEVY GAMES: ĐOÁN BÀI HÁT / AUDIO QUIZ TRACKS =================
+export interface AudioQuizOption {
+  id: string;
+  title: string;
+  artist: string;
+  isCorrect: boolean;
+}
+
+export interface AudioQuizTrack {
+  id: string;
+  songTitle: string; // Tên bài hát chuẩn
+  artist: string; // Ca sĩ / Nghệ sĩ
+  genre: string; // Thể loại
+  difficulty: 'Dễ' | 'Trung Bình' | 'Khó';
+  audioUrl?: string; // URL âm thanh hoặc Base64 tải lên từ Admin
+  audioName?: string; // Tên file âm thanh gốc
+  startOffsetSec?: number; // Vị trí giây bắt đầu đoạn trích
+  durationSec?: number; // Độ dài đoạn trích (vd: 10s - 20s)
+  melodyNotes?: Array<{ freq: number; duration: number }>; // Nốt giai điệu tổng hợp
+  options: AudioQuizOption[]; // 4 phương án trắc nghiệm
+  triviaTip?: string; // Thông tin bên lề thú vị
+  isActive: boolean; // Trạng thái kích hoạt trong game
+  playsCount?: number;
+  correctCount?: number;
+  uploadedBy?: string;
+  createdAt: any;
+  updatedAt?: any;
+}
+
+// ================= HAEVY ACCOUNT 6-LAYER SECURITY & SUPPORT =================
+export interface AccountSecurityShield {
+  layer1PasswordEnabled: boolean;
+  layer1LastVerifiedAt?: string;
+  
+  layer2EmailOtpEnabled: boolean;
+  layer2PrimaryEmail?: string;
+  layer2LastVerifiedAt?: string;
+
+  layer3PinCodeEnabled: boolean;
+  layer3PinHash?: string; // 6-digit PIN string or hash
+  layer3LastVerifiedAt?: string;
+
+  layer4RecoveryEmailEnabled: boolean;
+  layer4RecoveryEmail?: string;
+  layer4RecoveryVerified?: boolean;
+  layer4LastVerifiedAt?: string;
+
+  layer5FaceIdEnabled: boolean;
+  layer5FaceEnrolledAt?: string;
+  layer5FaceDataUrl?: string; // Thumbnail / descriptor of enrolled face
+  layer5LastVerifiedAt?: string;
+
+  layer6MasterActivationCode: string; // System-issued master key, e.g. HAEVY-SEC-XXXX-XXXX-XXXX-XXXX
+  layer6CodeGeneratedAt?: string;
+  layer6LastVerifiedAt?: string;
+  
+  securityScore: number; // 0 - 100%
+  overallLockLevel: 'standard' | 'enhanced' | 'maximum_6x';
+  updatedAt?: any;
+}
+
+export interface SupportMessage {
+  id: string;
+  sender: 'user' | 'ai' | 'support_admin';
+  text: string;
+  timestamp: string;
+  suggestedActions?: Array<{ label: string; action: string }>;
+}
+
+export interface SupportTicketItem {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userAccountId: string;
+  userName: string;
+  category: 'security' | 'vip' | 'points' | 'technical' | 'author' | 'games';
+  title: string;
+  status: 'open' | 'in_progress' | 'resolved';
+  priority: 'normal' | 'high' | 'urgent';
+  messages: SupportMessage[];
+  createdAt: any;
+  updatedAt?: any;
+}
+
+// ================= HAEVY MESSAGE REAL-TIME PRESENCE (10S TIMEOUT) =================
+export interface UserPresence {
+  uid: string;
+  isOnline: boolean;
+  lastSeenMs: number; // Client timestamp in ms for exact sub-second precision
+  lastSeen?: any;     // Firestore server timestamp
+  displayName?: string;
+  photoURL?: string;
+  accountId?: string;
+  isVip?: boolean;
+  isAuthorVerified?: boolean;
+  authorStageName?: string;
+  activePlatform?: string;
+  updatedAt?: any;
+}
 
