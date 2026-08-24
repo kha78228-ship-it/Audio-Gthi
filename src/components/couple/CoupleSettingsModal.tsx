@@ -234,11 +234,14 @@ export function CoupleSettingsModal({
 
         {/* Danger Zone: Reset / Delete Relationship */}
         <div className="border-t border-zinc-800 pt-3 sm:pt-4 space-y-2">
-          <div className="text-xs font-bold text-zinc-400">Xoá mối quan hệ / Bắt đầu mối quan hệ mới:</div>
+          <div className="text-xs font-bold text-zinc-400 flex items-center justify-between">
+            <span>Quản Lý Mối Quan Hệ:</span>
+            <span className="text-[10px] text-rose-400 font-medium">Hủy ghép đôi / Bắt đầu mối quan hệ mới</span>
+          </div>
           {confirmDelete ? (
-            <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-rose-950/50 border border-rose-500/50 space-y-2.5 sm:space-y-3">
+            <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-rose-950/80 border border-rose-500/60 space-y-2.5 sm:space-y-3 animate-in fade-in">
               <div className="text-xs text-rose-200 font-semibold leading-relaxed">
-                ⚠️ <span className="font-bold text-white">Xác nhận xoá mối quan hệ:</span> Không gian đôi này sẽ được xoá hoàn toàn, giải phóng cả 2 bạn để có thể tạo hoặc ghép đôi sang một mối quan hệ mới ngay lập tức.
+                ⚠️ <span className="font-bold text-white">Xác nhận xoá mối quan hệ:</span> Không gian đôi này sẽ được xoá hoàn toàn khỏi hệ thống, giải phóng tài khoản của cả hai để bạn có thể tự do tạo hoặc ghép đôi sang một mối quan hệ mới bất cứ lúc nào.
               </div>
               <div className="flex gap-2">
                 <button
@@ -250,10 +253,13 @@ export function CoupleSettingsModal({
                 </button>
                 <button
                   type="button"
-                  onClick={onDeleteRelationship}
-                  className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg cursor-pointer transition-all"
+                  onClick={async () => {
+                    await onDeleteRelationship();
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg cursor-pointer transition-all flex items-center justify-center gap-1.5"
                 >
-                  Xác Nhận Xoá Mối Quan Hệ
+                  <Trash2 size={13} />
+                  <span>Xác Nhận Xoá Ngay</span>
                 </button>
               </div>
             </div>
@@ -261,10 +267,10 @@ export function CoupleSettingsModal({
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
-              className="w-full py-2.5 rounded-xl border border-rose-900/40 bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+              className="w-full py-2.5 rounded-xl border border-rose-900/50 bg-rose-950/30 hover:bg-rose-950/60 text-rose-400 hover:text-rose-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
             >
               <Trash2 size={14} />
-              <span>Xoá Mối Quan Hệ (Bắt Đầu Mối Quan Hệ Mới)</span>
+              <span>Xoá Mối Quan Hệ Hiện Tại (Bắt Đầu Mối Quan Hệ Mới)</span>
             </button>
           )}
         </div>

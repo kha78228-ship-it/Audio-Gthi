@@ -23,7 +23,8 @@ import {
   History, 
   Check, 
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  ArrowLeft
 } from 'lucide-react';
 import { 
   collection, 
@@ -46,13 +47,15 @@ import { CrowdGameQuestion, CrowdGameBet } from '../../types';
 interface Crowd2xGameArenaProps {
   onOpenAuth?: () => void;
   onOpenVipHub?: () => void;
+  onBackToLobby?: () => void;
 }
 
 const BET_PRESETS = [50, 100, 200, 500, 1000, 2000];
 
 export function Crowd2xGameArena({
   onOpenAuth,
-  onOpenVipHub
+  onOpenVipHub,
+  onBackToLobby
 }: Crowd2xGameArenaProps) {
   const { user, isVip, audioPoints, accountId, performDailyCheckin } = useAuth();
 
@@ -266,6 +269,27 @@ Bạn có chắc chắn muốn đặt cược không?`;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Back to Lobby Navigation Bar */}
+      {onBackToLobby && (
+        <div className="flex items-center justify-between gap-3 bg-zinc-900/90 border border-zinc-800 rounded-2xl p-3 px-4 shadow-lg backdrop-blur-md">
+          <button
+            type="button"
+            onClick={onBackToLobby}
+            className="flex items-center gap-2 text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 px-3 py-2 rounded-xl transition-all cursor-pointer group"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+            <span>← Quay Lại Sảnh Game</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400 hidden sm:inline">Đang chơi:</span>
+            <span className="text-xs font-black text-white bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-full">
+              ×2 Đám Đông 🔥
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Toast Feedback */}
       {toastMessage && (
         <div

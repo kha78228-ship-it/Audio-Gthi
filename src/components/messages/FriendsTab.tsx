@@ -25,6 +25,7 @@ import {
   cancelFriendRequest, 
   removeFriendship 
 } from '../../services/socialService';
+import { useBatchUserPresence } from '../../services/presenceService';
 import { 
   collection, 
   query, 
@@ -212,6 +213,31 @@ export function FriendsTab({
     }
   };
 
+  // Track real-time presence (10-second threshold) for all friends and discovered users
+  const allTargetUids = React.useMemo(() => {
+    const uids = new Set<string>();
+    friendships.forEach((f) => {
+      f.userIds.forEach((id) => {
+        if (id && id !== user?.uid) uids.add(id);
+      });
+    });
+    suggestedUsers.forEach((u) => {
+      if (u.uid && u.uid !== user?.uid) uids.add(u.uid);
+    });
+    searchResultUsers.forEach((u) => {
+      if (u.uid && u.uid !== user?.uid) uids.add(u.uid);
+    });
+    receivedRequests.forEach((r) => {
+      if (r.senderUid && r.senderUid !== user?.uid) uids.add(r.senderUid);
+    });
+    sentRequests.forEach((r) => {
+      if (r.receiverUid && r.receiverUid !== user?.uid) uids.add(r.receiverUid);
+    });
+    return Array.from(uids);
+  }, [friendships, suggestedUsers, searchResultUsers, receivedRequests, sentRequests, user?.uid]);
+
+  const { getUserStatus, isUserOnline } = useBatchUserPresence(allTargetUids);
+
   // Helper: check relationship status with a user
   const getRelationStatus = (targetUid: string) => {
     const isFriend = friendships.some(f => f.userIds.includes(targetUid));
@@ -394,6 +420,7 @@ export function FriendsTab({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {searchResultUsers.map((targetUser) => {
                     const status = getRelationStatus(targetUser.uid);
+                    const isOnline = isUserOnline(targetUser.uid);
 
                     return (
                       <div
@@ -401,15 +428,24 @@ export function FriendsTab({
                         className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800/80 flex items-center justify-between gap-3"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-11 h-11 rounded-2xl overflow-hidden p-0.5 border shadow ${
-                            targetUser.isVip ? 'border-amber-400 bg-amber-500/20' : 'border-zinc-700 bg-zinc-800'
-                          }`}>
-                            {targetUser.photoURL ? (
-                              <img src={targetUser.photoURL} alt="" className="w-full h-full object-cover rounded-[14px]" />
+                          <div className="relative shrink-0">
+                            <div className={`w-11 h-11 rounded-2xl overflow-hidden p-0.5 border shadow ${
+                              targetUser.isVip ? 'border-amber-400 bg-amber-500/20' : isOnline ? 'border-emerald-500 bg-zinc-800' : 'border-zinc-700 bg-zinc-800'
+                            }`}>
+                              {targetUser.photoURL ? (
+                                <img src={targetUser.photoURL} alt="" className="w-full h-full object-cover rounded-[14px]" />
+                              ) : (
+                                <div className="w-full h-full rounded-[14px] bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">
+                                  {targetUser.displayName.charAt(0)}
+                                </div>
+                              )}
+                            </div>
+                            {isOnline ? (
+                              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-sm flex items-center justify-center">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                              </span>
                             ) : (
-                              <div className="w-full h-full rounded-[14px] bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">
-                                {targetUser.displayName.charAt(0)}
-                              </div>
+                              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-950" />
                             )}
                           </div>
 
@@ -478,6 +514,7 @@ export function FriendsTab({
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {suggestedUsers.map((sugUser) => {
                 const status = getRelationStatus(sugUser.uid);
+                const isOnline = isUserOnline(sugUser.uid);
 
                 return (
                   <div
@@ -485,15 +522,24 @@ export function FriendsTab({
                     className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800/80 flex flex-col justify-between gap-3 hover:border-zinc-700 transition-colors"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-10 h-10 rounded-2xl overflow-hidden p-0.5 border shadow shrink-0 ${
-                        sugUser.isVip ? 'border-amber-400 bg-amber-500/20' : 'border-zinc-700 bg-zinc-800'
-                      }`}>
-                        {sugUser.photoURL ? (
-                          <img src={sugUser.photoURL} alt="" className="w-full h-full object-cover rounded-[14px]" />
+                      <div className="relative shrink-0">
+                        <div className={`w-10 h-10 rounded-2xl overflow-hidden p-0.5 border shadow ${
+                          sugUser.isVip ? 'border-amber-400 bg-amber-500/20' : isOnline ? 'border-emerald-500 bg-zinc-800' : 'border-zinc-700 bg-zinc-800'
+                        }`}>
+                          {sugUser.photoURL ? (
+                            <img src={sugUser.photoURL} alt="" className="w-full h-full object-cover rounded-[14px]" />
+                          ) : (
+                            <div className="w-full h-full rounded-[14px] bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">
+                              {sugUser.displayName.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        {isOnline ? (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
+                            <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
+                          </span>
                         ) : (
-                          <div className="w-full h-full rounded-[14px] bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">
-                            {sugUser.displayName.charAt(0)}
-                          </div>
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-zinc-600 border-2 border-zinc-950" />
                         )}
                       </div>
 
@@ -684,22 +730,36 @@ export function FriendsTab({
                 const friendUid = f.userIds.find(id => id !== user.uid) || '';
                 const friendData = f.users ? f.users[friendUid] || {} : {};
                 const name = friendData.stageName || friendData.displayName || 'Bạn Bè';
+                const isOnline = isUserOnline(friendUid);
+                const statusDetails = getUserStatus(friendUid);
 
                 return (
                   <div
                     key={f.id}
-                    className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between gap-3 shadow-md hover:border-zinc-700 transition-colors"
+                    className={`p-4 rounded-2xl bg-zinc-950 border transition-all flex flex-col justify-between gap-3 shadow-md ${
+                      isOnline ? 'border-emerald-500/40 hover:border-emerald-500/70 shadow-emerald-950/20' : 'border-zinc-800 hover:border-zinc-700'
+                    }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-11 h-11 rounded-2xl overflow-hidden p-0.5 border shadow shrink-0 ${
-                        friendData.isVip ? 'border-amber-400 bg-amber-500/20' : 'border-zinc-700 bg-zinc-800'
-                      }`}>
-                        {friendData.photoURL ? (
-                          <img src={friendData.photoURL} alt="" className="w-full h-full object-cover rounded-[14px]" />
+                      <div className="relative shrink-0">
+                        <div className={`w-11 h-11 rounded-2xl overflow-hidden p-0.5 border shadow ${
+                          friendData.isVip ? 'border-amber-400 bg-amber-500/20' : isOnline ? 'border-emerald-500 bg-zinc-800' : 'border-zinc-700 bg-zinc-800'
+                        }`}>
+                          {friendData.photoURL ? (
+                            <img src={friendData.photoURL} alt="" className="w-full h-full object-cover rounded-[14px]" />
+                          ) : (
+                            <div className="w-full h-full rounded-[14px] bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">
+                              {name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        {/* Presence badge */}
+                        {isOnline ? (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          </span>
                         ) : (
-                          <div className="w-full h-full rounded-[14px] bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">
-                            {name.charAt(0)}
-                          </div>
+                          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-950" title={statusDetails.statusText} />
                         )}
                       </div>
 
@@ -715,9 +775,21 @@ export function FriendsTab({
                             <CheckCircle2 size={11} className="text-sky-400 shrink-0" />
                           )}
                         </div>
-                        <p className="text-[10px] text-zinc-500 font-mono">
-                          ID: {friendData.accountId || 'HV-USER'}
-                        </p>
+                        <div className="flex items-center justify-between gap-1 mt-0.5">
+                          <p className="text-[10px] text-zinc-500 font-mono">
+                            ID: {friendData.accountId || 'HV-USER'}
+                          </p>
+                          {isOnline ? (
+                            <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              Online
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-zinc-500 font-medium">
+                              {statusDetails.badgeText}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -725,7 +797,7 @@ export function FriendsTab({
                       <button
                         type="button"
                         onClick={() => onOpenChatWithUser(friendUid)}
-                        className="flex-1 py-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 text-xs font-bold flex items-center justify-center gap-1 shadow-sm"
+                        className="flex-1 py-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 text-xs font-bold flex items-center justify-center gap-1 shadow-sm cursor-pointer"
                       >
                         <MessageSquare size={13} />
                         <span>Nhắn tin</span>
@@ -734,7 +806,7 @@ export function FriendsTab({
                       <button
                         type="button"
                         onClick={() => handleUnfriend(f.id, name)}
-                        className="p-2 rounded-xl bg-zinc-900 hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 border border-zinc-800 transition-colors"
+                        className="p-2 rounded-xl bg-zinc-900 hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 border border-zinc-800 transition-colors cursor-pointer"
                         title="Hủy kết bạn"
                       >
                         <Trash2 size={14} />

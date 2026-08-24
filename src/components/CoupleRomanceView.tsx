@@ -62,8 +62,7 @@ import {
 import { AnniversaryDaysWidget } from './couple/AnniversaryDaysWidget';
 import { AnniversaryTab } from './couple/AnniversaryTab';
 import { PeriodTrackerTab } from './couple/PeriodTrackerTab';
-import { CoupleCalendarTab } from './couple/CoupleCalendarTab';
-import { CoupleDiaryTab } from './couple/CoupleDiaryTab';
+import { CoupleCalendarAndDiaryTab } from './couple/CoupleCalendarAndDiaryTab';
 import { QuizzesTab } from './couple/QuizzesTab';
 import { LoveCardsTab } from './couple/LoveCardsTab';
 import { VoiceMomentsTab } from './couple/VoiceMomentsTab';
@@ -1010,21 +1009,38 @@ export function CoupleRomanceView({
   const handleDeleteRelationship = async () => {
     if (!couple) return;
     try {
-      await deleteDoc(doc(db, 'couples', couple.id));
+      const targetCoupleId = couple.id;
+      // 1. Delete document from Firestore
+      await deleteDoc(doc(db, 'couples', targetCoupleId));
+      
+      // 2. Clear state
       setCouple(null);
       setIsSettingsOpen(false);
       setSystemGeneratedCode(generateSystemPairCode());
       setCreatePasscode('');
       setJoinPairCode('');
       setJoinPasscode('');
+      setActiveLovePingNotification('Đã xoá mối quan hệ thành công. Bạn có thể bắt đầu tạo không gian mới!');
+      setTimeout(() => setActiveLovePingNotification(null), 4000);
     } catch (err) {
-      console.error('Error deleting relationship:', err);
+      console.warn('Error deleting relationship doc, fallback cancelling:', err);
       // Fallback update status
-      await updateDoc(doc(db, 'couples', couple.id), {
-        status: 'cancelled'
-      });
+      try {
+        await updateDoc(doc(db, 'couples', couple.id), {
+          status: 'cancelled',
+          updatedAt: serverTimestamp()
+        });
+      } catch (e2) {
+        console.error('Fallback cancel error:', e2);
+      }
       setCouple(null);
       setIsSettingsOpen(false);
+      setSystemGeneratedCode(generateSystemPairCode());
+      setCreatePasscode('');
+      setJoinPairCode('');
+      setJoinPasscode('');
+      setActiveLovePingNotification('Đã xoá không gian đôi. Sẵn sàng tạo hoặc ghép đôi mới!');
+      setTimeout(() => setActiveLovePingNotification(null), 4000);
     }
   };
 
@@ -1334,51 +1350,6 @@ export function CoupleRomanceView({
         </div>
       )}
 
-      {/* Primary In-Page Nav Tabs Header */}
-      <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-zinc-800/80">
-        <div className="flex items-center gap-1 sm:gap-2">
-          {[
-            { id: 'page1', label: 'Yêu Thương 💕', icon: Heart },
-            { id: 'page2', label: 'Chu Kỳ Bạn Gái 🌸', icon: Droplets, badge: periodLogs.length > 0 ? periodLogs.length : undefined },
-            { id: 'page3', label: 'Lịch Đôi 📅', icon: Calendar, badge: coupleEvents.length > 0 ? coupleEvents.length : undefined },
-            { id: 'page4', label: 'Nhật Ký 📖', icon: BookOpen, badge: diaries.length > 0 ? diaries.length : undefined },
-            { id: 'page5', label: 'Kỷ Niệm & Game ✨', icon: Sparkles },
-          ].map(tab => {
-            const isActive = currentPage === tab.id;
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleSetPage(tab.id as any)}
-                className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/20'
-                    : 'bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800/80'
-                }`}
-              >
-                <Icon size={14} className={isActive ? 'text-white' : 'text-zinc-400'} />
-                <span>{tab.label}</span>
-                {tab.badge !== undefined && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${
-                    isActive ? 'bg-white text-rose-600' : 'bg-zinc-800 text-zinc-300'
-                  }`}>
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-all cursor-pointer shrink-0"
-          title="Cài đặt không gian đôi"
-        >
-          <Settings size={16} />
-        </button>
-      </div>
-
       {/* ============================================================= */}
       {/* PAGE 1: YÊU THƯƠNG & CẢM XÚC (Bộ đếm thời gian, Tương tác cảm xúc, Lời nhắc) */}
       {/* ============================================================= */}
@@ -1428,29 +1399,19 @@ export function CoupleRomanceView({
       )}
 
       {/* ============================================================= */}
-      {/* PAGE 3: LỊCH CẶP ĐÔI (Interactive Calendar with Period & Anniversaries) */}
+      {/* PAGE 3: LỊCH ĐÔI & NHẬT KÝ TÌNH YÊU (Combined Calendar & Love Diary) */}
       {/* ============================================================= */}
       {currentPage === 'page3' && (
-        <CoupleCalendarTab
+        <CoupleCalendarAndDiaryTab
           couple={couple}
           userUid={user?.uid}
           customEvents={coupleEvents}
-          onCreateCustomEvent={handleCreateCustomEvent}
-          onUpdateCustomEvent={handleUpdateCustomEvent}
-          onDeleteCustomEvent={handleDeleteCustomEvent}
-        />
-      )}
-
-      {/* ============================================================= */}
-      {/* PAGE 4: NHẬT KÝ TÌNH YÊU (Couple Shared Love Diary) */}
-      {/* ============================================================= */}
-      {currentPage === 'page4' && (
-        <CoupleDiaryTab
-          couple={couple}
-          userUid={user?.uid}
           diaries={diaries}
           effectiveTracks={effectiveTracks}
           onPlayTrack={onPlayTrack}
+          onCreateCustomEvent={handleCreateCustomEvent}
+          onUpdateCustomEvent={handleUpdateCustomEvent}
+          onDeleteCustomEvent={handleDeleteCustomEvent}
           onCreateDiary={handleCreateDiary}
           onDeleteDiary={handleDeleteDiary}
           onAddDiaryComment={handleAddDiaryComment}
@@ -1459,9 +1420,9 @@ export function CoupleRomanceView({
       )}
 
       {/* ============================================================= */}
-      {/* PAGE 5: KỶ NIỆM & TRÒ CHƠI (Quizzes, Cards, Voice Moments, Gallery) */}
+      {/* PAGE 4 / PAGE 5: KỶ NIỆM & TRÒ CHƠI (Quizzes, Cards, Voice Moments, Gallery) */}
       {/* ============================================================= */}
-      {currentPage === 'page5' && (
+      {(currentPage === 'page4' || currentPage === 'page5') && (
         <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
           {/* Sub-selector for Page 5 */}
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-zinc-800/80 pb-2">

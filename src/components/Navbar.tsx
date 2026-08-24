@@ -28,13 +28,19 @@ import {
   Sliders,
   Sparkle,
   Gamepad2,
-  Trophy
+  Trophy,
+  Bell,
+  Maximize,
+  Minimize,
+  Smartphone,
+  Download
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ActiveTab, EcosystemMode } from '../types';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { HaevyEcosystemDrawer } from './HaevyEcosystemDrawer';
+import { NotificationsModal } from './NotificationsModal';
 
 interface NavbarProps {
   currentMode: EcosystemMode;
@@ -45,6 +51,11 @@ interface NavbarProps {
   onOpenAuth: () => void;
   onOpenAnonPass?: () => void;
   onOpenStudioAudio?: (tab?: 'tts' | 'publish' | 'ekyc' | 'my-tracks') => void;
+  onOpenNotifications?: () => void;
+  unreadNotificationCount?: number;
+  onToggleFullscreen?: () => void;
+  isFullscreen?: boolean;
+  onOpenInstallPwa?: () => void;
 }
 
 export function Navbar({ 
@@ -55,7 +66,12 @@ export function Navbar({
   onSelectTab, 
   onOpenAuth,
   onOpenAnonPass,
-  onOpenStudioAudio
+  onOpenStudioAudio,
+  onOpenNotifications,
+  unreadNotificationCount: externalUnreadCount,
+  onToggleFullscreen,
+  isFullscreen = false,
+  onOpenInstallPwa
 }: NavbarProps) {
   const { 
     user, 
@@ -66,12 +82,15 @@ export function Navbar({
     isVip, 
     vipTier, 
     isAuthorVerified, 
+    systemAnnouncements,
     logout 
   } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isEcosystemDrawerOpen, setIsEcosystemDrawerOpen] = useState(false);
+  const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [pendingFriendCount, setPendingFriendCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -84,10 +103,10 @@ export function Navbar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Listen for unread messages & requests count
+  // Listen for unread messages & conversations
   useEffect(() => {
     if (!user) {
-      setUnreadCount(0);
+      setUnreadMessagesCount(0);
       return;
     }
 
@@ -100,15 +119,62 @@ export function Navbar({
       let total = 0;
       snap.docs.forEach((d) => {
         const data = d.data();
-        if (data.unreadCount && data.unreadCount[user.uid]) {
-          total += data.unreadCount[user.uid] || 0;
+        if (data.unreadCounts && data.unreadCounts[user.uid]) {
+          total += data.unreadCounts[user.uid] || 0;
         }
       });
-      setUnreadCount(total);
+      setUnreadMessagesCount(total);
     }, () => {});
 
     return () => unsubConv();
   }, [user]);
+
+  // Listen for pending friend requests
+  useEffect(() => {
+    if (!user) {
+      setPendingFriendCount(0);
+      return;
+    }
+
+    const qReq = query(
+      collection(db, 'friendRequests'),
+      where('receiverUid', '==', user.uid),
+      where('status', '==', 'pending')
+    );
+
+    const unsubReq = onSnapshot(qReq, (snap) => {
+      setPendingFriendCount(snap.size);
+    }, () => {});
+
+    return () => unsubReq();
+  }, [user]);
+
+  // Calculate unread system announcements from localStorage
+  const getUnreadAnnouncementsCount = () => {
+    try {
+      const stored = localStorage.getItem(`haevy_read_announcements_${user?.uid || 'guest'}`);
+      const readIds: string[] = stored ? JSON.parse(stored) : [];
+      const relevant = systemAnnouncements.filter((item) => {
+        if (item.targetAudience === 'vip' && !isVip) return false;
+        if (item.targetAudience === 'authors' && !isAuthorVerified) return false;
+        return true;
+      });
+      return relevant.filter(a => !readIds.includes(a.id)).length;
+    } catch {
+      return 0;
+    }
+  };
+
+  const calculatedTotalUnread = unreadMessagesCount + pendingFriendCount + getUnreadAnnouncementsCount();
+  const totalNotifications = externalUnreadCount !== undefined ? externalUnreadCount : calculatedTotalUnread;
+
+  const handleOpenNotifications = () => {
+    if (onOpenNotifications) {
+      onOpenNotifications();
+    } else {
+      setIsNotificationsModalOpen(true);
+    }
+  };
 
   const handleCopyId = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -133,7 +199,7 @@ export function Navbar({
             id: 'messages' as ActiveTab, 
             label: 'Hộp Thư & Bạn Bè', 
             icon: MessageSquare,
-            badge: unreadCount > 0 ? unreadCount : undefined 
+            badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined 
           },
           { id: 'community' as ActiveTab, label: 'Giao Lưu Âm Nhạc', icon: Users }
         ];
@@ -217,12 +283,9 @@ export function Navbar({
                 <Heart size={20} className="fill-rose-500 text-rose-300 animate-bounce relative z-10" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center">
               <span className="text-base sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors">
                 I Love <span className="bg-gradient-to-r from-rose-400 via-pink-400 to-red-400 bg-clip-text text-transparent">Haevy</span>
-              </span>
-              <span className="text-[10px] bg-rose-500/20 text-rose-300 font-black px-2 py-0.5 rounded-full border border-rose-500/40 shadow-sm flex items-center gap-1">
-                💕 Love
               </span>
             </div>
           </>
@@ -234,12 +297,9 @@ export function Navbar({
                 <Wallet size={20} className="text-emerald-300 animate-pulse relative z-10" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center">
               <span className="text-base sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors">
                 Haevy <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">Finance</span>
-              </span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-black px-2 py-0.5 rounded-full border border-emerald-500/40 shadow-sm">
-                💰 Tiền Tệ
               </span>
             </div>
           </>
@@ -251,12 +311,9 @@ export function Navbar({
                 <MessageSquare size={20} className="text-sky-300 fill-indigo-500/30 animate-pulse relative z-10" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center">
               <span className="text-base sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors">
                 Haevy <span className="bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-400 bg-clip-text text-transparent">Message</span>
-              </span>
-              <span className="text-[10px] bg-sky-500/20 text-sky-300 font-black px-2 py-0.5 rounded-full border border-sky-500/40 shadow-sm">
-                💬 Chat
               </span>
             </div>
           </>
@@ -267,12 +324,9 @@ export function Navbar({
                 <ShieldCheck size={21} className="text-amber-400 animate-pulse" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center">
               <span className="text-base sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors">
                 Haevy <span className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent">Admin</span>
-              </span>
-              <span className="text-[10px] bg-yellow-400/20 text-yellow-300 font-black px-2 py-0.5 rounded-full border border-yellow-400/40 shadow-sm">
-                🛡️ Admin
               </span>
             </div>
           </>
@@ -283,12 +337,22 @@ export function Navbar({
                 <Sparkles size={20} className="text-purple-300 animate-pulse relative z-10" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center">
               <span className="text-base sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors">
                 Haevy <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">Studio</span>
               </span>
-              <span className="text-[10px] bg-purple-500/20 text-purple-300 font-black px-2 py-0.5 rounded-full border border-purple-500/40 shadow-sm">
-                👑 VIP & AI
+            </div>
+          </>
+        ) : currentMode === 'games' ? (
+          <>
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 p-[1px] shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-all">
+              <div className="w-full h-full bg-zinc-950 rounded-2xl flex items-center justify-center relative overflow-hidden">
+                <Gamepad2 size={20} className="text-indigo-300 animate-pulse relative z-10" />
+              </div>
+            </div>
+            <div className="flex items-center">
+              <span className="text-base sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors">
+                Haevy <span className="bg-gradient-to-r from-indigo-400 via-violet-300 to-purple-400 bg-clip-text text-transparent">Games</span>
               </span>
             </div>
           </>
@@ -300,12 +364,9 @@ export function Navbar({
                 <Crown size={21} className="fill-amber-400 text-amber-300 relative z-10 animate-bounce" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center">
               <span className="text-base sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors">
                 Haevy <span className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent">VIP</span>
-              </span>
-              <span className="text-[10px] bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 font-black px-2 py-0.5 rounded-full border border-amber-500/40 shadow-sm flex items-center gap-1">
-                👑 Royal Hub
               </span>
             </div>
           </>
@@ -320,16 +381,10 @@ export function Navbar({
                 <span className="w-[3px] h-2.5 bg-gradient-to-t from-amber-500 to-amber-400 rounded-full" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center">
               <span className="text-base sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors">
                 Haevy <span className="bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">Audio</span>
               </span>
-              {isVip && (
-                <span className="text-[10px] bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 font-black px-2 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-0.5 shadow-sm">
-                  <Crown size={10} className="fill-amber-400 text-amber-400" />
-                  VIP
-                </span>
-              )}
             </div>
           </>
         )}
@@ -378,6 +433,67 @@ export function Navbar({
           </button>
         )}
 
+        {/* Fullscreen Mode Toggle Button */}
+        {onToggleFullscreen && (
+          <button
+            id="navbar-fullscreen-btn"
+            onClick={onToggleFullscreen}
+            className={`p-2 sm:px-2.5 sm:py-2 rounded-full sm:rounded-2xl border transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0 ${
+              isFullscreen
+                ? 'bg-amber-400 text-black border-amber-300 font-bold shadow-amber-400/20'
+                : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white'
+            }`}
+            title={isFullscreen ? 'Thoát chế độ toàn màn hình (ESC)' : 'Bật chế độ toàn màn hình (Ẩn thanh viền trình duyệt)'}
+          >
+            {isFullscreen ? (
+              <Minimize size={16} className="text-black" />
+            ) : (
+              <Maximize size={16} className="text-zinc-400 group-hover:text-white" />
+            )}
+            <span className="hidden xl:inline text-[11px] font-bold">
+              {isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+            </span>
+          </button>
+        )}
+
+        {/* Mobile / PWA App Install Button (Toàn màn hình không đường link) */}
+        {onOpenInstallPwa && (
+          <button
+            id="navbar-install-app-btn"
+            onClick={onOpenInstallPwa}
+            className="p-2 sm:px-2.5 sm:py-2 rounded-full sm:rounded-2xl bg-gradient-to-r from-zinc-900 to-zinc-900 hover:from-zinc-800 hover:to-zinc-800 border border-zinc-800 hover:border-amber-500/40 text-amber-400 hover:text-amber-300 transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0"
+            title="Tải ứng dụng vào điện thoại để chạy toàn màn hình không hiện link web"
+          >
+            <Smartphone size={16} className="text-amber-400" />
+            <span className="hidden xl:inline text-[11px] font-bold text-zinc-200">
+              Tải App
+            </span>
+          </button>
+        )}
+
+        {/* Notification Bell Button right beside Avatar */}
+        <button
+          id="navbar-notification-btn"
+          onClick={handleOpenNotifications}
+          className="relative p-2 sm:px-3 sm:py-2 rounded-full sm:rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-500/40 text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5 group shrink-0"
+          title="Xem thông báo hệ thống, lời mời kết bạn & tin nhắn"
+        >
+          <div className="relative flex items-center justify-center">
+            <Bell size={16} className="text-zinc-400 group-hover:text-amber-400 transition-colors" />
+            {totalNotifications > 0 && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping sm:hidden" />
+            )}
+          </div>
+          {totalNotifications > 0 && (
+            <span className="px-1.5 py-0.2 min-w-[18px] h-[18px] rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center shadow-md shadow-rose-500/40 animate-pulse">
+              {totalNotifications}
+            </span>
+          )}
+          <span className="hidden lg:inline text-[11px] font-bold text-zinc-300 group-hover:text-white">
+            Thông báo
+          </span>
+        </button>
+
         {/* COMPACT AVATAR & POINTS (CLICKING OPENS FULL SCREEN 6-MODE ECOSYSTEM) */}
         {loading ? (
           <div className="w-20 h-8 rounded-full bg-zinc-800 animate-pulse" />
@@ -413,19 +529,13 @@ export function Navbar({
                 )}
               </div>
 
-              {/* Compact Points */}
-              <div className="flex items-center gap-1 text-[11px] sm:text-xs font-mono font-bold">
-                <Coins size={11} className="text-amber-400" />
-                <span className={isVip ? 'text-amber-300' : 'text-zinc-200'}>
-                  {audioPoints.toLocaleString()}
+              {/* Compact Points - Always clearly visible */}
+              <div className="flex items-center gap-1 text-[11px] sm:text-xs font-mono font-bold shrink-0">
+                <Coins size={12} className="text-amber-400 shrink-0" />
+                <span className={`whitespace-nowrap ${isVip ? 'text-amber-300 font-black' : 'text-zinc-100'}`}>
+                  {(audioPoints ?? 0).toLocaleString()}
                 </span>
               </div>
-
-              {/* Subtle 6 Modes Indicator on Tablet/Desktop */}
-              <span className="hidden min-[480px]:inline-flex items-center gap-0.5 text-[9px] bg-amber-500/15 text-amber-300 font-extrabold px-1.5 py-0.5 rounded-md border border-amber-500/30">
-                <Layers size={9} className="text-amber-400" />
-                <span>6 Chế Độ</span>
-              </span>
 
               <ChevronDown 
                 size={11} 
@@ -456,6 +566,28 @@ export function Navbar({
           </div>
         )}
       </div>
+
+      {/* Internal Haevy Ecosystem Drawer Fallback if opened locally */}
+      <HaevyEcosystemDrawer
+        isOpen={isEcosystemDrawerOpen}
+        onClose={() => setIsEcosystemDrawerOpen(false)}
+        currentMode={currentMode}
+        onSelectMode={onSelectMode}
+        activeTab={activeTab}
+        onSelectTab={onSelectTab}
+        onOpenStudioAudio={onOpenStudioAudio}
+        onOpenAuth={onOpenAuth}
+        onOpenNotifications={handleOpenNotifications}
+        unreadNotificationCount={totalNotifications}
+      />
+
+      {/* Internal Notifications Modal */}
+      <NotificationsModal
+        isOpen={isNotificationsModalOpen}
+        onClose={() => setIsNotificationsModalOpen(false)}
+        onSelectTab={onSelectTab}
+        onSelectMode={onSelectMode}
+      />
     </header>
   );
 }

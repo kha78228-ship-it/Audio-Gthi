@@ -1,0 +1,38 @@
+{
+  "name": "Haevy Audio - Hệ Sinh Thái Âm Nhạc & Giải Trí",
+  "short_name": "Haevy Audio",
+  "description": "Nền tảng âm nhạc trực tuyến Haevy Audio với Kho Audio Hi-Fi chất lượng cao, Trò chơi và Hệ sinh thái Haevy toàn màn hình.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "entertainment", "social"],
+  "shortcuts": [
+    {
+      "name": "Nghe Nhạc",
+      "url": "/?tab=home",
+      "description": "Mở kho nhạc Haevy"
+    },
+    {
+      "name": "Haevy Message",
+      "url": "/?mode=messages",
+      "description": "Mở hộp thư & bạn bè"
+    }
+  ]
+}

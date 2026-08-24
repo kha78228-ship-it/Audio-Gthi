@@ -130,6 +130,7 @@ export function FullScreenChatView({
   };
 
   const recipient = getRecipient();
+  const { isOnline: isRecipientOnline, statusDetails: recipientPresenceDetails } = useUserPresence(recipient.uid);
 
   // 1. Subscribe to conversation messages
   useEffect(() => {
@@ -522,10 +523,16 @@ export function FullScreenChatView({
             {recipient.isVip && (
               <Crown size={13} className="absolute -top-1.5 -right-1 text-amber-400 fill-amber-400 drop-shadow-md" />
             )}
-            {/* Online Green Pulsing Indicator */}
-            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-sm flex items-center justify-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            </span>
+            {/* Online Green Pulsing Indicator or Offline Dot */}
+            {isRecipientOnline ? (
+              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              </span>
+            ) : (
+              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-zinc-600 border-2 border-zinc-900 shadow-sm flex items-center justify-center" title="Ngoại tuyến">
+                <span className="w-1 h-1 rounded-full bg-zinc-400" />
+              </span>
+            )}
           </div>
 
           {/* Recipient Name & Online Info */}
@@ -543,10 +550,17 @@ export function FullScreenChatView({
                 <CheckCircle2 size={14} className="text-sky-400 shrink-0" />
               )}
             </div>
-            <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
-              Đang hoạt động trực tuyến
-            </p>
+            {isRecipientOnline ? (
+              <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                <span>Đang hoạt động trực tuyến</span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-zinc-400 font-medium flex items-center gap-1 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0" />
+                <span>{recipientPresenceDetails.statusText}</span>
+              </p>
+            )}
           </div>
         </div>
 

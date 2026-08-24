@@ -1,6 +1,6 @@
 {
   "name": "Haevy Audio",
-  "description": "Hệ sinh thái Haevy toàn diện tích hợp Âm nhạc & Audio Studio Tác Giả, Haevy Games Hub (Đoán Giai Điệu Bài Hát với Audio Upload, Đấu Trường ×2 Đám Đông, Đấu Nhịp Điệu, Vòng Quay May Mắn, Tri Thức Âm Nhạc), AI Voice Studio, Chế độ Cặp Đôi (I Love Haevy), Nhắn tin Kết bạn (Haevy Message), và Hệ thống Quản lý Tài Chính Thông Minh (Haevy Finance).",
+  "description": "Hệ sinh thái Haevy toàn diện tích hợp Âm nhạc & Audio Studio Tác Giả, Haevy Games Hub (Tiến Lên Miền Nam, Tiến Lên Miền Bắc, Bài Tấn, Phỏm, Đoán Giai Điệu Bài Hát với Audio Upload, Đấu Trường ×2 Đám Đông, Đấu Nhịp Điệu, Vòng Quay May Mắn, Tri Thức Âm Nhạc), AI Voice Studio, Chế độ Cặp Đôi (I Love Haevy), Nhắn tin Kết bạn (Haevy Message), và Hệ thống Quản lý Tài Chính Thông Minh (Haevy Finance).",
   "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

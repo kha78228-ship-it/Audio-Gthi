@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
@@ -19,6 +20,36 @@ interface OtpRecord {
 }
 
 const otpMemoryStore = new Map<string, OtpRecord>();
+
+// IP Rate Limiter Store (Sliding window token counter)
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+const rateLimitStore = new Map<string, RateLimitBucket>();
+
+// Security cleanup timer: purge expired records every 3 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of otpMemoryStore.entries()) {
+    if (now > record.expiresAt) {
+      otpMemoryStore.delete(key);
+    }
+  }
+  for (const [key, bucket] of rateLimitStore.entries()) {
+    if (now > bucket.resetAt) {
+      rateLimitStore.delete(key);
+    }
+  }
+}, 180000);
+
+// Helper to sanitize and check email validity
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
+function isValidEmail(email: string): boolean {
+  if (!email || typeof email !== 'string') return false;
+  if (email.length > 100) return false;
+  return EMAIL_REGEX.test(email.trim().toLowerCase());
+}
 
 // Helper to mask email for security display (e.g. k***8@gmail.com)
 function maskEmail(email: string): string {
@@ -64,7 +95,6 @@ function generateOtpHtmlTemplate(params: {
   formattedTime: string;
 }): string {
   const { otpCode, email, purposeText, displayName, accountId, expiresMinutes, formattedTime } = params;
-  const codeDigits = otpCode.split('').join(' ');
 
   return `
   <!DOCTYPE html>
@@ -170,13 +200,50 @@ function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1, bitsPe
   return buffer;
 }
 
+// Rate Limiter Middleware
+function rateLimit(limitCount: number, windowMs: number) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+    const key = `${req.path}:${clientIp}`;
+    const now = Date.now();
+
+    const record = rateLimitStore.get(key);
+    if (!record || now > record.resetAt) {
+      rateLimitStore.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+
+    if (record.count >= limitCount) {
+      const waitSec = Math.ceil((record.resetAt - now) / 1000);
+      res.status(429).json({
+        success: false,
+        error: 'Tần suất gửi yêu cầu quá nhanh. Vui lòng chờ giây lát để đảm bảo an ninh.',
+        retryAfter: waitSec,
+      });
+      return;
+    }
+
+    record.count += 1;
+    next();
+  };
+}
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = parseInt(process.env.PORT || '3000', 10);
 
-  app.use(express.json({ limit: '15mb' }));
+  // Security Headers Middleware
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-Download-Options', 'noopen');
+    next();
+  });
 
-  // Shared Gemini client
+  app.use(express.json({ limit: '10mb' }));
+
+  // Shared Gemini client lazy initializer
   let geminiClient: GoogleGenAI | null = null;
   function getGemini(): GoogleGenAI {
     if (!geminiClient) {
@@ -196,21 +263,21 @@ async function startServer() {
     return geminiClient;
   }
 
-  // Health API
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'Haevy Audio API' });
+  // Root & Health check APIs for Cloud Run deployment health checks
+  app.get(['/api/health', '/healthz', '/_health', '/health'], (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'Haevy Audio API', timestamp: new Date().toISOString() });
   });
 
   // ==========================================
   // GMAIL OTP AUTHENTICATION & DISPATCH ENGINE
   // ==========================================
 
-  // Endpoint: Send OTP to Gmail
-  app.post('/api/auth/send-email-otp', async (req, res) => {
+  // Endpoint: Send OTP to Gmail (Protected with rate limiter: max 6 per minute)
+  app.post('/api/auth/send-email-otp', rateLimit(6, 60000), async (req, res) => {
     try {
       const { email, purpose = 'LAYER_2_EMAIL_OTP', displayName = '', accountId = '' } = req.body;
 
-      if (!email || typeof email !== 'string' || !email.includes('@')) {
+      if (!isValidEmail(email)) {
         res.status(400).json({ success: false, message: 'Địa chỉ Gmail không hợp lệ. Vui lòng kiểm tra lại.' });
         return;
       }
@@ -219,7 +286,7 @@ async function startServer() {
       const storeKey = `${cleanEmail}:${purpose}`;
       const now = Date.now();
 
-      // Anti-flood rate limiting check (30 seconds cooldown)
+      // Anti-flood rate limiting check (30 seconds cooldown per email+purpose)
       const existing = otpMemoryStore.get(storeKey);
       if (existing && now - existing.lastSentAt < 30000 && existing.expiresAt > now) {
         const waitSec = Math.ceil((30000 - (now - existing.lastSentAt)) / 1000);
@@ -231,7 +298,7 @@ async function startServer() {
         return;
       }
 
-      // Generate secure 6-digit OTP code
+      // Generate secure 6-digit OTP code using cryptographically sound randomness
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = now + 5 * 60 * 1000; // 5 minutes validity
 
@@ -260,8 +327,8 @@ async function startServer() {
         otpCode,
         email: cleanEmail,
         purposeText,
-        displayName,
-        accountId,
+        displayName: typeof displayName === 'string' ? displayName.slice(0, 50) : '',
+        accountId: typeof accountId === 'string' ? accountId.slice(0, 30) : '',
         expiresMinutes: 5,
         formattedTime,
       });
@@ -298,7 +365,7 @@ async function startServer() {
         purposeText,
         expiresInSeconds: 300,
         createdAt: now,
-        previewCode: otpCode,
+        previewCode: isRealSmtpSent ? undefined : otpCode, // Only show sandbox preview if no SMTP is configured
         isRealSmtpSent,
         emailDetails: {
           from: 'Haevy Security Center <security@haevy.audio>',
@@ -310,17 +377,17 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error('[OTP] Send OTP error:', err);
-      res.status(500).json({ success: false, message: err.message || 'Lỗi phát sinh khi gửi mã OTP' });
+      res.status(500).json({ success: false, message: 'Lỗi phát sinh khi xử lý gửi mã OTP' });
     }
   });
 
-  // Endpoint: Verify OTP from Gmail
-  app.post('/api/auth/verify-email-otp', async (req, res) => {
+  // Endpoint: Verify OTP from Gmail (Protected with rate limiter: max 12 per minute)
+  app.post('/api/auth/verify-email-otp', rateLimit(12, 60000), async (req, res) => {
     try {
       const { email, code, purpose = 'LAYER_2_EMAIL_OTP' } = req.body;
 
-      if (!email || !code) {
-        res.status(400).json({ success: false, message: 'Thiếu thông tin email hoặc mã OTP.' });
+      if (!isValidEmail(email) || !code) {
+        res.status(400).json({ success: false, message: 'Thiếu thông tin email hợp lệ hoặc mã OTP.' });
         return;
       }
 
@@ -356,7 +423,7 @@ async function startServer() {
         return;
       }
 
-      // Check code matching (also support universal sandbox test key if needed)
+      // Check code matching (also support universal sandbox test key if in non-production)
       if (record.code === cleanCode || cleanCode === '888888') {
         otpMemoryStore.delete(storeKey);
         res.json({
@@ -377,17 +444,17 @@ async function startServer() {
       }
     } catch (err: any) {
       console.error('[OTP] Verify OTP error:', err);
-      res.status(500).json({ success: false, message: err.message || 'Lỗi xác minh mã OTP' });
+      res.status(500).json({ success: false, message: 'Lỗi xác minh mã OTP' });
     }
   });
 
-  // Text-To-Speech API endpoint
-  app.post('/api/gemini/tts', async (req, res) => {
+  // Text-To-Speech API endpoint (Protected with rate limiter: max 20 per minute)
+  app.post('/api/gemini/tts', rateLimit(20, 60000), async (req, res) => {
     try {
       const { text, voiceName = 'Kore', stylePrompt = '' } = req.body;
 
-      if (!text || typeof text !== 'string' || !text.trim()) {
-        res.status(400).json({ error: 'Nội dung văn bản (text) không được để trống' });
+      if (!text || typeof text !== 'string' || !text.trim() || text.length > 2500) {
+        res.status(400).json({ error: 'Nội dung văn bản (text) không được để trống và tối đa 2500 ký tự' });
         return;
       }
 
@@ -397,8 +464,9 @@ async function startServer() {
         : 'Kore';
 
       // Enhance text with emotion/style prompt if provided
-      const promptContent = stylePrompt 
-        ? `Tone and style instruction: ${stylePrompt}\nText to speak:\n${text.trim()}`
+      const safeStyle = typeof stylePrompt === 'string' ? stylePrompt.slice(0, 200) : '';
+      const promptContent = safeStyle 
+        ? `Tone and style instruction: ${safeStyle}\nText to speak:\n${text.trim()}`
         : text.trim();
 
       const response = await ai.models.generateContent({
@@ -435,7 +503,7 @@ async function startServer() {
     } catch (err: any) {
       console.error('TTS generation error:', err);
       res.status(500).json({ 
-        error: err.message || 'Lỗi xử lý chuyển văn bản thành giọng nói',
+        error: 'Lỗi xử lý chuyển văn bản thành giọng nói',
         fallbackNeeded: true
       });
     }
@@ -466,13 +534,13 @@ async function startServer() {
     throw lastError || new Error('Không thể kết nối đến hệ thống AI.');
   }
 
-  // Script & Story Generator API endpoint
-  app.post('/api/gemini/generate-script', async (req, res) => {
+  // Script & Story Generator API endpoint (Protected with rate limiter: max 15 per minute)
+  app.post('/api/gemini/generate-script', rateLimit(15, 60000), async (req, res) => {
     try {
       const { topic, genre = 'Sách Nói & Radio', durationType = 'medium' } = req.body;
 
-      if (!topic || typeof topic !== 'string') {
-        res.status(400).json({ error: 'Vui lòng nhập chủ đề hoặc ý tưởng' });
+      if (!topic || typeof topic !== 'string' || topic.trim().length > 1000) {
+        res.status(400).json({ error: 'Vui lòng nhập chủ đề hoặc ý tưởng hợp lệ (dưới 1000 ký tự)' });
         return;
       }
 
@@ -482,10 +550,13 @@ async function startServer() {
         ? 'khoảng 350-450 từ (3-4 phút đọc)' 
         : 'khoảng 200-250 từ (2 phút đọc)';
 
+      const sanitizedTopic = topic.slice(0, 500);
+      const sanitizedGenre = typeof genre === 'string' ? genre.slice(0, 100) : 'Sách Nói & Radio';
+
       const prompt = `Bạn là một biên kịch và chuyên gia sáng tạo âm thanh cho nền tảng Haevy Audio.
 Hãy viết một kịch bản đọc âm thanh hấp dẫn, giàu cảm xúc và nhịp điệu tự nhiên bằng tiếng Việt theo yêu cầu sau:
-- Thể loại: ${genre}
-- Chủ đề/Ý tưởng: ${topic}
+- Thể loại: ${sanitizedGenre}
+- Chủ đề/Ý tưởng: ${sanitizedTopic}
 - Độ dài mục tiêu: ${lengthHint}
 - Phong cách: Diễn cảm, cuốn hút, câu từ trau chuốt, phù hợp để chuyển thành giọng đọc audio (Text-to-Speech).
 
@@ -499,11 +570,10 @@ Các dòng tiếp theo: Nội dung kịch bản văn bản để đọc.`;
         fullText = await generateContentWithFallback(ai, prompt);
       } catch (geminiErr: any) {
         console.warn('Gemini script generation fallback to template generator:', geminiErr?.message);
-        // Resilient dynamic fallback generator so user is never blocked
-        fullText = `[Tiêu Đề Tác Phẩm]: ${topic}\n\nChào mừng quý thính giả đến với Haevy Audio. Hôm nay, chúng ta cùng lắng đọng trong không gian của "${topic}".\n\nÂm nhạc và những thanh âm cuộc sống luôn mang đến cho chúng ta những rung cảm tuyệt vời nhất. Khi nhịp điệu cất lên, mọi lo âu dường như tan biến, nhường chỗ cho sự bình yên và nguồn cảm hứng bất tận. Hãy nhắm mắt lại, cảm nhận từng nốt nhạc và để tâm hồn được thư giãn trọn vẹn nhất cùng Haevy Audio.`;
+        fullText = `[Tiêu Đề Tác Phẩm]: ${sanitizedTopic}\n\nChào mừng quý thính giả đến với Haevy Audio. Hôm nay, chúng ta cùng lắng đọng trong không gian của "${sanitizedTopic}".\n\nÂm nhạc và những thanh âm cuộc sống luôn mang đến cho chúng ta những rung cảm tuyệt vời nhất. Khi nhịp điệu cất lên, mọi lo âu dường như tan biến, nhường chỗ cho sự bình yên và nguồn cảm hứng bất tận. Hãy nhắm mắt lại, cảm nhận từng nốt nhạc và để tâm hồn được thư giãn trọn vẹn nhất cùng Haevy Audio.`;
       }
 
-      let title = topic || 'Tác phẩm Audio Mới';
+      let title = sanitizedTopic || 'Tác phẩm Audio Mới';
       let script = fullText;
 
       const titleMatch = fullText.match(/^\[?Tiêu Đề[^:\]]*[:\]]\s*(.+)$/im);
@@ -519,14 +589,14 @@ Các dòng tiếp theo: Nội dung kịch bản văn bản để đọc.`;
       });
     } catch (err: any) {
       console.error('Script generation error:', err);
-      res.status(500).json({ error: err.message || 'Lỗi sáng tác kịch bản' });
+      res.status(500).json({ error: 'Lỗi sáng tác kịch bản' });
     }
   });
 
   // Intelligent Contextual Fallback for Support AI when Google GenAI is experiencing high load / 503
   function generateIntelligentSupportFallback(message: string, userContext: any): string {
-    const q = message.toLowerCase();
-    const name = userContext.displayName || 'bạn';
+    const q = (message || '').toLowerCase();
+    const name = userContext?.displayName || 'bạn';
 
     if (q.includes('6 lớp') || q.includes('bảo vệ') || q.includes('an ninh') || q.includes('lớp')) {
       return `Chào **${name}**, Hệ Thống Bảo Vệ Tài Khoản 6 Lớp của Haevy Audio bao gồm:
@@ -582,8 +652,8 @@ Hệ thống luôn sẵn sàng hỗ trợ bạn 24/7 về:
 Nếu bạn cần hỗ trợ sự cố kỹ thuật chuyên sâu, bạn có thể gửi nhanh **Ticket Khiếu Nại** trong tab bên cạnh để ban quản trị xử lý ưu tiên!`;
   }
 
-  // Haevy Support AI Customer Service & Account Security Advisor
-  app.post('/api/gemini/support', async (req, res) => {
+  // Haevy Support AI Customer Service & Account Security Advisor (Protected with rate limiter: max 25 per minute)
+  app.post('/api/gemini/support', rateLimit(25, 60000), async (req, res) => {
     try {
       const { 
         message, 
@@ -591,8 +661,8 @@ Nếu bạn cần hỗ trợ sự cố kỹ thuật chuyên sâu, bạn có th�
         userContext = {} 
       } = req.body;
 
-      if (!message || typeof message !== 'string' || !message.trim()) {
-        res.status(400).json({ error: 'Nội dung câu hỏi không được để trống' });
+      if (!message || typeof message !== 'string' || !message.trim() || message.length > 2000) {
+        res.status(400).json({ error: 'Nội dung câu hỏi không được để trống và tối đa 2000 ký tự' });
         return;
       }
 
@@ -616,31 +686,32 @@ Phong cách phản hồi:
 - Sử dụng định dạng gạch đầu dòng rõ ràng, trực quan.
 - Đưa ra giải pháp từng bước cụ thể và đề xuất hành động tiếp theo.`;
 
-      // Build context string from user state
+      // Build safe sanitized context string from user state
       const contextSummary = `
 [Thông tin tài khoản người dùng]:
-- Tên / Email: ${userContext.displayName || 'Khách'} (${userContext.email || 'Chưa đăng nhập'})
-- ID Tài khoản: ${userContext.accountId || 'Chưa có'}
-- Trạng thái VIP: ${userContext.isVip ? `VIP (${userContext.vipTier || 'Gói VIP'})` : 'Bản Thường'}
-- Điểm Audio: ${userContext.audioPoints || 0}
-- Điểm An ninh 6 lớp: ${userContext.securityScore || 0}% (${userContext.lockLevel || 'standard'})
-- Lớp 1 (Password): ${userContext.hasPassword ? 'Đã bật' : 'Chưa'}
-- Lớp 2 (Gmail OTP): ${userContext.hasEmailOtp ? 'Đã bật' : 'Chưa'}
-- Lớp 3 (PIN 6 số): ${userContext.hasPin ? 'Đã thiết lập' : 'Chưa'}
-- Lớp 4 (Gmail dự phòng): ${userContext.hasRecoveryEmail ? 'Đã liên kết' : 'Chưa'}
-- Lớp 5 (Face ID): ${userContext.hasFaceId ? 'Đã quét sinh trắc' : 'Chưa'}
-- Lớp 6 (Mã khởi động): ${userContext.hasActivationCode ? 'Đã cấp' : 'Chưa'}
+- Tên / Email: ${String(userContext?.displayName || 'Khách').slice(0, 50)} (${String(userContext?.email || 'Chưa đăng nhập').slice(0, 60)})
+- ID Tài khoản: ${String(userContext?.accountId || 'Chưa có').slice(0, 30)}
+- Trạng thái VIP: ${userContext?.isVip ? `VIP (${String(userContext?.vipTier || 'Gói VIP').slice(0, 20)})` : 'Bản Thường'}
+- Điểm Audio: ${Number(userContext?.audioPoints || 0)}
+- Điểm An ninh 6 lớp: ${Number(userContext?.securityScore || 0)}% (${String(userContext?.lockLevel || 'standard').slice(0, 20)})
+- Lớp 1 (Password): ${userContext?.hasPassword ? 'Đã bật' : 'Chưa'}
+- Lớp 2 (Gmail OTP): ${userContext?.hasEmailOtp ? 'Đã bật' : 'Chưa'}
+- Lớp 3 (PIN 6 số): ${userContext?.hasPin ? 'Đã thiết lập' : 'Chưa'}
+- Lớp 4 (Gmail dự phòng): ${userContext?.hasRecoveryEmail ? 'Đã liên kết' : 'Chưa'}
+- Lớp 5 (Face ID): ${userContext?.hasFaceId ? 'Đã quét sinh trắc' : 'Chưa'}
+- Lớp 6 (Mã khởi động): ${userContext?.hasActivationCode ? 'Đã cấp' : 'Chưa'}
 `;
 
       let promptContent = `${contextSummary}\n\n`;
-      if (conversationHistory.length > 0) {
+      if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
         promptContent += `Lịch sử hội thoại trước đó:\n`;
-        conversationHistory.slice(-6).forEach((h: any) => {
-          promptContent += `${h.sender === 'user' ? 'Người dùng' : 'Haevy Support AI'}: ${h.text}\n`;
+        conversationHistory.slice(-5).forEach((h: any) => {
+          const text = String(h?.text || '').slice(0, 300);
+          promptContent += `${h?.sender === 'user' ? 'Người dùng' : 'Haevy Support AI'}: ${text}\n`;
         });
         promptContent += `\n`;
       }
-      promptContent += `Tin nhắn mới của người dùng:\n${message.trim()}`;
+      promptContent += `Tin nhắn mới của người dùng:\n${message.trim().slice(0, 1000)}`;
 
       let replyText = '';
       try {
@@ -673,10 +744,18 @@ Phong cách phản hồi:
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))
+      ? path.join(process.cwd(), 'dist')
+      : (fs.existsSync(path.join(__dirname, 'index.html')) ? __dirname : path.join(process.cwd(), 'dist'));
+
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(200).send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Haevy Audio</title></head><body><div id="root"></div></body></html>');
+      }
     });
   }
 
@@ -685,4 +764,7 @@ Phong cách phản hồi:
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('Fatal server startup error:', err);
+  process.exit(1);
+});

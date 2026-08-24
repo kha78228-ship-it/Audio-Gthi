@@ -28,6 +28,8 @@ import { PublishAudioModal } from './components/PublishAudioModal';
 import { QuickChatModal } from './components/QuickChatModal';
 import { SystemAnnouncementBanner } from './components/SystemAnnouncementBanner';
 import { HaevyEcosystemDrawer } from './components/HaevyEcosystemDrawer';
+import { NotificationsModal } from './components/NotificationsModal';
+import { InstallPwaModal } from './components/InstallPwaModal';
 import { INITIAL_TRACKS } from './data';
 import { Track, ActiveTab, EcosystemMode } from './types';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
@@ -58,7 +60,49 @@ function MainApp() {
   const [vipSubTab, setVipSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4'>('page1');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState<'signin' | 'signup' | 'anonymous'>('signin');
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isInstallPwaOpen, setIsInstallPwaOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [anonStudioWarning, setAnonStudioWarning] = useState<string | null>(null);
+
+  // Sync fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement || (document as any).webkitFullscreenElement));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        } else if ((document.documentElement as any).webkitRequestFullscreen) {
+          await (document.documentElement as any).webkitRequestFullscreen();
+        }
+        setIsFullscreen(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.warn('Fullscreen error:', err);
+      // If direct fullscreen fails (e.g. iOS safari iframe constraint), open guide modal
+      setIsInstallPwaOpen(true);
+    }
+  };
 
   // Author Channel & Story Series States
   const [viewingAuthor, setViewingAuthor] = useState<{ uid?: string; stageName?: string } | null>(null);
@@ -495,6 +539,10 @@ function MainApp() {
         onOpenAuth={() => handleOpenAuth('signin')}
         onOpenAnonPass={() => handleOpenAuth('anonymous')}
         onOpenStudioAudio={handleOpenStudioAudio}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onToggleFullscreen={handleToggleFullscreen}
+        isFullscreen={isFullscreen}
+        onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
       />
 
       {/* Global System Announcement Banner */}
@@ -752,6 +800,30 @@ function MainApp() {
         onSelectTab={setActiveTab}
         onOpenStudioAudio={handleOpenStudioAudio}
         onOpenAuth={() => handleOpenAuth('signin')}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onToggleFullscreen={handleToggleFullscreen}
+        isFullscreen={isFullscreen}
+        onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
+      />
+
+      {/* Global Notifications Modal */}
+      <NotificationsModal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        onSelectTab={setActiveTab}
+        onSelectMode={handleSelectMode}
+        onOpenChatWithUser={(partnerUid) => {
+          setIsNotificationsOpen(false);
+          handleSelectMode('messages', 'messages');
+        }}
+      />
+
+      {/* Install PWA Fullscreen Modal */}
+      <InstallPwaModal
+        isOpen={isInstallPwaOpen}
+        onClose={() => setIsInstallPwaOpen(false)}
+        onToggleFullscreen={handleToggleFullscreen}
+        isFullscreen={isFullscreen}
       />
 
       {/* Sleep Timer Toast Banner */}

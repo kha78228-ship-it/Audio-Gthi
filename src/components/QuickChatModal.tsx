@@ -13,6 +13,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useUserPresence } from '../services/presenceService';
 import { Track } from '../types';
 import { 
   getConversationId, 
@@ -56,6 +57,7 @@ export function QuickChatModal({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const convId = user && targetUser ? getConversationId(user.uid, targetUser.uid) : null;
+  const { isOnline: isTargetOnline, statusDetails: targetStatusDetails } = useUserPresence(targetUser?.uid);
 
   useEffect(() => {
     if (!isOpen || !convId || !user) return;
@@ -137,6 +139,13 @@ export function QuickChatModal({
                   <Crown size={10} fill="currentColor" />
                 </div>
               )}
+              {isTargetOnline ? (
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                </span>
+              ) : (
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-950" title={targetStatusDetails.statusText} />
+              )}
             </div>
 
             <div>
@@ -152,10 +161,16 @@ export function QuickChatModal({
                     VIP
                   </span>
                 )}
-                <span className="text-[9px] bg-indigo-500/20 text-sky-300 px-1.5 py-0.2 rounded font-bold border border-indigo-500/30 flex items-center gap-0.5">
-                  <MessageSquare size={8} />
-                  Haevy Message
-                </span>
+                {isTargetOnline ? (
+                  <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.2 rounded font-bold border border-emerald-500/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Online
+                  </span>
+                ) : (
+                  <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.2 rounded font-medium border border-zinc-700">
+                    {targetStatusDetails.badgeText}
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-zinc-500 font-mono">
                 {targetUser.accountId || `ID: ${targetUser.uid.slice(0, 8)}`}

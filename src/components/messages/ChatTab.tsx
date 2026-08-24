@@ -19,6 +19,7 @@ import { Conversation, ThoughtBubble, ConversationParticipant, Friendship, Track
 import { 
   getOrCreateConversation 
 } from '../../services/socialService';
+import { useBatchUserPresence } from '../../services/presenceService';
 import { 
   collection, 
   query, 
@@ -232,6 +233,22 @@ export function ChatTab({
     return info.displayName.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
+  // Track real-time presence (10-second offline threshold) for all partners and thought bubble users
+  const allTargetUids = React.useMemo(() => {
+    const uids = new Set<string>();
+    conversations.forEach((c) => {
+      c.participants.forEach((p) => {
+        if (p && p !== user?.uid) uids.add(p);
+      });
+    });
+    visibleThoughtBubbles.forEach((b) => {
+      if (b.userId && b.userId !== user?.uid) uids.add(b.userId);
+    });
+    return Array.from(uids);
+  }, [conversations, visibleThoughtBubbles, user?.uid]);
+
+  const { getUserStatus, isUserOnline } = useBatchUserPresence(allTargetUids);
+
   // Calculate remaining hours for a bubble
   const getBubbleRemainingHours = (expiresAt: any) => {
     if (!expiresAt) return null;
@@ -332,44 +349,57 @@ export function ChatTab({
           {/* Friends' Thought Bubbles */}
           {visibleThoughtBubbles
             .filter(b => b.userId !== user?.uid)
-            .map((bubble) => (
-              <div
-                key={bubble.id}
-                onClick={() => setSelectedThoughtFriend(bubble)}
-                className="flex flex-col items-center shrink-0 relative group cursor-pointer"
-              >
-                {/* Floating Thought Bubble */}
-                <div 
-                  style={{ backgroundColor: bubble.bgColor || '#18181b' }}
-                  className="absolute -top-7 sm:-top-8 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border border-zinc-700 text-[10px] text-white font-semibold shadow-xl max-w-[110px] sm:max-w-[140px] truncate whitespace-nowrap group-hover:scale-105 transition-transform animate-in fade-in"
-                  title={`${bubble.text} (${getBubbleRemainingHours(bubble.expiresAt)})`}
+            .map((bubble) => {
+              const isOnline = isUserOnline(bubble.userId);
+              return (
+                <div
+                  key={bubble.id}
+                  onClick={() => setSelectedThoughtFriend(bubble)}
+                  className="flex flex-col items-center shrink-0 relative group cursor-pointer"
                 >
-                  <span className="mr-1">{bubble.emoji || '💭'}</span>
-                  <span>{bubble.text}</span>
-                </div>
+                  {/* Floating Thought Bubble */}
+                  <div 
+                    style={{ backgroundColor: bubble.bgColor || '#18181b' }}
+                    className="absolute -top-7 sm:-top-8 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border border-zinc-700 text-[10px] text-white font-semibold shadow-xl max-w-[110px] sm:max-w-[140px] truncate whitespace-nowrap group-hover:scale-105 transition-transform animate-in fade-in"
+                    title={`${bubble.text} (${getBubbleRemainingHours(bubble.expiresAt)})`}
+                  >
+                    <span className="mr-1">{bubble.emoji || '💭'}</span>
+                    <span>{bubble.text}</span>
+                  </div>
 
-                {/* Avatar */}
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden p-0.5 border-2 shadow-md ${
-                  bubble.isUserVip ? 'border-amber-400 bg-amber-500/20' : 'border-zinc-700 bg-zinc-800'
-                }`}>
-                  {bubble.userPhoto ? (
-                    <img src={bubble.userPhoto} alt={bubble.userName} className="w-full h-full object-cover rounded-[14px]" />
-                  ) : (
-                    <div className="w-full h-full rounded-[14px] bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                      {bubble.userName?.charAt(0) || 'U'}
+                  {/* Avatar with Presence Indicator */}
+                  <div className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl p-0.5 border-2 shadow-md ${
+                    bubble.isUserVip ? 'border-amber-400 bg-amber-500/20' : isOnline ? 'border-emerald-500/80 bg-zinc-800' : 'border-zinc-700 bg-zinc-800'
+                  }`}>
+                    <div className="w-full h-full rounded-[14px] overflow-hidden">
+                      {bubble.userPhoto ? (
+                        <img src={bubble.userPhoto} alt={bubble.userName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+                          {bubble.userName?.charAt(0) || 'U'}
+                        </div>
+                      )}
                     </div>
+                    {/* Presence Dot (10s threshold) */}
+                    {isOnline ? (
+                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      </span>
+                    ) : (
+                      <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-950" title="Ngoại tuyến" />
+                    )}
+                  </div>
+                  <span className="text-[10px] font-semibold text-zinc-300 mt-1 truncate max-w-[75px]">
+                    {bubble.userName}
+                  </span>
+                  {bubble.expiresAt && (
+                    <span className="text-[9px] text-amber-400/80 font-mono">
+                      {getBubbleRemainingHours(bubble.expiresAt)}
+                    </span>
                   )}
                 </div>
-                <span className="text-[10px] font-semibold text-zinc-300 mt-1 truncate max-w-[75px]">
-                  {bubble.userName}
-                </span>
-                {bubble.expiresAt && (
-                  <span className="text-[9px] text-amber-400/80 font-mono">
-                    {getBubbleRemainingHours(bubble.expiresAt)}
-                  </span>
-                )}
-              </div>
-            ))}
+              );
+            })}
 
           {visibleThoughtBubbles.length <= 1 && (
             <div className="text-zinc-500 text-xs py-3 italic whitespace-nowrap pl-2 flex items-center gap-1.5">
@@ -422,6 +452,9 @@ export function ChatTab({
             filteredConversations.map((conv) => {
               const info = getRecipientInfo(conv);
               const unread = user && conv.unreadCounts ? conv.unreadCounts[user.uid] || 0 : 0;
+              const otherUid = conv.participants.find(p => p !== user?.uid) || '';
+              const isPartnerOnline = isUserOnline(otherUid);
+              const partnerStatus = getUserStatus(otherUid);
 
               return (
                 <div
@@ -443,7 +476,14 @@ export function ChatTab({
                     {info.isVip && (
                       <Crown size={13} className="absolute -top-1 -right-1 text-amber-400 fill-amber-400 drop-shadow" />
                     )}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900" />
+                    {/* Presence Dot (10s threshold) */}
+                    {isPartnerOnline ? (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      </span>
+                    ) : (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-900" title={partnerStatus.statusText} />
+                    )}
                   </div>
 
                   {/* Content Preview */}
@@ -460,6 +500,12 @@ export function ChatTab({
                         )}
                         {info.isAuthorVerified && (
                           <CheckCircle2 size={13} className="text-sky-400 shrink-0" />
+                        )}
+                        {isPartnerOnline && (
+                          <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-bold px-1.5 py-0.5 rounded-md border border-emerald-500/30 shrink-0 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Online
+                          </span>
                         )}
                       </div>
                       <span className="text-[10px] text-zinc-500 font-mono shrink-0">

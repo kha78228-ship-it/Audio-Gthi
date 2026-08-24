@@ -250,18 +250,12 @@ export function BottomTaskbar({
           },
           { 
             id: 'page3', 
-            label: 'Lịch Đôi 📅', 
+            label: 'Lịch & Nhật Ký 📅', 
             icon: Calendar, 
             isModeSubTab: true 
           },
           { 
             id: 'page4', 
-            label: 'Nhật Ký 📖', 
-            icon: BookOpen, 
-            isModeSubTab: true 
-          },
-          { 
-            id: 'page5', 
             label: 'Kỷ Niệm ✨', 
             icon: Sparkles, 
             isModeSubTab: true 
@@ -318,9 +312,9 @@ export function BottomTaskbar({
         ];
       case 'games':
         return [
-          { id: 'home', label: 'Trang Chủ', icon: Gamepad2, isModeSubTab: true },
-          { id: 'quests', label: 'Nhiệm Vụ', icon: Flame, isModeSubTab: true },
-          { id: 'leaderboard', label: 'Bảng Xếp Hạng', icon: Trophy, isModeSubTab: true },
+          { id: 'home', label: 'Trang Game 🎮', icon: Gamepad2, isModeSubTab: true },
+          { id: 'quests', label: 'Nhiệm Vụ 📜', icon: Flame, isModeSubTab: true },
+          { id: 'leaderboard', label: 'Bảng Xếp Hạng 🏆', icon: Trophy, isModeSubTab: true },
         ];
       default:
         return [

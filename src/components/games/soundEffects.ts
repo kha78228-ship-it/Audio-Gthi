@@ -161,6 +161,36 @@ class SoundSynthesizer {
     this.playTone(320, 'triangle', 0.08, 0.15);
     this.playTone(850, 'sawtooth', 0.06, 0.08);
   }
+
+  // Card Game Sounds
+  playCardDeal() {
+    if (this.isMuted) return;
+    this.playTone(1200 + Math.random() * 400, 'sine', 0.04, 0.12);
+  }
+
+  playCardPlay() {
+    if (this.isMuted) return;
+    this.playTone(600, 'triangle', 0.05, 0.2);
+    setTimeout(() => this.playTone(900, 'sine', 0.04, 0.15), 25);
+  }
+
+  playCardFlip() {
+    if (this.isMuted) return;
+    this.playTone(450, 'sine', 0.06, 0.1);
+  }
+
+  playChips() {
+    if (this.isMuted) return;
+    const freqs = [1400, 1750, 2100];
+    freqs.forEach((f, i) => {
+      setTimeout(() => this.playTone(f, 'triangle', 0.05, 0.12), i * 40);
+    });
+  }
+
+  playPass() {
+    if (this.isMuted) return;
+    this.playTone(280, 'sawtooth', 0.1, 0.08);
+  }
 }
 
 export const sound = new SoundSynthesizer();

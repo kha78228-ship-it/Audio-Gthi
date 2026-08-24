@@ -13,6 +13,7 @@ import {
   Check, 
   Copy, 
   LogOut, 
+  Bell,
   ChevronRight, 
   ChevronLeft,
   ArrowRight,
@@ -31,7 +32,11 @@ import {
   FileAudio,
   Award,
   Gamepad2,
-  Trophy
+  Trophy,
+  Maximize,
+  Minimize,
+  Smartphone,
+  Download
 } from 'lucide-react';
 import { ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -46,6 +51,11 @@ interface HaevyEcosystemDrawerProps {
   onSelectTab: (tab: ActiveTab) => void;
   onOpenStudioAudio?: (tab?: 'tts' | 'publish' | 'ekyc' | 'my-tracks') => void;
   onOpenAuth?: () => void;
+  onOpenNotifications?: () => void;
+  unreadNotificationCount?: number;
+  onToggleFullscreen?: () => void;
+  isFullscreen?: boolean;
+  onOpenInstallPwa?: () => void;
 }
 
 export function HaevyEcosystemDrawer({
@@ -56,7 +66,12 @@ export function HaevyEcosystemDrawer({
   activeTab,
   onSelectTab,
   onOpenStudioAudio,
-  onOpenAuth
+  onOpenAuth,
+  onOpenNotifications,
+  unreadNotificationCount = 0,
+  onToggleFullscreen,
+  isFullscreen = false,
+  onOpenInstallPwa
 }: HaevyEcosystemDrawerProps) {
   const { user, isVip, isAdmin, audioPoints, accountId, logout } = useAuth();
   const [copiedId, setCopiedId] = useState(false);
@@ -399,31 +414,109 @@ export function HaevyEcosystemDrawer({
             </div>
           </div>
 
-          {/* Quick Mode Jump Pill Buttons */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pt-2.5 sm:pt-3 pb-0.5 no-scrollbar">
-            <span className="text-[10px] sm:text-[11px] font-bold text-zinc-500 uppercase tracking-wider shrink-0 pr-1 flex items-center gap-1">
-              <Layers size={12} className="text-amber-400" />
-              6 Chế độ:
-            </span>
-            {ecosystemModes.map((mode) => {
-              const isModeActive = currentMode === mode.id;
-              const IconComp = mode.icon;
-              return (
+          {/* Top Quick Actions: Thông Báo, Trang Cá Nhân, Nạp Điểm & VIP, Đăng xuất */}
+          {user ? (
+            <div className="flex items-center gap-2 pt-3 sm:pt-3.5 flex-wrap">
+              <button
+                id="drawer-top-notifications-btn"
+                onClick={() => {
+                  onClose();
+                  if (onOpenNotifications) onOpenNotifications();
+                }}
+                className="relative px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 group"
+              >
+                <Bell size={14} className="text-amber-400 group-hover:animate-bounce" />
+                <span>Thông Báo</span>
+                {Boolean(unreadNotificationCount && unreadNotificationCount > 0) && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse shadow-sm shadow-rose-500/50">
+                    {unreadNotificationCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                id="drawer-top-profile-btn"
+                onClick={() => {
+                  onSelectTab('profile');
+                  onClose();
+                }}
+                className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                <UserIcon size={14} className="text-indigo-400" />
+                <span>Trang Cá Nhân</span>
+              </button>
+
+              {/* Fullscreen Toggle Action in Drawer */}
+              {onToggleFullscreen && (
                 <button
-                  key={mode.id}
-                  onClick={() => handleModeSelection(mode.id)}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer border ${
-                    isModeActive
-                      ? 'bg-amber-400 text-black border-amber-300 shadow-md shadow-amber-400/20 font-black'
-                      : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800 border-zinc-800'
+                  id="drawer-top-fullscreen-btn"
+                  onClick={onToggleFullscreen}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 border ${
+                    isFullscreen
+                      ? 'bg-amber-400 text-black border-amber-300 font-black'
+                      : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border-zinc-800'
                   }`}
                 >
-                  <IconComp size={12} />
-                  <span>{mode.name}</span>
+                  {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} className="text-amber-400" />}
+                  <span>{isFullscreen ? 'Thu Nhỏ' : 'Toàn Màn Hình'}</span>
                 </button>
-              );
-            })}
-          </div>
+              )}
+
+              {/* Install App / PWA Action in Drawer */}
+              {onOpenInstallPwa && (
+                <button
+                  id="drawer-top-install-btn"
+                  onClick={() => {
+                    onClose();
+                    onOpenInstallPwa();
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-zinc-900 to-zinc-900 hover:from-zinc-800 hover:to-zinc-800 text-amber-300 hover:text-amber-200 border border-zinc-800 hover:border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                >
+                  <Smartphone size={14} className="text-amber-400" />
+                  <span>Tải App Độc Lập</span>
+                </button>
+              )}
+
+              <button
+                id="drawer-top-vip-btn"
+                onClick={() => {
+                  onSelectTab('topup');
+                  onClose();
+                }}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                <Crown size={14} className="text-amber-400 fill-amber-400/20" />
+                <span>Nạp Điểm & VIP</span>
+              </button>
+
+              <button
+                id="drawer-top-logout-btn"
+                onClick={async () => {
+                  onClose();
+                  await logout();
+                }}
+                className="px-3.5 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-white border border-rose-500/40 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                title="Đăng xuất tài khoản"
+              >
+                <LogOut size={14} className="text-rose-400" />
+                <span>Đăng xuất</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3 pt-3 sm:pt-3.5 flex-wrap">
+              <p className="text-xs text-zinc-400">Chọn 1 trong 6 chế độ để trải nghiệm hệ sinh thái Haevy</p>
+              <button
+                id="drawer-top-login-btn"
+                onClick={() => {
+                  onClose();
+                  if (onOpenAuth) onOpenAuth();
+                }}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 text-black text-xs font-black shadow-md shadow-amber-500/20 hover:brightness-110 transition-all cursor-pointer active:scale-95"
+              >
+                Đăng Nhập / Đăng Ký
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Horizontal Slider Area with Snap-Scrolling */}
@@ -552,62 +645,13 @@ export function HaevyEcosystemDrawer({
           })}
         </div>
 
-        {/* Bottom Action Footer Bar */}
-        <div className="p-3 sm:p-5 pb-5 sm:pb-6 border-t border-zinc-800/90 bg-zinc-950/98 shrink-0 flex items-center justify-between gap-3 flex-wrap">
-          {user ? (
-            <div className="w-full flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  onClick={() => {
-                    onSelectTab('profile');
-                    onClose();
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-                >
-                  <UserIcon size={14} className="text-indigo-400" />
-                  <span>Trang Cá Nhân</span>
-                </button>
-
-                <button
-                  id="drawer-haevy-vip-btn"
-                  onClick={() => {
-                    onSelectTab('topup');
-                    onClose();
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-                >
-                  <Crown size={14} className="text-amber-400 fill-amber-400/20" />
-                  <span>Haevy VIP</span>
-                </button>
-              </div>
-
-              <button
-                id="drawer-logout-btn"
-                onClick={async () => {
-                  onClose();
-                  await logout();
-                }}
-                className="px-4 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-white border border-rose-500/40 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95 ml-auto sm:ml-0"
-                title="Đăng xuất tài khoản"
-              >
-                <LogOut size={14} className="text-rose-400" />
-                <span>Đăng xuất</span>
-              </button>
-            </div>
-          ) : (
-            <div className="w-full flex items-center justify-between gap-3">
-              <p className="text-xs text-zinc-400">Khám phá 6 chế độ trải nghiệm âm nhạc & tiện ích đa tầng</p>
-              <button
-                onClick={() => {
-                  onClose();
-                  if (onOpenAuth) onOpenAuth();
-                }}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 text-black text-xs font-black shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all cursor-pointer active:scale-95"
-              >
-                Đăng Nhập / Đăng Ký
-              </button>
-            </div>
-          )}
+        {/* Bottom Subtle Status Bar */}
+        <div className="px-4 py-3 sm:px-6 sm:py-3.5 border-t border-zinc-800/80 bg-zinc-950/98 shrink-0 flex items-center justify-between text-xs text-zinc-500">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-medium">Hệ Sinh Thái Đa Tầng Haevy • 6 Không Gian Chuyên Biệt</span>
+          </div>
+          <span className="font-mono text-[11px] text-zinc-600 hidden sm:inline">Trượt ngang để xem tất cả chế độ</span>
         </div>
       </div>
 

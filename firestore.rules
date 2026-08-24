@@ -14,42 +14,45 @@ service cloud.firestore {
       );
     }
 
-    // Admins & Sub-Admins collections
+    // Admins & Sub-Admins collections (Strictly protected against unauthorized write & privilege escalation)
     match /admins/{adminId} {
-      allow read: if true;
-      allow write: if isAdmin() || isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     match /subAdmins/{adminId} {
-      allow read: if true;
-      allow write: if isAdmin() || isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // Users collection
     match /users/{userId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if true;
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
 
       // User point transactions
       match /pointTransactions/{txId} {
-        allow read, write: if true;
+        allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
 
-      // User 6-Layer Security Shield & credentials config
+      // User 6-Layer Security Shield & credentials config (HIGH SECURITY: Only owner or admin can read/write)
       match /security/{docId} {
-        allow read, write: if true;
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
 
       // User VIP subscription orders
       match /vipOrders/{orderId} {
-        allow read, write: if true;
+        allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
 
       // User Points/Coins topup orders
       match /pointOrders/{orderId} {
-        allow read, write: if true;
+        allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
     }
 
@@ -57,32 +60,32 @@ service cloud.firestore {
     match /referralCodes/{codeId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if true; // allow incrementing usedCount and recording user redemption
+      allow update: if isSignedIn() || isAdmin(); // allow incrementing usedCount upon valid user redemption
     }
 
     // Anonymous VIP Passes (3-digit 1 month or 1 week)
     match /anonymousPasses/{passId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if true; // allow incrementing usedCount
+      allow update: if isSignedIn() || isAdmin(); // allow incrementing usedCount
     }
 
     // Community Audio Tracks
     match /customTracks/{trackId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() || isAdmin();
+      allow update, delete: if (isSignedIn() && (resource.data.addedBy == request.auth.uid || resource.data.authorId == request.auth.uid)) || isAdmin();
     }
 
     match /tracks/{trackId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() || isAdmin();
+      allow update, delete: if (isSignedIn() && (resource.data.addedBy == request.auth.uid || resource.data.authorId == request.auth.uid)) || isAdmin();
     }
 
     // Author Verifications (Gmail, Phone, CCCD, Face photo)
     match /authorVerifications/{verificationId} {
-      allow read: if true;
+      allow read: if (isSignedIn() && (request.auth.uid == verificationId || resource.data.userId == request.auth.uid)) || isAdmin();
       allow create: if isSignedIn();
       allow update, delete: if (isSignedIn() && (request.auth.uid == verificationId || resource.data.userId == request.auth.uid)) || isAdmin();
     }
@@ -98,14 +101,14 @@ service cloud.firestore {
     match /communityPosts/{postId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update: if true;
+      allow update: if isSignedIn() || isAdmin();
       allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
 
       // Comments subcollection
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isSignedIn();
-        allow update: if true;
+        allow update: if isSignedIn() || isAdmin();
         allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
       }
     }
@@ -179,35 +182,36 @@ service cloud.firestore {
       }
     }
 
-    // User Real-time Presence & 10s Heartbeat System
+    // User Real-time Presence
     match /userPresence/{presenceId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isSignedIn() || true;
     }
 
-    // System Transparency & Activity Audit Logs (zero omissions)
+    // System Transparency & Activity Audit Logs (IMMUTABLE: No updates or deletions allowed to prevent cover-ups)
     match /systemAuditLogs/{logId} {
       allow read: if true;
       allow create: if true;
-      allow update, delete: if isAdmin();
+      allow update, delete: if false;
     }
 
-    // System Broadcast Announcements
+    // System Broadcast Announcements (Only Admins can publish or edit)
     match /systemAnnouncements/{announcementId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
-    // Global System Settings & Maintenance Mode
+    // Global System Settings & Maintenance Mode (Strict Admin write only)
     match /systemSettings/{configId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isAdmin();
     }
 
     // Friend Thought Bubbles (Bong bóng suy nghĩ / Notes)
     match /thoughtBubbles/{bubbleId} {
       allow read: if true;
-      allow create, update: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
       allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
@@ -215,13 +219,13 @@ service cloud.firestore {
     match /friendPhotoPosts/{postId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update: if true;
+      allow update: if isSignedIn() || isAdmin();
       allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
 
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isSignedIn();
-        allow update: if true;
+        allow update: if isSignedIn() || isAdmin();
         allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
       }
     }
@@ -229,26 +233,27 @@ service cloud.firestore {
     // Haevy Games: x2 Đám Đông (Crowd 2X Prediction Game)
     match /crowdQuestions/{questionId} {
       allow read: if true;
-      allow create, update, delete: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isSignedIn() || isAdmin();
     }
 
     match /crowdBets/{betId} {
       allow read: if true;
-      allow create: if isSignedIn() || true;
-      allow update, delete: if isSignedIn() || isAdmin() || true;
+      allow create: if isSignedIn();
+      allow update, delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
     // Haevy Games: Đoán Bài Hát (Audio Quiz Tracks)
     match /audioQuizTracks/{trackId} {
       allow read: if true;
-      allow create, update, delete: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     // Customer Service Support Tickets & Feedback
     match /supportTickets/{ticketId} {
-      allow read: if true;
+      allow read: if (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email)) || isAdmin();
       allow create: if true;
-      allow update, delete: if isSignedIn() || isAdmin();
+      allow update, delete: if (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email)) || isAdmin();
     }
   }
 }
