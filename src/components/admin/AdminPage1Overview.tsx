@@ -24,7 +24,8 @@ import {
   Heart,
   Wallet,
   Headphones,
-  Zap
+  Zap,
+  Calendar
 } from 'lucide-react';
 import { UserAccountData, Track, AuthorVerification, ReferralCode, AnonymousPass, CommunityPost, SystemAuditLog, SystemAnnouncement } from '../../types';
 
@@ -37,7 +38,7 @@ interface AdminPage1OverviewProps {
   communityPosts: CommunityPost[];
   auditLogs: SystemAuditLog[];
   systemAnnouncements: SystemAnnouncement[];
-  onNavigateToPage: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => void;
+  onNavigateToPage: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7') => void;
 }
 
 export function AdminPage1Overview({
@@ -341,6 +342,28 @@ export function AdminPage1Overview({
               </div>
               <span className="text-xs font-mono font-bold text-indigo-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
                 Trang 6 <ArrowRight size={13} />
+              </span>
+            </div>
+
+            {/* Events & Live Shows Customizer */}
+            <div 
+              onClick={() => onNavigateToPage('page7')}
+              className="bg-zinc-950 p-3 rounded-2xl border border-rose-500/30 hover:border-rose-500/60 transition-all flex items-center justify-between gap-4 cursor-pointer group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                  <Calendar size={20} className="text-rose-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    Tùy Chỉnh Sự Kiện & Live Shows
+                    <span className="px-1.5 py-0.2 bg-rose-500/20 text-rose-300 text-[9px] rounded font-bold">HOT</span>
+                  </h4>
+                  <p className="text-[11px] text-zinc-400">Thêm, sửa, ghim các sự kiện sắp diễn ra trên trang chủ & nhận quà</p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-bold text-rose-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                Trang 7 <ArrowRight size={13} />
               </span>
             </div>
           </div>

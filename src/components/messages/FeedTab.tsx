@@ -34,6 +34,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { CameraCaptureModal } from './CameraCaptureModal';
+import { SkeletonPostCard } from '../common/Skeleton';
 
 interface FeedTabProps {
   onOpenAuth: () => void;
@@ -54,6 +55,7 @@ export function FeedTab({ onOpenAuth }: FeedTabProps) {
 
   // Feed posts state
   const [posts, setPosts] = useState<FriendPhotoPost[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   // New post staging state
@@ -75,6 +77,7 @@ export function FeedTab({ onOpenAuth }: FeedTabProps) {
 
   // 1. Subscribe to Friend Photo Posts
   useEffect(() => {
+    setIsLoadingPosts(true);
     const qPosts = query(
       collection(db, 'friendPhotoPosts'),
       orderBy('createdAt', 'desc'),
@@ -87,8 +90,10 @@ export function FeedTab({ onOpenAuth }: FeedTabProps) {
         ...docSnap.data()
       } as FriendPhotoPost));
       setPosts(list);
+      setIsLoadingPosts(false);
     }, (err) => {
       console.warn('Feed posts error:', err);
+      setIsLoadingPosts(false);
     });
 
     return () => unsubscribe();
@@ -374,7 +379,13 @@ export function FeedTab({ onOpenAuth }: FeedTabProps) {
 
       {/* 2. Photo Posts Feed Stream */}
       <div className="space-y-6">
-        {posts.length > 0 ? (
+        {isLoadingPosts && posts.length === 0 ? (
+          <>
+            <SkeletonPostCard />
+            <SkeletonPostCard />
+            <SkeletonPostCard />
+          </>
+        ) : posts.length > 0 ? (
           posts.map((post) => {
             const hasLiked = user && post.likes && post.likes.includes(user.uid);
             const isAuthor = user && post.authorId === user.uid;

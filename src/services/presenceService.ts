@@ -13,17 +13,18 @@ import { db } from '../lib/firebase';
 import { UserPresence } from '../types';
 
 /**
- * STRICT 10-SECOND ONLINE THRESHOLD
- * As specified: Any signal older than 10 seconds without refresh is considered OFFLINE.
+ * STABLE 25-SECOND ONLINE THRESHOLD
+ * Gives reliable stability over mobile networks (4G/5G/WiFi) without flapping or false offline states.
  */
-export const ONLINE_TIMEOUT_MS = 10000; // 10 seconds timeout
-export const HEARTBEAT_INTERVAL_MS = 4000; // 4 seconds ping cycle to stay reliably fresh
+export const ONLINE_TIMEOUT_MS = 25000; // 25 seconds timeout
+export const HEARTBEAT_INTERVAL_MS = 5000; // 5 seconds ping cycle to stay reliably fresh
 
 /**
- * Check if a presence record is online based strictly on 10s timeout
+ * Check if a presence record is online based on stable timeout
  */
 export function isPresenceOnline(presence: Partial<UserPresence> | null | undefined, currentTimeMs: number = Date.now()): boolean {
   if (!presence) return false;
+  if (presence.isOnline === false) return false;
   
   // 1. Get accurate lastSeen timestamp in ms
   let lastSeenMs = presence.lastSeenMs;
@@ -37,11 +38,11 @@ export function isPresenceOnline(presence: Partial<UserPresence> | null | undefi
     }
   }
 
-  if (!lastSeenMs) return false;
+  if (!lastSeenMs) return Boolean(presence.isOnline);
 
   const diffMs = currentTimeMs - lastSeenMs;
-  // If the heartbeat signal is older than 10,000 ms (10s), user is offline!
-  return diffMs >= 0 && diffMs <= ONLINE_TIMEOUT_MS;
+  // If the heartbeat signal is within 25,000 ms, user is stably online!
+  return diffMs >= -5000 && diffMs <= ONLINE_TIMEOUT_MS;
 }
 
 /**
@@ -195,11 +196,11 @@ export function useUserPresence(targetUid?: string | null) {
   const [presence, setPresence] = useState<UserPresence | null>(null);
   const [currentTimeMs, setCurrentTimeMs] = useState<number>(Date.now());
 
-  // 1. Clock timer running every 1 second to enforce exact 10s cut-off
+  // 1. Clock timer running every 4 seconds for optimal CPU & smooth status calculation
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTimeMs(Date.now());
-    }, 1000);
+    }, 4000);
     return () => clearInterval(timer);
   }, []);
 
@@ -263,11 +264,11 @@ export function useBatchUserPresence(targetUids: string[]) {
   const [presenceMap, setPresenceMap] = useState<Record<string, UserPresence>>({});
   const [currentTimeMs, setCurrentTimeMs] = useState<number>(Date.now());
 
-  // 1. Clock timer running every 1 second
+  // 1. Clock timer running every 4 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTimeMs(Date.now());
-    }, 1000);
+    }, 4000);
     return () => clearInterval(timer);
   }, []);
 

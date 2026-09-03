@@ -51,6 +51,7 @@ import { FinanceAnalyticsCharts } from './finance/FinanceAnalyticsCharts';
 import { FinanceFamilyFundView } from './finance/FinanceFamilyFundView';
 import { FinanceCalculatorsView } from './finance/FinanceCalculatorsView';
 import { FinanceAddExpenseView } from './finance/FinanceAddExpenseView';
+import { FinanceAIAdvisorModal } from './finance/FinanceAIAdvisorModal';
 
 interface FinanceViewProps {
   currentUserId?: string;
@@ -58,6 +59,9 @@ interface FinanceViewProps {
   onUpgradeVip?: () => void;
   activePage?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
   onSelectPage?: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
+  initialPage2SubTab?: 'budget' | 'savings' | 'debts' | 'recurring';
+  openWalletsTrigger?: number;
+  openAddTransactionTrigger?: number;
 }
 
 export function FinanceView({ 
@@ -65,7 +69,10 @@ export function FinanceView({
   isVip = true, 
   onUpgradeVip,
   activePage,
-  onSelectPage
+  onSelectPage,
+  initialPage2SubTab,
+  openWalletsTrigger,
+  openAddTransactionTrigger
 }: FinanceViewProps) {
   // Active 5-Page System
   const [localPage, setLocalPage] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
@@ -77,7 +84,14 @@ export function FinanceView({
   };
 
   // Sub-tabs for Page 2 (Ngân Sách / Tiết Kiệm / Nợ Vay / Định Kỳ)
-  const [page2SubTab, setPage2SubTab] = useState<'budget' | 'savings' | 'debts' | 'recurring'>('budget');
+  const [page2SubTab, setPage2SubTab] = useState<'budget' | 'savings' | 'debts' | 'recurring'>(initialPage2SubTab || 'budget');
+
+  // React to initialPage2SubTab prop changes
+  useEffect(() => {
+    if (initialPage2SubTab) {
+      setPage2SubTab(initialPage2SubTab);
+    }
+  }, [initialPage2SubTab]);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const d = new Date();
@@ -130,6 +144,19 @@ export function FinanceView({
   // Modal Controls
   const [isWalletsModalOpen, setIsWalletsModalOpen] = useState(false);
   const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
+  const [isAiAdvisorOpen, setIsAiAdvisorOpen] = useState(false);
+
+  useEffect(() => {
+    if (openWalletsTrigger && openWalletsTrigger > 0) {
+      setIsWalletsModalOpen(true);
+    }
+  }, [openWalletsTrigger]);
+
+  useEffect(() => {
+    if (openAddTransactionTrigger && openAddTransactionTrigger > 0) {
+      setIsAddTransactionModalOpen(true);
+    }
+  }, [openAddTransactionTrigger]);
 
   // Sync to local storage
   useEffect(() => {
@@ -392,8 +419,16 @@ export function FinanceView({
             </div>
           </div>
 
-          {/* Wallet Manager Button */}
+          {/* AI Advisor & Wallet Manager Buttons */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsAiAdvisorOpen(true)}
+              className="px-3.5 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:opacity-95 text-zinc-950 text-xs font-black flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer whitespace-nowrap group"
+            >
+              <Sparkles size={14} className="group-hover:rotate-12 transition-transform" />
+              <span>AI Dự Báo 6 Hũ</span>
+            </button>
+
             <button
               onClick={() => setIsWalletsModalOpen(true)}
               className="px-3.5 py-1.5 sm:py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-sm"
@@ -417,7 +452,7 @@ export function FinanceView({
               selectedMonth={selectedMonth}
               onOpenWallets={() => setIsWalletsModalOpen(true)}
               onOpenBudget={() => handleSetPage('page2')}
-              onOpenAiAdvisor={() => handleSetPage('page5')}
+              onOpenAiAdvisor={() => setIsAiAdvisorOpen(true)}
             />
 
             {/* Quick Mini Charts & Full Transactions */}
@@ -565,6 +600,7 @@ export function FinanceView({
                 onSaveBudget={(updatedBudget) => {
                   setBudget(prev => ({ ...prev, ...updatedBudget }));
                 }}
+                onOpenAiAdvisor={() => setIsAiAdvisorOpen(true)}
               />
             )}
 
@@ -674,6 +710,29 @@ export function FinanceView({
         onEditWallet={handleEditWallet}
         onDeleteWallet={handleDeleteWallet}
         onTransfer={handleTransfer}
+      />
+
+      {/* Gemini AI 6-Jars & Spending Habits Advisor Modal */}
+      <FinanceAIAdvisorModal
+        isOpen={isAiAdvisorOpen}
+        onClose={() => setIsAiAdvisorOpen(false)}
+        transactions={transactions}
+        wallets={wallets}
+        budget={budget}
+        categories={categories}
+        selectedMonth={selectedMonth}
+        savingsGoals={savingsGoals}
+        debts={debts}
+        onApplyBudget={(updatedCategoryLimits, monthlyLimit) => {
+          setBudget(prev => ({
+            ...prev,
+            totalMonthlyLimit: monthlyLimit,
+            categoryLimits: {
+              ...(prev?.categoryLimits || {}),
+              ...updatedCategoryLimits,
+            },
+          }));
+        }}
       />
     </div>
   );

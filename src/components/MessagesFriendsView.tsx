@@ -24,6 +24,7 @@ interface MessagesFriendsViewProps {
   onClearInitialRecipient?: () => void;
   activeSubTab?: 'chat' | 'feed' | 'friends';
   onSelectSubTab?: (tab: 'chat' | 'feed' | 'friends') => void;
+  onNavigateToMode?: (mode: string, subTab?: string) => void;
 }
 
 export function MessagesFriendsView({
@@ -32,7 +33,8 @@ export function MessagesFriendsView({
   initialRecipientUid,
   onClearInitialRecipient,
   activeSubTab,
-  onSelectSubTab
+  onSelectSubTab,
+  onNavigateToMode
 }: MessagesFriendsViewProps) {
   const { user } = useAuth();
   const [localTab, setLocalTab] = useState<'chat' | 'feed' | 'friends'>('chat');
@@ -114,6 +116,7 @@ export function MessagesFriendsView({
             setTargetChatRecipientUid(null);
             if (onClearInitialRecipient) onClearInitialRecipient();
           }}
+          onNavigateToMode={onNavigateToMode}
         />
       )}
 

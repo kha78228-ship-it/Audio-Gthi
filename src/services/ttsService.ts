@@ -244,196 +244,124 @@ export async function mixAudioBuffers(
     const ambValL = i < ambientBuffer.length ? ambLeft[i] : 0;
     const ambValR = i < ambientBuffer.length ? ambRight[i] : 0;
 
-    left[i] = Math.max(-1, Math.min(1, voiceValL * 0.95 + ambValL * 0.45));
-    right[i] = Math.max(-1, Math.min(1, voiceValR * 0.95 + ambValR * 0.45));
+    // Ambient background is kept gently in the background (0.15 max) so voice remains 100% crisp and distinct
+    left[i] = Math.max(-1, Math.min(1, voiceValL * 1.0 + ambValL * 0.15));
+    right[i] = Math.max(-1, Math.min(1, voiceValR * 1.0 + ambValR * 0.15));
   }
 
   return mixedBuffer;
 }
 
 /**
- * Synthesize speech via Gemini TTS API endpoint
+ * Upload Audio Blob directly to server for permanent static URL
+ */
+export async function uploadAudioBlobToServer(blob: Blob, fileName?: string): Promise<string> {
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize) as unknown as number[]);
+    }
+    const base64 = btoa(binary);
+
+    const res = await fetch('/api/audio/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        audioBase64: base64,
+        fileName: fileName || `track-${Date.now()}.wav`,
+        format: 'wav',
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.audioUrl) {
+        return data.audioUrl;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to upload audio to server disk, falling back to Blob URL:', err);
+  }
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Synthesize speech via Gemini TTS API endpoint with lossless audio pipeline
  */
 export async function generateGeminiSpeech(params: {
   text: string;
   voiceName: string;
   stylePrompt?: string;
   ambientType?: string;
+  onProgress?: (progress: number, stage: string) => void;
 }): Promise<TtsGenerateResult> {
-  const { text, voiceName, stylePrompt = '', ambientType = 'none' } = params;
+  const { text, voiceName, stylePrompt = '', ambientType = 'none', onProgress } = params;
 
-  try {
-    const res = await fetch('/api/gemini/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text,
-        voiceName,
-        stylePrompt,
-      }),
-    });
+  if (onProgress) onProgress(15, 'Đang phân tích ngữ điệu và cấu trúc văn bản...');
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.error || `Server responded with ${res.status}`);
-    }
-
-    const data = await res.json();
-    if (!data.audioBase64) {
-      throw new Error('No audio data received from server');
-    }
-
-    // Decode WAV base64
-    const binary = atob(data.audioBase64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    const initialBlob = new Blob([bytes], { type: 'audio/wav' });
-
-    // If ambient background is requested, decode to AudioBuffer, mix, and re-export
-    if (ambientType && ambientType !== 'none') {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const arrayBuf = await initialBlob.arrayBuffer();
-      const decodedVoice = await audioCtx.decodeAudioData(arrayBuf);
-      const mixed = await mixAudioBuffers(audioCtx, decodedVoice, ambientType);
-      const mixedBlob = audioBufferToWavBlob(mixed);
-      const audioUrl = URL.createObjectURL(mixedBlob);
-      return {
-        audioUrl,
-        durationSec: Math.round(mixed.duration),
-        blob: mixedBlob,
-        source: 'gemini',
-      };
-    }
-
-    const audioUrl = URL.createObjectURL(initialBlob);
-    return {
-      audioUrl,
-      durationSec: data.durationSec || 15,
-      blob: initialBlob,
-      source: 'gemini',
-    };
-  } catch (err) {
-    console.warn('Gemini TTS failed or offline, falling back to Web Speech Synthesizer:', err);
-    return generateBrowserSpeechSynthesis({
-      text,
-      ambientType,
-    });
-  }
-}
-
-/**
- * Client-side Web Speech Synthesis + Web Audio Synthesizer fallback
- */
-export async function generateBrowserSpeechSynthesis(params: {
-  text: string;
-  rate?: number;
-  pitch?: number;
-  ambientType?: string;
-}): Promise<TtsGenerateResult> {
-  const { text, rate = 1.0, pitch = 1.0, ambientType = 'none' } = params;
-
-  return new Promise((resolve, reject) => {
-    if (!('speechSynthesis' in window)) {
-      reject(new Error('Trình duyệt của bạn không hỗ trợ công cụ tổng hợp giọng nói (Web Speech API)'));
-      return;
-    }
-
-    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const dest = audioCtx.createMediaStreamDestination();
-    const mediaRecorder = new MediaRecorder(dest.stream);
-    const chunks: Blob[] = [];
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'vi-VN';
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-
-    // Pick best Vietnamese voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const viVoice = voices.find(v => v.lang.includes('vi') || v.name.toLowerCase().includes('vietnam') || v.name.toLowerCase().includes('mai') || v.name.toLowerCase().includes('an'));
-    if (viVoice) {
-      utterance.voice = viVoice;
-    }
-
-    let startTime = Date.now();
-
-    utterance.onstart = () => {
-      startTime = Date.now();
-      try {
-        mediaRecorder.start();
-      } catch (e) {
-        // Some browsers don't support direct stream capture from speech synthesis, fallback to mock audio tone
-      }
-    };
-
-    utterance.onend = async () => {
-      const elapsedSec = Math.max(2, Math.round((Date.now() - startTime) / 1000));
-      
-      // Synthesize clean audio buffer matching speech duration with ambient sound
-      const finalBuffer = generateAmbientAudioBuffer(
-        audioCtx, 
-        ambientType !== 'none' ? ambientType : 'piano', 
-        elapsedSec
-      );
-      const wavBlob = audioBufferToWavBlob(finalBuffer);
-      const audioUrl = URL.createObjectURL(wavBlob);
-
-      resolve({
-        audioUrl,
-        durationSec: elapsedSec,
-        blob: wavBlob,
-        source: 'browser_speech',
-      });
-    };
-
-    utterance.onerror = (e) => {
-      console.error('Speech error:', e);
-      // Create fallback ambient soundscape
-      const finalBuffer = generateAmbientAudioBuffer(audioCtx, 'piano', 10);
-      const wavBlob = audioBufferToWavBlob(finalBuffer);
-      const audioUrl = URL.createObjectURL(wavBlob);
-      resolve({
-        audioUrl,
-        durationSec: 10,
-        blob: wavBlob,
-        source: 'browser_speech',
-      });
-    };
-
-    window.speechSynthesis.speak(utterance);
-  });
-}
-
-/**
- * Generate AI Audio Script using Gemini 3.7 Flash
- */
-export async function generateAiScript(params: {
-  topic: string;
-  genre: string;
-  durationType?: 'short' | 'medium' | 'long';
-}): Promise<{ title: string; script: string }> {
-  const { topic, genre, durationType = 'medium' } = params;
-
-  const res = await fetch('/api/gemini/generate-script', {
+  const res = await fetch('/api/gemini/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      topic,
-      genre,
-      durationType,
+      text,
+      voiceName,
+      stylePrompt,
     }),
   });
 
+  if (onProgress) onProgress(65, 'Gemini AI đang tổng hợp giọng đọc Lossless...');
+
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Không thể tạo kịch bản lúc này.');
+    const errJson = await res.json().catch(() => ({}));
+    throw new Error(errJson.error || `Lỗi máy chủ TTS (${res.status})`);
   }
 
-  return res.json();
+  const data = await res.json();
+  if (!data.audioBase64 && !data.audioUrl) {
+    throw new Error('Không nhận được dữ liệu âm thanh từ máy chủ Gemini TTS');
+  }
+
+  if (onProgress) onProgress(80, 'Đang giải mã luồng âm thanh WAV Hi-Fi...');
+
+  // Decode WAV base64
+  const binary = atob(data.audioBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  const initialBlob = new Blob([bytes], { type: 'audio/wav' });
+
+  // If ambient background is requested, decode to AudioBuffer, mix voice + ambient, and re-export permanently
+  if (ambientType && ambientType !== 'none') {
+    if (onProgress) onProgress(90, 'Đang hòa âm lớp nhạc nền Ambient & Stereo Space...');
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const arrayBuf = await initialBlob.arrayBuffer();
+    const decodedVoice = await audioCtx.decodeAudioData(arrayBuf);
+    const mixed = await mixAudioBuffers(audioCtx, decodedVoice, ambientType);
+    const mixedBlob = audioBufferToWavBlob(mixed);
+    
+    // Save mixed audio permanently to server
+    const permanentAudioUrl = await uploadAudioBlobToServer(mixedBlob, `tts-mixed-${Date.now()}.wav`);
+    if (onProgress) onProgress(100, 'Hoàn tất 100%! Xuất bản ghi âm chất lượng cao.');
+    return {
+      audioUrl: permanentAudioUrl,
+      durationSec: Math.max(1, Math.round(mixed.duration)),
+      blob: mixedBlob,
+      source: 'gemini',
+    };
+  }
+
+  if (onProgress) onProgress(100, 'Hoàn tất 100%! Xuất bản ghi âm chất lượng cao.');
+  
+  // Use permanent URL returned by server if available, or upload
+  const permanentUrl = data.audioUrl || await uploadAudioBlobToServer(initialBlob, `tts-clean-${Date.now()}.wav`);
+  return {
+    audioUrl: permanentUrl,
+    durationSec: data.durationSec || 15,
+    blob: initialBlob,
+    source: 'gemini',
+  };
 }

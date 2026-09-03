@@ -234,26 +234,26 @@ export function FinanceOverviewCards({
         {/* Right 1 Col: AI Advisor Shortcut Banner */}
         <div 
           onClick={onOpenAiAdvisor}
-          className="p-5 rounded-3xl bg-gradient-to-br from-emerald-950/40 via-teal-950/20 to-zinc-900 border border-emerald-500/30 hover:border-emerald-400/60 shadow-xl transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between group"
+          className="p-5 rounded-3xl bg-gradient-to-br from-amber-950/40 via-orange-950/20 to-zinc-900 border border-amber-500/30 hover:border-amber-400/60 shadow-xl transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between group"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 rounded-full blur-2xl group-hover:bg-emerald-400/20 transition-all pointer-events-none" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/10 rounded-full blur-2xl group-hover:bg-amber-400/20 transition-all pointer-events-none" />
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                <Sparkles size={11} className="text-emerald-400" />
-                AI Smart Advisor
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                <Sparkles size={11} className="text-amber-400" />
+                Gemini 3.7 Flash AI
               </span>
-              <span className="text-[10px] text-zinc-400 font-semibold">Quy tắc 50/30/20</span>
+              <span className="text-[10px] text-zinc-400 font-semibold">6 Hũ Tiền</span>
             </div>
-            <h4 className="text-sm font-black text-white group-hover:text-emerald-300 transition-colors pt-1">
-              Phân Tích Sức Khỏe Tài Chính
+            <h4 className="text-sm font-black text-white group-hover:text-amber-300 transition-colors pt-1">
+              Phân Tích Chi Tiêu &amp; Dự Báo 6 Hũ
             </h4>
             <p className="text-xs text-zinc-300 leading-relaxed line-clamp-2">
-              Nhận tư vấn thông minh, phân bổ dòng tiền và mẹo tiết kiệm cá nhân hóa theo thói quen chi tiêu của bạn.
+              Gemini AI nhận diện thói quen chi tiêu, phát hiện điểm rò rỉ dòng tiền và dự báo phân bổ ngân sách 6 hũ tiền tháng tới.
             </p>
           </div>
 
-          <div className="pt-3 flex items-center justify-between text-xs font-bold text-emerald-400 group-hover:text-emerald-300">
+          <div className="pt-3 flex items-center justify-between text-xs font-bold text-amber-400 group-hover:text-amber-300">
             <span>Bắt đầu phân tích AI</span>
             <span className="group-hover:translate-x-1 transition-transform">→</span>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, 
   Heart, 
@@ -18,7 +18,13 @@ import {
   Crown,
   Pin,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Image as ImageIcon,
+  X,
+  Maximize2,
+  Upload,
+  Layers,
+  Sparkle
 } from 'lucide-react';
 import { CommunityPost, Track, CommunityComment } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -44,9 +50,23 @@ interface CommunityViewProps {
   isPlaying: boolean;
   onPlayTrack: (track: Track) => void;
   onOpenAuth: () => void;
+  initialPendingImage?: string | null;
+  initialPendingText?: string | null;
+  initialPendingTag?: string | null;
+  onClearPendingImage?: () => void;
 }
 
-const POST_TAGS = ['#ThảoLuận', '#GợiÝBàiHát', '#ĐánhGiá', '#CảmXúc', '#GócTậpTrung', '#Podcast', '#ThôngBáoAdmin'];
+const POST_TAGS = [
+  '#HaevySpace',
+  '#TranhVẽ3D',
+  '#ThảoLuận',
+  '#GợiÝBàiHát',
+  '#ĐánhGiá',
+  '#CảmXúc',
+  '#GócTậpTrung',
+  '#Podcast',
+  '#ThôngBáoAdmin'
+];
 
 export function CommunityView({
   tracks,
@@ -54,6 +74,10 @@ export function CommunityView({
   isPlaying,
   onPlayTrack,
   onOpenAuth,
+  initialPendingImage,
+  initialPendingText,
+  initialPendingTag,
+  onClearPendingImage
 }: CommunityViewProps) {
   const { 
     user, 
@@ -66,13 +90,43 @@ export function CommunityView({
   } = useAuth();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(initialPendingText || '');
+  const [attachedImage, setAttachedImage] = useState<string | null>(initialPendingImage || null);
   const [selectedTrackId, setSelectedTrackId] = useState<string>('');
-  const [selectedTag, setSelectedTag] = useState<string>('#ThảoLuận');
+  const [selectedTag, setSelectedTag] = useState<string>(initialPendingTag || (initialPendingImage ? '#HaevySpace' : '#ThảoLuận'));
   const [activeFilterTag, setActiveFilterTag] = useState<string>('Tất cả');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync initial pending image if prop updates
+  useEffect(() => {
+    if (initialPendingImage) {
+      setAttachedImage(initialPendingImage);
+      if (initialPendingTag) setSelectedTag(initialPendingTag);
+      else setSelectedTag('#HaevySpace');
+      if (initialPendingText && !content) setContent(initialPendingText);
+    }
+  }, [initialPendingImage, initialPendingText, initialPendingTag]);
+
+  // Check localStorage for temporary shared spatial image on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('haevy_space_temp_share_image');
+      if (stored && !attachedImage) {
+        setAttachedImage(stored);
+        setSelectedTag('#HaevySpace');
+        if (!content) {
+          setContent('✨ Vừa sáng tác tác phẩm Không Gian 3D trong Haevy Space! Mời mọi người cùng thưởng thức và chia sẻ cảm nghĩ nhé!');
+        }
+        localStorage.removeItem('haevy_space_temp_share_image');
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -105,6 +159,8 @@ export function CommunityView({
             isAuthorVip: data.isAuthorVip || false,
             isAuthorAdmin: data.isAuthorAdmin || false,
             content: data.content || '',
+            imageUrl: data.imageUrl || '',
+            spatialInfo: data.spatialInfo || undefined,
             trackId: data.trackId || '',
             trackTitle: data.trackTitle || '',
             trackArtist: data.trackArtist || '',
@@ -167,14 +223,47 @@ export function CommunityView({
     return () => unsubscribeComments();
   }, [expandedCommentsPostId]);
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Vui lòng chọn file hình ảnh hợp lệ (PNG, JPG, WEBP).');
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Kích thước ảnh không được vượt quá 8MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (typeof event.target?.result === 'string') {
+        setAttachedImage(event.target.result);
+        if (selectedTag === '#ThảoLuận') setSelectedTag('#HaevySpace');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClearAttachedImage = () => {
+    setAttachedImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (onClearPendingImage) onClearPendingImage();
+    try {
+      localStorage.removeItem('haevy_space_temp_share_image');
+    } catch (e) {}
+  };
+
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
       onOpenAuth();
       return;
     }
-    if (!content.trim()) {
-      setError('Vui lòng nhập nội dung chia sẻ.');
+    if (!content.trim() && !attachedImage) {
+      setError('Vui lòng nhập nội dung chia sẻ hoặc đính kèm ảnh.');
       return;
     }
 
@@ -187,13 +276,16 @@ export function CommunityView({
         attachedTrack = tracks.find((t) => t.id === selectedTrackId);
       }
 
+      const isSpatialArtwork = selectedTag === '#HaevySpace' || selectedTag === '#TranhVẽ3D' || Boolean(attachedImage);
+
       await addDoc(collection(db, 'communityPosts'), {
         authorId: user.uid,
         authorName: user.displayName || user.email?.split('@')[0] || 'Yêu Âm Nhạc',
         authorPhoto: user.photoURL || '',
         isAuthorVip: isVip,
         isAuthorAdmin: isAdmin,
-        content: content.trim(),
+        content: content.trim() || (attachedImage ? '✨ Chia sẻ tác phẩm nghệ thuật không gian 3D' : ''),
+        imageUrl: attachedImage || '',
         trackId: attachedTrack?.id || '',
         trackTitle: attachedTrack?.title || '',
         trackArtist: attachedTrack?.artist || '',
@@ -206,12 +298,14 @@ export function CommunityView({
         createdAt: serverTimestamp(),
       });
 
-      // Award +20 points for engaging in community
-      await addAudioPoints(20, 'Chia sẻ bài viết cộng đồng', 'post');
+      // Award +25 points for engaging with visual artwork or post
+      const pointsToEarn = isSpatialArtwork ? 25 : 20;
+      await addAudioPoints(pointsToEarn, isSpatialArtwork ? 'Chia sẻ tranh 3D Haevy Space' : 'Chia sẻ bài viết cộng đồng', 'post');
 
       setContent('');
       setSelectedTrackId('');
-      showToast('Đã đăng bài viết thành công (+20 pts)!');
+      handleClearAttachedImage();
+      showToast(`Đã đăng bài viết thành công (+${pointsToEarn} pts)!`);
     } catch (err: any) {
       console.error('Error creating post:', err);
       setError('Không thể đăng bài viết. Vui lòng thử lại.');
@@ -419,11 +513,51 @@ export function CommunityView({
               user
                 ? isAdmin
                   ? 'Viết bài viết hoặc thông báo cộng đồng với tư cách Quản trị viên...'
-                  : 'Bạn đang lắng nghe điều gì? Hãy chia sẻ cảm xúc hoặc gợi ý bài hát tâm đắc...'
+                  : 'Bạn đang lắng nghe điều gì? Hãy chia sẻ cảm xúc, tác phẩm không gian 3D hoặc bài hát tâm đắc...'
                 : 'Vui lòng đăng nhập tài khoản để viết bài thảo luận cùng cộng đồng...'
             }
             className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-2xl p-4 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:bg-zinc-800 transition-all resize-none"
           />
+
+          {/* Attached Image Preview in Composer */}
+          {attachedImage && (
+            <div className="relative p-2.5 rounded-2xl bg-zinc-950/80 border border-sky-500/40 flex items-center justify-between gap-3 animate-in zoom-in-95">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-black border border-sky-400/40 shrink-0">
+                  <img src={attachedImage} alt="Attached Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setLightboxImage(attachedImage)}
+                    className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                    title="Xem phóng to"
+                  >
+                    <Maximize2 size={16} />
+                  </button>
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-sky-300">
+                    <Sparkles size={13} className="text-amber-300" />
+                    <span>Tác phẩm Không Gian 3D / Hình ảnh</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
+                    File ảnh tạm thời đã sẵn sàng chia sẻ lên bảng tin cộng đồng
+                  </p>
+                  <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                    {selectedTag}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleClearAttachedImage}
+                className="p-2 rounded-xl bg-zinc-900 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 border border-zinc-800 hover:border-rose-500/40 transition-all shrink-0"
+                title="Gỡ ảnh"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -453,15 +587,37 @@ export function CommunityView({
                   </option>
                 ))}
               </select>
+
+              {/* Attach Image from File */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageFileChange}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className={`p-1.5 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  attachedImage
+                    ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                    : 'bg-zinc-800 text-zinc-300 hover:text-white border-zinc-700/80 hover:border-zinc-600'
+                }`}
+                title="Đính kèm ảnh hoặc ảnh chụp 3D Haevy Space"
+              >
+                <ImageIcon size={14} />
+                <span className="hidden sm:inline">{attachedImage ? 'Đổi ảnh' : 'Đính kèm ảnh'}</span>
+              </button>
             </div>
 
             <button
               type="submit"
               disabled={submitting}
-              className="flex items-center gap-2 bg-white hover:bg-zinc-200 text-black font-semibold px-5 py-2 rounded-xl text-xs sm:text-sm transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold px-5 py-2 rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-sky-500/25 active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} />}
-              <span>{isAdmin ? 'Đăng bài (Admin)' : 'Đăng bài (+20 pts)'}</span>
+              <span>{isAdmin ? 'Đăng bài (Admin)' : (attachedImage ? 'Đăng tác phẩm (+25 pts)' : 'Đăng bài (+20 pts)')}</span>
             </button>
           </div>
         </form>
@@ -619,6 +775,34 @@ export function CommunityView({
                 <p className="text-zinc-200 text-sm sm:text-base leading-relaxed whitespace-pre-line">
                   {post.content}
                 </p>
+
+                {/* Attached Image / 3D Spatial Artwork */}
+                {post.imageUrl && (
+                  <div className="relative rounded-2xl overflow-hidden bg-black/80 border border-zinc-800/80 group">
+                    <img 
+                      src={post.imageUrl} 
+                      alt="Tác phẩm đính kèm" 
+                      className="w-full max-h-[460px] object-contain mx-auto transition-transform duration-300 group-hover:scale-[1.01] cursor-pointer"
+                      onClick={() => setLightboxImage(post.imageUrl || null)}
+                    />
+                    
+                    {/* Badge for Haevy Space 3D Artwork */}
+                    {(post.tag === '#HaevySpace' || post.tag === '#TranhVẽ3D') && (
+                      <div className="absolute top-3 left-3 px-3 py-1 rounded-xl bg-black/80 backdrop-blur-md border border-sky-400/40 text-sky-200 text-[11px] font-extrabold flex items-center gap-1.5 shadow-lg pointer-events-none">
+                        <Sparkles size={13} className="text-amber-300 animate-pulse" />
+                        <span>Tác Phẩm 3D Haevy Space</span>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => setLightboxImage(post.imageUrl || null)}
+                      className="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-white hover:text-black text-zinc-300 text-xs font-semibold backdrop-blur-md border border-zinc-700/80 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-1.5 shadow-lg"
+                    >
+                      <Maximize2 size={13} />
+                      <span>Xem đầy đủ</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Embedded Attached Track Card */}
                 {post.trackTitle && (
@@ -806,6 +990,54 @@ export function CommunityView({
           })
         )}
       </div>
+
+      {/* Fullscreen Lightbox Modal for Shared Images */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div 
+            className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header controls */}
+            <div className="w-full flex items-center justify-between p-3 mb-2 bg-zinc-900/80 backdrop-blur-md rounded-2xl border border-zinc-800 text-white">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-amber-400" />
+                <span className="text-sm font-bold">Chi Tiết Tác Phẩm Nghệ Thuật / Ảnh Đính Kèm</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={lightboxImage}
+                  download={`haevy-art-${Date.now()}.png`}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-all"
+                  title="Tải ảnh về máy"
+                >
+                  <span>Tải ảnh PNG</span>
+                </a>
+                <button
+                  onClick={() => setLightboxImage(null)}
+                  className="p-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-all"
+                  title="Đóng"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Image Preview Container */}
+            <div className="relative rounded-2xl overflow-hidden border border-zinc-800 bg-black/90 max-h-[78vh] flex items-center justify-center shadow-2xl">
+              <img
+                src={lightboxImage}
+                alt="Enlarged Artwork"
+                className="max-h-[78vh] w-auto object-contain select-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

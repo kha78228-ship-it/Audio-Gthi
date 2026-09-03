@@ -26,16 +26,25 @@ import {
   Zap,
   Radio,
   Equal,
-  Activity
+  Activity,
+  Shuffle,
+  Repeat,
+  Repeat1,
+  TrendingUp,
+  Image as ImageIcon,
+  BarChart3,
+  Waves
 } from 'lucide-react';
 import { Track } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { VisualEqualizer } from './VisualEqualizer';
+import { AudioDynamicVisualizer, VisualizerMode } from './AudioDynamicVisualizer';
 import { 
   webAudioEqualizer, 
   EQUALIZER_PRESETS, 
   EqualizerPresetKey 
 } from '../lib/webAudioEqualizer';
+import { ShuffleMode, RepeatMode } from '../services/smartShuffleService';
 
 interface AudioPlayerProps {
   playlist: Track[];
@@ -45,6 +54,11 @@ interface AudioPlayerProps {
   duration: number;
   volume: number;
   isMuted: boolean;
+  shuffleMode?: ShuffleMode;
+  repeatMode?: RepeatMode;
+  onToggleShuffle?: () => void;
+  onToggleRepeat?: () => void;
+  onOpenSmartShuffleModal?: () => void;
   onTogglePlay: () => void;
   onPlayNext: () => void;
   onPlayPrev: () => void;
@@ -68,6 +82,11 @@ export function AudioPlayer({
   duration,
   volume,
   isMuted,
+  shuffleMode = 'smart_shuffle',
+  repeatMode = 'off',
+  onToggleShuffle,
+  onToggleRepeat,
+  onOpenSmartShuffleModal,
   onTogglePlay,
   onPlayNext,
   onPlayPrev,
@@ -86,6 +105,7 @@ export function AudioPlayer({
   const [searchQuery, setSearchQuery] = useState('');
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<'queue' | 'equalizer'>('queue');
+  const [displayMode, setDisplayMode] = useState<'artwork' | 'visualizer'>('artwork');
   const [currentEqPreset, setCurrentEqPreset] = useState<EqualizerPresetKey>(webAudioEqualizer.getCurrentPreset());
 
   // Sync EQ preset state
@@ -227,41 +247,106 @@ export function AudioPlayer({
           </div>
         )}
 
-        {/* Big Artwork */}
-        <div className="w-full aspect-square rounded-3xl overflow-hidden bg-zinc-800 mb-6 relative shadow-2xl group border border-zinc-800/80">
-          {activeTrack?.coverUrl ? (
-            <img 
-              src={activeTrack.coverUrl} 
-              alt={activeTrack.title} 
-              className={`w-full h-full object-cover transition-transform duration-1000 ease-out ${
-                isPlaying ? 'scale-105' : 'scale-100'
+        {/* View Mode Switcher (Artwork vs Real-Time Dynamic Visualizer) */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center bg-zinc-950 p-1 rounded-2xl border border-zinc-800 shadow-inner">
+            <button
+              type="button"
+              id="switch-player-view-artwork"
+              onClick={() => setDisplayMode('artwork')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                displayMode === 'artwork'
+                  ? 'bg-zinc-800 text-white border border-zinc-700 shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-zinc-700">
-              <Music2 size={64} />
-            </div>
-          )}
+            >
+              <ImageIcon size={13} className={displayMode === 'artwork' ? 'text-amber-400' : ''} />
+              <span>Bìa Album</span>
+            </button>
+            <button
+              type="button"
+              id="switch-player-view-visualizer"
+              onClick={() => setDisplayMode('visualizer')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                displayMode === 'visualizer'
+                  ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Activity size={13} className="text-amber-400 animate-pulse" />
+              <span>Sóng D3 Real-Time</span>
+              <span className="text-[9px] bg-amber-500/30 text-amber-300 px-1.5 py-0.2 rounded font-extrabold">
+                LIVE
+              </span>
+            </button>
+          </div>
 
-          {/* Sound wave visualizer animation on artwork */}
-          {isPlaying && (
-            <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-md rounded-2xl p-3 flex items-center justify-between border border-white/10">
-              <div className="flex items-center gap-2">
-                <Disc3 size={18} className={isVip ? 'text-amber-400 animate-spin' : 'text-zinc-300 animate-spin'} />
-                <span className="text-xs font-semibold text-zinc-200">
-                  {isVip && vipSettings.hifiMode ? 'Đang phát âm thanh Studio Hi-Fi' : 'Đang phát âm thanh bản thường'}
-                </span>
-              </div>
-              <div className="flex items-end gap-1 h-4">
-                <span className={`w-1 animate-[bounce_0.6s_infinite] h-full rounded-full ${isVip ? 'bg-amber-400' : 'bg-zinc-300'}`} />
-                <span className={`w-1 animate-[bounce_0.9s_infinite] h-3/4 rounded-full ${isVip ? 'bg-amber-400' : 'bg-zinc-400'}`} />
-                <span className={`w-1 animate-[bounce_0.4s_infinite] h-4/5 rounded-full ${isVip ? 'bg-amber-300' : 'bg-zinc-200'}`} />
-                <span className={`w-1 animate-[bounce_0.8s_infinite] h-2/3 rounded-full ${isVip ? 'bg-amber-400' : 'bg-zinc-400'}`} />
-                <span className={`w-1 animate-[bounce_0.5s_infinite] h-full rounded-full ${isVip ? 'bg-amber-300' : 'bg-zinc-300'}`} />
-              </div>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5">
+            {displayMode === 'visualizer' && (
+              <span className="text-[11px] font-mono text-zinc-400 bg-zinc-950/60 px-2 py-0.5 rounded-lg border border-zinc-800/80">
+                60 FPS • D3 & Canvas
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Dynamic Visualizer Stage or Artwork */}
+        {displayMode === 'visualizer' ? (
+          <div className="w-full aspect-square rounded-3xl overflow-hidden mb-6 relative shadow-2xl border border-zinc-800/80">
+            <AudioDynamicVisualizer
+              isPlaying={isPlaying}
+              isVip={isVip}
+              trackTitle={activeTrack?.title}
+              artist={activeTrack?.artist}
+              coverUrl={activeTrack?.coverUrl}
+              className="w-full h-full"
+            />
+          </div>
+        ) : (
+          <div className="w-full aspect-square rounded-3xl overflow-hidden bg-zinc-800 mb-6 relative shadow-2xl group border border-zinc-800/80">
+            {activeTrack?.coverUrl ? (
+              <img 
+                src={activeTrack.coverUrl} 
+                alt={activeTrack.title} 
+                className={`w-full h-full object-cover transition-transform duration-1000 ease-out ${
+                  isPlaying ? 'scale-105' : 'scale-100'
+                }`}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-zinc-700">
+                <Music2 size={64} />
+              </div>
+            )}
+
+            {/* Sound wave visualizer overlay on artwork */}
+            {isPlaying && (
+              <div 
+                onClick={() => setDisplayMode('visualizer')}
+                className="absolute bottom-4 left-4 right-4 bg-black/70 backdrop-blur-md rounded-2xl p-3 flex items-center justify-between border border-white/10 cursor-pointer hover:border-amber-500/50 transition-all group/wave"
+                title="Bấm để mở chế độ Sóng D3 Real-Time toàn màn hình đĩa"
+              >
+                <div className="flex items-center gap-2">
+                  <Disc3 size={18} className={isVip ? 'text-amber-400 animate-spin' : 'text-zinc-300 animate-spin'} />
+                  <span className="text-xs font-semibold text-zinc-200 group-hover/wave:text-amber-300 transition-colors">
+                    {isVip && vipSettings.hifiMode ? 'Đang phát âm thanh Studio Hi-Fi' : 'Đang phát âm thanh bản thường'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-end gap-1 h-4">
+                    <span className={`w-1 animate-[bounce_0.6s_infinite] h-full rounded-full ${isVip ? 'bg-amber-400' : 'bg-zinc-300'}`} />
+                    <span className={`w-1 animate-[bounce_0.9s_infinite] h-3/4 rounded-full ${isVip ? 'bg-amber-400' : 'bg-zinc-400'}`} />
+                    <span className={`w-1 animate-[bounce_0.4s_infinite] h-4/5 rounded-full ${isVip ? 'bg-amber-300' : 'bg-zinc-200'}`} />
+                    <span className={`w-1 animate-[bounce_0.8s_infinite] h-2/3 rounded-full ${isVip ? 'bg-amber-400' : 'bg-zinc-400'}`} />
+                    <span className={`w-1 animate-[bounce_0.5s_infinite] h-full rounded-full ${isVip ? 'bg-amber-300' : 'bg-zinc-300'}`} />
+                  </div>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded border border-amber-500/30 group-hover/wave:bg-amber-500 group-hover/wave:text-black transition-colors">
+                    Mở D3 Wave
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Title & Artist & Series */}
         <div className="flex items-start justify-between mb-6 px-1 gap-3">
@@ -396,8 +481,36 @@ export function AudioPlayer({
           </div>
         </div>
 
-        {/* Playback Controls */}
-        <div className="flex items-center justify-center gap-8 mb-6">
+        {/* Playback Controls with Smart Shuffle and Repeat */}
+        <div className="flex items-center justify-center gap-4 sm:gap-7 mb-4">
+          {/* Shuffle Mode Toggle Button */}
+          {onToggleShuffle && (
+            <button 
+              id="player-shuffle-mode-btn"
+              onClick={onToggleShuffle}
+              className={`p-3 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
+                shuffleMode === 'smart_shuffle'
+                  ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 text-purple-300 border border-purple-500/50 shadow-md shadow-purple-950/50'
+                  : shuffleMode === 'shuffle'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+              }`}
+              title={
+                shuffleMode === 'smart_shuffle'
+                  ? '✨ Smart Shuffle AI (Ưu tiên theo gu) - Bấm để đổi'
+                  : shuffleMode === 'shuffle'
+                  ? '🔀 Ngẫu nhiên - Bấm để đổi'
+                  : 'Phát tuần tự - Bấm để bật xáo trộn'
+              }
+            >
+              {shuffleMode === 'smart_shuffle' ? (
+                <Sparkles size={20} className="text-purple-300 animate-pulse" />
+              ) : (
+                <Shuffle size={20} className={shuffleMode === 'shuffle' ? 'text-amber-400' : ''} />
+              )}
+            </button>
+          )}
+
           <button 
             id="prev-track-btn"
             onClick={onPlayPrev}
@@ -432,7 +545,53 @@ export function AudioPlayer({
           >
             <SkipForward size={26} fill="currentColor" />
           </button>
+
+          {/* Repeat Mode Toggle Button */}
+          {onToggleRepeat && (
+            <button 
+              id="player-repeat-mode-btn"
+              onClick={onToggleRepeat}
+              className={`p-3 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
+                repeatMode === 'one'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm'
+                  : repeatMode === 'all'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+              }`}
+              title={
+                repeatMode === 'one'
+                  ? '🔂 Đang lặp 1 bài - Bấm để đổi'
+                  : repeatMode === 'all'
+                  ? '🔁 Đang lặp toàn bộ danh sách - Bấm để đổi'
+                  : 'Tắt lặp lại - Bấm để bật lặp'
+              }
+            >
+              {repeatMode === 'one' ? (
+                <Repeat1 size={20} className="text-amber-400" />
+              ) : (
+                <Repeat size={20} className={repeatMode === 'all' ? 'text-emerald-400' : ''} />
+              )}
+            </button>
+          )}
         </div>
+
+        {/* Smart Shuffle Indicator & Insights Trigger */}
+        {shuffleMode === 'smart_shuffle' && onOpenSmartShuffleModal && (
+          <div className="mb-4 flex items-center justify-center">
+            <button
+              id="open-smart-shuffle-insights-btn"
+              type="button"
+              onClick={onOpenSmartShuffleModal}
+              className="px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-purple-950/80 via-indigo-950/80 to-zinc-900 border border-purple-500/40 hover:border-purple-400/80 text-xs text-purple-200 transition-all flex items-center gap-2 group shadow-sm hover:scale-[1.02] cursor-pointer"
+            >
+              <Sparkles size={13} className="text-purple-400 group-hover:rotate-12 transition-transform" />
+              <span className="font-semibold">Smart Shuffle AI đang thấu cảm gu</span>
+              <span className="text-[10px] text-purple-300 font-bold underline decoration-purple-400/50">
+                Xem gợi ý & xếp hạng thể loại
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Bottom Bar inside Player */}
         <div className="mt-auto pt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800/80 px-1">

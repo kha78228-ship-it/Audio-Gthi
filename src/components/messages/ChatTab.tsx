@@ -12,13 +12,16 @@ import {
   ArrowLeft,
   X,
   Clock,
-  UserPlus
+  UserPlus,
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Conversation, ThoughtBubble, ConversationParticipant, Friendship, Track } from '../../types';
 import { 
   getOrCreateConversation 
 } from '../../services/socialService';
+import { isEncryptedMessage, isSessionUnlocked } from '../../services/e2eeService';
 import { useBatchUserPresence } from '../../services/presenceService';
 import { 
   collection, 
@@ -38,6 +41,7 @@ interface ChatTabProps {
   initialRecipientUid?: string | null;
   onClearInitialRecipient?: () => void;
   onPlayTrack?: (track: Track) => void;
+  onNavigateToMode?: (mode: string, subTab?: string) => void;
 }
 
 export function ChatTab({
@@ -45,7 +49,8 @@ export function ChatTab({
   onGoToFriendsTab,
   initialRecipientUid,
   onClearInitialRecipient,
-  onPlayTrack
+  onPlayTrack,
+  onNavigateToMode
 }: ChatTabProps) {
   const { user, accountId, isVip, isAuthorVerified, authorStageName } = useAuth();
 
@@ -271,6 +276,7 @@ export function ChatTab({
         onBack={() => setSelectedConversation(null)}
         onPlayTrack={onPlayTrack}
         onOpenAuth={onOpenAuth}
+        onNavigateToMode={onNavigateToMode}
       />
     );
   }
@@ -380,10 +386,10 @@ export function ChatTab({
                         </div>
                       )}
                     </div>
-                    {/* Presence Dot (10s threshold) */}
+                    {/* Presence Dot */}
                     {isOnline ? (
-                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center" title="Đang trực tuyến">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
                       </span>
                     ) : (
                       <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-950" title="Ngoại tuyến" />
@@ -476,10 +482,10 @@ export function ChatTab({
                     {info.isVip && (
                       <Crown size={13} className="absolute -top-1 -right-1 text-amber-400 fill-amber-400 drop-shadow" />
                     )}
-                    {/* Presence Dot (10s threshold) */}
+                    {/* Presence Dot */}
                     {isPartnerOnline ? (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center" title="Đang trực tuyến">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
                       </span>
                     ) : (
                       <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-900" title={partnerStatus.statusText} />
@@ -501,9 +507,15 @@ export function ChatTab({
                         {info.isAuthorVerified && (
                           <CheckCircle2 size={13} className="text-sky-400 shrink-0" />
                         )}
+                        {conv.isE2EEEnabled && (
+                          <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.2 rounded-full border border-emerald-500/40 shrink-0 flex items-center gap-0.5" title="Mã hóa đầu cuối 6 lớp">
+                            <ShieldCheck size={10} />
+                            <span>6 Lớp</span>
+                          </span>
+                        )}
                         {isPartnerOnline && (
                           <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-bold px-1.5 py-0.5 rounded-md border border-emerald-500/30 shrink-0 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                             Online
                           </span>
                         )}
@@ -512,10 +524,17 @@ export function ChatTab({
                         {formatTileTime(conv.lastMessageAt)}
                       </span>
                     </div>
-                    <p className={`text-xs truncate mt-1 ${
+                    <p className={`text-xs truncate mt-1 flex items-center gap-1 ${
                       unread > 0 ? 'text-white font-bold' : 'text-zinc-400'
                     }`}>
-                      {conv.lastMessageText || 'Bấm để mở cuộc trò chuyện toàn màn hình...'}
+                      {isEncryptedMessage(conv.lastMessageText) || conv.isE2EEEnabled ? (
+                        <>
+                          <Lock size={11} className="text-amber-400 shrink-0" />
+                          <span className="text-amber-300/90 font-mono text-[11px]">[Tin nhắn mã hóa 6 lớp]</span>
+                        </>
+                      ) : (
+                        conv.lastMessageText || 'Bấm để mở cuộc trò chuyện toàn màn hình...'
+                      )}
                     </p>
                   </div>
 

@@ -3,6 +3,7 @@
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
@@ -14,6 +15,120 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #52525b;
   }
+
+  /* No Scrollbar Utility */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Text Wrap & Safe Break Rules to Prevent Mobile Clipping */
+  .break-word-safe {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  /* GPU Hardware Acceleration & Frame Rate Boosters */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform, opacity;
+  }
+
+  .smooth-transition {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .fast-tap {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* Content visibility for large lists */
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 400px;
+  }
+
+  /* Skeleton Shimmer Wave Animations */
+  @keyframes skeletonShimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(24, 24, 27, 0.8) 0%,
+      rgba(39, 39, 42, 0.95) 25%,
+      rgba(63, 63, 70, 0.6) 50%,
+      rgba(39, 39, 42, 0.95) 75%,
+      rgba(24, 24, 27, 0.8) 100%
+    );
+    background-size: 250% 100%;
+    animation: skeletonShimmer 1.8s infinite ease-in-out;
+  }
+
+  .skeleton-pulse {
+    animation: pulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* Global Smooth & Responsive Interactions */
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, a, button {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+button, a, input[type="button"], input[type="submit"] {
+  touch-action: manipulation;
+}
+
+@keyframes screenHapticShake {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  20% { transform: translate(-3px, 2px) scale(1.002); }
+  40% { transform: translate(3px, -2px) scale(0.999); }
+  60% { transform: translate(-2px, -1px) scale(1.001); }
+  80% { transform: translate(2px, 1px) scale(1); }
+}
+
+@keyframes gestureBorderFlash {
+  0% {
+    box-shadow: inset 0 0 0 3px rgba(245, 158, 11, 0.9), 0 0 45px rgba(245, 158, 11, 0.8), inset 0 0 60px rgba(245, 158, 11, 0.4);
+    border-color: rgba(245, 158, 11, 1);
+  }
+  50% {
+    box-shadow: inset 0 0 0 5px rgba(6, 182, 212, 0.85), 0 0 60px rgba(6, 182, 212, 0.75), inset 0 0 80px rgba(6, 182, 212, 0.35);
+    border-color: rgba(6, 182, 212, 1);
+  }
+  100% {
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.3), 0 0 15px rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+}
+
+.animate-screen-shake {
+  animation: screenHapticShake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.animate-gesture-flash {
+  animation: gestureBorderFlash 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes marquee {
@@ -30,7 +145,7 @@
     background-position: 0 0;
   }
   100% {
-    background-position: 120px 0;
+    background-position: 140px 0;
   }
 }
 
@@ -39,73 +154,125 @@
     background-position: 0 0;
   }
   100% {
-    background-position: -120px 0;
+    background-position: -140px 0;
+  }
+}
+
+@keyframes chainDiagEnter1 {
+  0% {
+    transform: translate(-100%, -60%) rotate(-28deg);
+    opacity: 0;
+  }
+  65% {
+    transform: translate(3%, 2%) rotate(-28deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0%, 0%) rotate(-28deg);
+    opacity: 1;
+  }
+}
+
+@keyframes chainDiagEnter2 {
+  0% {
+    transform: translate(100%, 60%) rotate(28deg);
+    opacity: 0;
+  }
+  65% {
+    transform: translate(-3%, -2%) rotate(28deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0%, 0%) rotate(28deg);
+    opacity: 1;
+  }
+}
+
+@keyframes chainDiagRetract1 {
+  0% {
+    transform: translate(0%, 0%) rotate(-28deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-140%, -80%) rotate(-28deg);
+    opacity: 0;
+  }
+}
+
+@keyframes chainDiagRetract2 {
+  0% {
+    transform: translate(0%, 0%) rotate(28deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(140%, 80%) rotate(28deg);
+    opacity: 0;
   }
 }
 
 @keyframes chainEnterLeft {
   0% {
-    transform: translateX(-100%) rotate(-12deg);
+    transform: translateX(-100%) rotate(-8deg);
     opacity: 0;
   }
-  70% {
-    transform: translateX(5%) rotate(-12deg);
+  65% {
+    transform: translateX(4%) rotate(-8deg);
     opacity: 1;
   }
   100% {
-    transform: translateX(0) rotate(-12deg);
+    transform: translateX(0) rotate(-8deg);
     opacity: 1;
   }
 }
 
 @keyframes chainEnterRight {
   0% {
-    transform: translateX(100%) rotate(12deg);
+    transform: translateX(100%) rotate(8deg);
     opacity: 0;
   }
-  70% {
-    transform: translateX(-5%) rotate(12deg);
+  65% {
+    transform: translateX(-4%) rotate(8deg);
     opacity: 1;
   }
   100% {
-    transform: translateX(0) rotate(12deg);
+    transform: translateX(0) rotate(8deg);
     opacity: 1;
   }
 }
 
 @keyframes chainRetractLeft {
   0% {
-    transform: translateX(0) rotate(-12deg);
+    transform: translateX(0) rotate(-8deg);
     opacity: 1;
   }
   100% {
-    transform: translateX(-120%) rotate(-12deg);
+    transform: translateX(-140%) rotate(-8deg);
     opacity: 0;
   }
 }
 
 @keyframes chainRetractRight {
   0% {
-    transform: translateX(0) rotate(12deg);
+    transform: translateX(0) rotate(8deg);
     opacity: 1;
   }
   100% {
-    transform: translateX(120%) rotate(12deg);
+    transform: translateX(140%) rotate(8deg);
     opacity: 0;
   }
 }
 
 @keyframes padlockSnapIn {
   0% {
-    transform: scale(0.3) translateY(-100px);
+    transform: scale(0.2) translateY(-140px);
     opacity: 0;
   }
-  60% {
-    transform: scale(1.15) translateY(10px);
+  55% {
+    transform: scale(1.2) translateY(16px);
     opacity: 1;
   }
-  80% {
-    transform: scale(0.95) translateY(-4px);
+  75% {
+    transform: scale(0.92) translateY(-6px);
   }
   100% {
     transform: scale(1) translateY(0);
@@ -115,10 +282,16 @@
 
 @keyframes lockShackleSnap {
   0% {
-    transform: translateY(-16px);
+    transform: translateY(-24px);
+    opacity: 0.7;
+  }
+  60% {
+    transform: translateY(4px);
+    opacity: 1;
   }
   100% {
     transform: translateY(0);
+    opacity: 1;
   }
 }
 
@@ -127,65 +300,92 @@
     transform: translateY(0px) scale(1);
   }
   50% {
-    transform: translateY(-8px) scale(1.03);
+    transform: translateY(-9px) scale(1.03);
   }
 }
 
 @keyframes lockAuraPulse {
   0%, 100% {
-    box-shadow: 0 0 35px rgba(245, 158, 11, 0.4), 0 0 70px rgba(239, 68, 68, 0.25);
-    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 0 45px rgba(245, 158, 11, 0.45), 0 0 85px rgba(239, 68, 68, 0.3);
+    border-color: rgba(245, 158, 11, 0.7);
   }
   50% {
-    box-shadow: 0 0 60px rgba(245, 158, 11, 0.8), 0 0 110px rgba(239, 68, 68, 0.5);
-    border-color: rgba(251, 191, 36, 0.9);
+    box-shadow: 0 0 75px rgba(245, 158, 11, 0.85), 0 0 130px rgba(239, 68, 68, 0.6);
+    border-color: rgba(251, 191, 36, 1);
   }
 }
 
 @keyframes laserScan {
   0% {
-    transform: translateY(-100%);
-    opacity: 0.3;
+    transform: translateY(-120%);
+    opacity: 0.2;
   }
   50% {
-    opacity: 0.8;
+    opacity: 1;
   }
   100% {
-    transform: translateY(100%);
-    opacity: 0.3;
+    transform: translateY(120%);
+    opacity: 0.2;
   }
+}
+
+@keyframes sparkFlash {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25) rotate(180deg);
+  }
+}
+
+.animate-chain-diag-enter-1 {
+  animation: chainDiagEnter1 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-chain-diag-enter-2 {
+  animation: chainDiagEnter2 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-chain-diag-retract-1 {
+  animation: chainDiagRetract1 0.65s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+.animate-chain-diag-retract-2 {
+  animation: chainDiagRetract2 0.65s cubic-bezier(0.7, 0, 0.84, 0) forwards;
 }
 
 .animate-chain-enter-left {
-  animation: chainEnterLeft 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: chainEnterLeft 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-chain-enter-right {
-  animation: chainEnterRight 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: chainEnterRight 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-chain-retract-left {
-  animation: chainRetractLeft 0.6s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+  animation: chainRetractLeft 0.65s cubic-bezier(0.7, 0, 0.84, 0) forwards;
 }
 
 .animate-chain-retract-right {
-  animation: chainRetractRight 0.6s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+  animation: chainRetractRight 0.65s cubic-bezier(0.7, 0, 0.84, 0) forwards;
 }
 
 .animate-padlock-snap {
-  animation: padlockSnapIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: padlockSnapIn 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .animate-shackle-snap {
-  animation: lockShackleSnap 0.3s ease-in forwards;
+  animation: lockShackleSnap 0.4s cubic-bezier(0.2, 1.2, 0.4, 1) forwards;
 }
 
 .animate-chain-slide-1 {
-  animation: chainSlideRight 3s linear infinite;
+  animation: chainSlideRight 2.8s linear infinite;
 }
 
 .animate-chain-slide-2 {
-  animation: chainSlideLeft 3s linear infinite;
+  animation: chainSlideLeft 2.8s linear infinite;
 }
 
 .animate-lock-float {
@@ -197,7 +397,11 @@
 }
 
 .animate-laser-scan {
-  animation: laserScan 2.5s ease-in-out infinite;
+  animation: laserScan 2.2s ease-in-out infinite;
+}
+
+.animate-spark-flash {
+  animation: sparkFlash 1.8s ease-in-out infinite;
 }
 
 .animate-marquee-slow {
@@ -224,7 +428,7 @@
   animation-play-state: paused;
 }
 
-/* PWA Standalone Fullscreen Safe Area Insets */
+/* Responsive Safe Area & Viewport Configuration for iOS & Android */
 :root {
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
@@ -232,20 +436,60 @@
   --sar: env(safe-area-inset-right, 0px);
 }
 
+html {
+  height: 100%;
+  height: 100dvh;
+  -webkit-text-size-adjust: 100%;
+  background-color: #09090b;
+  color-scheme: dark;
+  overflow-x: hidden;
+}
+
 body {
-  padding-top: var(--sat);
-  padding-bottom: var(--sab);
-  padding-left: var(--sal);
-  padding-right: var(--sar);
+  min-height: 100%;
+  min-height: 100dvh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
   touch-action: pan-x pan-y;
   background-color: #09090b;
+}
+
+#root {
+  min-height: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 input, textarea {
   -webkit-user-select: auto;
   user-select: auto;
+}
+
+/* Touch momentum and overscroll protection for iOS Safari & Android Chrome */
+.touch-momentum {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* iPhone 8 / SE (Height <= 700px) compact viewport optimizations */
+@media (max-height: 700px) {
+  .compact-screen-header {
+    height: 3.5rem !important;
+  }
+}
+
+/* Tall Android & Foldable screens (Aspect ratio > 2:1 or tall screens) */
+@media (min-aspect-ratio: 9/21) and (min-height: 800px) {
+  .tall-screen-stretch {
+    flex-grow: 1;
+    min-height: 0;
+  }
 }
 

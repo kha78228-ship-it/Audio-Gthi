@@ -237,7 +237,7 @@ export function HaevyGamesView({
     }
 
     try {
-      await addAudioPoints(quest.rewardPoints, `Thưởng nhiệm vụ: ${quest.title}`, 'daily_checkin');
+      await addAudioPoints(quest.rewardPoints, `Thưởng nhiệm vụ: ${quest.title}`, 'bonus');
       const updated = [...claimedQuestIds, quest.id];
       setClaimedQuestIds(updated);
       try {

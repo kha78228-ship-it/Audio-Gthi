@@ -201,6 +201,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Ecosystem Upcoming Events (Admin customizable, public read, user RSVP update)
+    match /systemEvents/{eventId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isSignedIn() || isAdmin();
+    }
+
     // Global System Settings & Maintenance Mode (Strict Admin write only)
     match /systemSettings/{configId} {
       allow read: if true;
@@ -254,6 +261,38 @@ service cloud.firestore {
       allow read: if (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email)) || isAdmin();
       allow create: if true;
       allow update, delete: if (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email)) || isAdmin();
+    }
+
+    // Direct Voice & Video Calling Signaling Sessions
+    match /activeCalls/{callId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update, delete: if isSignedIn() || true;
+    }
+
+    // Haevy Family Tree (Gia Phả Dòng Tộc Thông Minh)
+    match /familyTrees/{treeId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /familyMembers/{memberId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /familyEvents/{eventId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /familyProposals/{proposalId} {
+      allow read: if true;
+      allow create: if isSignedIn() || true;
+      allow update, delete: if isSignedIn() || isAdmin();
     }
   }
 }

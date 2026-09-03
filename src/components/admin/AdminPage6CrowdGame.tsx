@@ -114,7 +114,7 @@ export function AdminPage6CrowdGame({
   const { user, isAdmin, isSuperAdmin, accountId, logSystemActivity } = useAuth();
 
   // Master Game Mode Switcher
-  const [gameModule, setGameModule] = useState<'crowd2x' | 'audio_quiz'>('crowd2x');
+  const [gameModule, setGameModule] = useState<'crowd2x' | 'melody_quiz'>('crowd2x');
 
   // Active Sub-view inside Page 6 (Crowd 2X)
   const [activeTab, setActiveTab] = useState<'rounds' | 'create' | 'bets'>('rounds');

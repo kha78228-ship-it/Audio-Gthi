@@ -25,6 +25,10 @@
             "autoDownloadOffline": { "type": "boolean" }
           }
         },
+        "shortcuts_config": {
+          "type": "object",
+          "description": "User personal customized keyboard shortcut mappings synchronized across devices"
+        },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -237,6 +241,29 @@
       },
       "required": ["title", "content", "type", "isActive", "createdBy", "createdAt"]
     },
+    "systemEvents": {
+      "title": "Ecosystem & Upcoming Events",
+      "description": "Admin customizable upcoming events, promotions, and tournaments",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "description": { "type": "string" },
+        "badge": { "type": "string" },
+        "category": { "type": "string" },
+        "theme": { "type": "string" },
+        "startAt": { "type": "string" },
+        "endAt": { "type": "string" },
+        "countdownEnabled": { "type": "boolean" },
+        "status": { "type": "string" },
+        "ctaText": { "type": "string" },
+        "ctaAction": { "type": "string" },
+        "isPinned": { "type": "boolean" },
+        "priorityOrder": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "category", "status", "createdAt"]
+    },
     "systemSettings": {
       "title": "System Setting Config",
       "description": "Platform global configuration variables and toggles",
@@ -412,6 +439,27 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "title", "category", "status", "createdAt"]
+    },
+    "activeCalls": {
+      "title": "Direct Voice & Video Call Session",
+      "description": "Real-time 1-on-1 call session between users",
+      "type": "object",
+      "properties": {
+        "caller": { "type": "object" },
+        "recipient": { "type": "object" },
+        "type": { "type": "string", "enum": ["voice", "video"] },
+        "status": { "type": "string", "enum": ["ringing", "connected", "rejected", "ended", "missed"] },
+        "conversationId": { "type": "string" },
+        "callerAudioEnabled": { "type": "boolean" },
+        "callerVideoEnabled": { "type": "boolean" },
+        "recipientAudioEnabled": { "type": "boolean" },
+        "recipientVideoEnabled": { "type": "boolean" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "connectedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "durationSec": { "type": "number" }
+      },
+      "required": ["caller", "recipient", "type", "status", "startedAt"]
     }
   },
   "firestore": {
@@ -507,6 +555,10 @@
       "entity": "systemAnnouncements",
       "description": "Global announcements and broadcast alerts"
     },
+    "/systemEvents/{eventId}": {
+      "entity": "systemEvents",
+      "description": "Customizable upcoming events, tournaments and promotional campaigns"
+    },
     "/systemSettings/{configId}": {
       "entity": "systemSettings",
       "description": "System wide runtime settings and maintenance mode configuration"
@@ -538,6 +590,10 @@
     "/supportTickets/{ticketId}": {
       "entity": "supportTickets",
       "description": "Customer service tickets and support requests"
+    },
+    "/activeCalls/{callId}": {
+      "entity": "activeCalls",
+      "description": "Active real-time direct voice and video call sessions"
     }
   }
 }

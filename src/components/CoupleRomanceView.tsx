@@ -126,6 +126,7 @@ interface CoupleRomanceViewProps {
   onOpenGiftShop?: (author?: { uid: string; stageName: string; trackTitle?: string; trackId?: string }) => void;
   activePage?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
   onSelectPage?: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
+  onNavigateToMode?: (mode: string, subTab?: string) => void;
 }
 
 export function CoupleRomanceView({
@@ -137,7 +138,8 @@ export function CoupleRomanceView({
   onOpenAuth,
   onOpenGiftShop,
   activePage,
-  onSelectPage
+  onSelectPage,
+  onNavigateToMode
 }: CoupleRomanceViewProps) {
   const effectiveTracks = allTracks || tracks || [];
   const { user, accountId } = useAuth();
@@ -1381,6 +1383,42 @@ export function CoupleRomanceView({
             userUid={user?.uid}
             onSendLovePing={handleSendLovePing}
           />
+
+          {/* 1.4 Haevy Spiritual & I Love Haevy Ecosystem Sync Banner */}
+          {onNavigateToMode && (
+            <div className="w-full rounded-2xl sm:rounded-3xl bg-gradient-to-r from-purple-950/80 via-pink-950/70 to-zinc-950 border border-purple-500/40 p-4 sm:p-6 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0 shadow-lg">
+                  <Sparkles className="w-6 h-6 animate-pulse text-pink-300" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-300">
+                      Haevy Ecosystem Sync
+                    </span>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-pink-900/60 text-pink-200 border border-pink-400/30 font-bold">
+                      Tâm Linh & Tình Yêu
+                    </span>
+                  </div>
+                  <h4 className="text-sm sm:text-base font-extrabold text-white mt-0.5">
+                    Soi Duyên Tình Cảm & Chiêm Tinh Hai Người
+                  </h4>
+                  <p className="text-xs text-zinc-300 mt-0.5">
+                    Trải bài Tarot 3 lá tình yêu, xem độ hòa hợp cung hoàng đạo và nhận thông điệp vũ trụ dành riêng cho hai bạn.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onNavigateToMode('spiritual', 'couple_spiritual')}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 active:scale-95 transition-all cursor-pointer whitespace-nowrap shrink-0"
+              >
+                <Heart className="w-4 h-4 fill-white" />
+                <span>Mở Soi Duyên Cặp Đôi</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

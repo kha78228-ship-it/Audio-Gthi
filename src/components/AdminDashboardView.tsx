@@ -40,12 +40,13 @@ import { AdminPage3Authors } from './admin/AdminPage3Authors';
 import { AdminPage4SupportAdmin } from './admin/AdminPage4SupportAdmin';
 import { AdminPage5HomepageEditor } from './admin/AdminPage5HomepageEditor';
 import { AdminPage6CrowdGame } from './admin/AdminPage6CrowdGame';
+import { AdminPage7Events } from './admin/AdminPage7Events';
 
 interface AdminDashboardViewProps {
   onBackToHome?: () => void;
   onOpenAuth?: () => void;
-  adminSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6';
-  onSelectAdminSubTab?: (tab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => void;
+  adminSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7';
+  onSelectAdminSubTab?: (tab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7') => void;
   allTracks?: Track[];
   onPlayTrack?: (track: Track) => void;
   currentTrack?: Track | null;
@@ -72,10 +73,10 @@ export function AdminDashboardView({
   } = useAuth();
 
   // Sub Tab state (controlled or uncontrolled fallback)
-  const [internalSubTab, setInternalSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6'>('page1');
+  const [internalSubTab, setInternalSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7'>('page1');
   const activePage = controlledAdminSubTab || internalSubTab;
 
-  const handlePageChange = (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => {
+  const handlePageChange = (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7') => {
     if (onSelectAdminSubTab) {
       onSelectAdminSubTab(page);
     }
@@ -380,6 +381,13 @@ export function AdminDashboardView({
           usersList={usersList}
           showToast={showToast}
         />
+      )}
+
+      {/* ========================================================================= */}
+      {/* PAGE 7: TÙY CHỈNH GIAO DIỆN CÁC SỰ KIỆN SẮP HIỆN & LIVE SHOWS */}
+      {/* ========================================================================= */}
+      {activePage === 'page7' && (
+        <AdminPage7Events />
       )}
     </div>
   );

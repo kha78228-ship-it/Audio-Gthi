@@ -28,6 +28,7 @@ import {
   Mic,
   Disc3,
   Users,
+  Moon,
   Compass,
   FileAudio,
   Award,
@@ -36,11 +37,16 @@ import {
   Maximize,
   Minimize,
   Smartphone,
-  Download
+  Download,
+  Sun,
+  Camera,
+  BrainCircuit,
+  GitFork
 } from 'lucide-react';
 import { ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { AdminChainLockOverlay } from './admin/AdminChainLockOverlay';
+import { HaevySpaceLogo } from './HaevySpaceLogo';
 
 interface HaevyEcosystemDrawerProps {
   isOpen: boolean;
@@ -120,6 +126,51 @@ export function HaevyEcosystemDrawer({
     }[];
     highlights: string[];
   }[] = [
+    {
+      id: 'portal',
+      name: 'Hệ Sinh Thái Haevy',
+      englishName: 'Universal Ecosystem Hub',
+      subtitle: 'Cổng Khám Phá Toàn Diện 9 Phân Hệ & Sự Kiện',
+      description: 'Trang chủ trung tâm giới thiệu trọn bộ hệ sinh thái Haevy: Đại lễ ưu đãi nhận xu thưởng, bảng vẽ 3D AR, trợ lý học sâu AI và kho audio.',
+      icon: Sparkles,
+      badge: 'Cổng Trung Tâm HUB',
+      badgeColor: 'bg-red-500/20 text-amber-300 border-red-500/40',
+      themeGradient: 'from-red-600/25 via-rose-950/40 to-zinc-950',
+      accentColor: 'text-amber-400',
+      borderColor: 'border-red-500/40 hover:border-amber-400',
+      activeBorderColor: 'border-amber-400 ring-2 ring-amber-400/40 shadow-amber-500/20',
+      iconBg: 'bg-gradient-to-br from-red-600 via-rose-600 to-amber-500 text-white',
+      defaultTab: 'portal',
+      subPages: [
+        { title: 'Trang Chủ Hệ Sinh Thái', desc: 'Banner đại lễ, nhận 500 xu tân thủ & countdown', icon: Sparkles, tabKey: 'portal' },
+        { title: '9 Phân Hệ Trải Nghiệm', desc: 'Khám phá trọn vẹn các vũ trụ sáng tạo Haevy', icon: Layers, tabKey: 'portal' },
+        { title: 'Vinh Danh & Thống Kê', desc: 'Thành viên tích cực & quà tặng tri ân', icon: Award, tabKey: 'portal' }
+      ],
+      highlights: ['Banner Đại Lễ', 'Tặng 500 Xu Tân Thủ', 'Đầy Đủ 9 Phân Hệ', 'Tối Ưu Mọi Màn Hình']
+    },
+    {
+      id: 'haevy_ai',
+      name: 'Haevy AI Master',
+      englishName: 'Omni Ecosystem Assistant & Soul Companion',
+      subtitle: 'Trợ Lý Trí Tuệ Toàn Năng, Tâm Sự Thấu Cảm & Hỗ Trợ 24/7',
+      description: 'Chế độ AI chuyên biệt hỗ trợ mọi tác vụ và điều phối toàn bộ các phân hệ: Lắng nghe tâm sự, gợi ý âm nhạc chữa lành, cập nhật thông tin sự kiện 3D và tháo gỡ vướng mắc kỹ thuật.',
+      icon: BrainCircuit,
+      badge: 'Chế Độ AI Toàn Năng 🧠',
+      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+      themeGradient: 'from-purple-600/25 via-indigo-950/40 to-zinc-950',
+      accentColor: 'text-purple-400',
+      borderColor: 'border-purple-500/30 hover:border-purple-400',
+      activeBorderColor: 'border-purple-400 ring-2 ring-purple-400/40 shadow-purple-500/20',
+      iconBg: 'bg-gradient-to-br from-purple-500 via-indigo-500 to-pink-500 text-white',
+      defaultTab: 'haevy_ai',
+      subPages: [
+        { title: 'Trợ Lý Hệ Sinh Thái', desc: 'Matrix điều phối và trợ giúp toàn diện 10 phân hệ', icon: BrainCircuit, tabKey: 'haevy_ai' },
+        { title: 'Tâm Sự & Thấu Cảm', desc: 'Trò chuyện tri kỷ, xoa dịu cảm xúc & gợi ý nhạc', icon: Heart, tabKey: 'haevy_ai' },
+        { title: 'Cập Nhật & Sự Kiện', desc: 'Nắm bắt 7 phong cách thưởng 3D & nhận Xu', icon: Sparkles, tabKey: 'haevy_ai' },
+        { title: 'Cứu Hộ & Vướng Mắc', desc: 'Khôi phục PIN 6 số, bảo vệ 6 lớp & nạp Xu', icon: ShieldCheck, tabKey: 'haevy_ai' }
+      ],
+      highlights: ['Trợ Lý Mọi Chế Độ', 'Tâm Sự Tri Kỷ Thấu Cảm', 'Cứu Hộ Bảo Vệ 6 Lớp', 'Điều Khiển Bằng Giọng Nói']
+    },
     {
       id: 'audio',
       name: 'Haevy Audio',
@@ -274,6 +325,74 @@ export function HaevyEcosystemDrawer({
         { title: 'Bảng Xếp Hạng', desc: 'Bảng vinh danh cao thủ, đua top điểm thưởng & danh hiệu', icon: Trophy, tabKey: 'games' }
       ],
       highlights: ['Đoán Giai Điệu', 'Đua Top BXH', 'Vòng Quay May Mắn', 'Săn Xu Thưởng']
+    },
+    {
+      id: 'morning',
+      name: 'Haevy Space',
+      englishName: 'Spatial 3D Drawing & Calligraphy Space',
+      subtitle: 'Bảng Vẽ Hình Học & Thư Pháp 3D Trong Không Gian',
+      description: 'Bảng vẽ tương tác 3D thực tế ảo không chạm 60 FPS: Vẽ hình học toán học, viết thư pháp trong không khí, nhận diện AI nét vẽ & xuất Hologram xoay 360°.',
+      icon: Camera,
+      badge: 'Bảng Vẽ 3D AR 🌌',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+      themeGradient: 'from-cyan-500/20 via-blue-950/40 to-zinc-950',
+      accentColor: 'text-cyan-400',
+      borderColor: 'border-cyan-500/30 hover:border-cyan-400',
+      activeBorderColor: 'border-cyan-400 ring-2 ring-cyan-400/40 shadow-cyan-500/20',
+      iconBg: 'bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600 text-white',
+      defaultTab: 'morning',
+      subPages: [
+        { title: 'Bảng Vẽ Thư Pháp 3D', desc: 'Vẽ nét cọ laser, bụi sao, plasma trong không khí', icon: Sparkles, tabKey: 'morning' },
+        { title: 'Hình Học Không Gian', desc: 'Tạo lập phương, tứ diện, hình cầu & khối đa diện AR', icon: Compass, tabKey: 'morning' },
+        { title: 'AI OCR & Hologram', desc: 'Nhận diện chữ viết tay 98% & xuất Hologram 360°', icon: Zap, tabKey: 'morning' }
+      ],
+      highlights: ['Viết Trong Không Khí', 'Hình Học 3D', 'AI OCR Nhận Diện', 'Xuất Hologram 360°']
+    },
+    {
+      id: 'spiritual',
+      name: 'Haevy Spiritual',
+      englishName: 'Tarot, Tu Vi & Astrology Sanctuary',
+      subtitle: 'Tâm Linh Vũ Trụ, Bói Bài Tarot 3D, Tử Vi 2026 & Chiêm Tinh',
+      description: 'Không gian tâm linh huyền học toàn năng: Bói 78 lá bài Tarot 3D đa dạng kiểu trải, lập lá số Tử Vi trọn đời và vận hạn năm 2026 (Bính Ngọ), bản đồ sao Chiêm tinh Natal Chart cùng sóng âm Solfeggio chữa lành 7 luân xa.',
+      icon: Moon,
+      badge: 'Tâm Linh Vũ Trụ 🔮',
+      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+      themeGradient: 'from-purple-600/25 via-indigo-950/40 to-zinc-950',
+      accentColor: 'text-purple-400',
+      borderColor: 'border-purple-500/30 hover:border-purple-400',
+      activeBorderColor: 'border-purple-400 ring-2 ring-purple-400/40 shadow-purple-500/20',
+      iconBg: 'bg-gradient-to-br from-purple-500 via-indigo-600 to-pink-600 text-white',
+      defaultTab: 'spiritual',
+      subPages: [
+        { title: 'Bói Bài Tarot 3D', desc: '78 lá bài Rider-Waite, xào bài 3D & AI đại sư luận giải', icon: Sparkles, tabKey: 'spiritual' },
+        { title: 'Lá Số Tử Vi Trọn Đời', desc: '12 cung bàn tử vi, sao chiếu mệnh & vận hạn 2026', icon: Compass, tabKey: 'spiritual' },
+        { title: 'Chiêm Tinh & Natal Chart', desc: 'Sun/Moon/Rising sign, độ hòa hợp 12 chòm sao', icon: Sun, tabKey: 'spiritual' },
+        { title: 'Sóng Âm Chữa Lành', desc: 'Solfeggio 528Hz, chuông xoay Tây Tạng & nhịp thở', icon: Radio, tabKey: 'spiritual' }
+      ],
+      highlights: ['Tarot 3D 78 Lá', 'Tử Vi 12 Cung & Hạn 2026', 'Chiêm Tinh Natal Chart', 'Chuông Xoay & Solfeggio']
+    },
+    {
+      id: 'family_tree',
+      name: 'Haevy Family Tree',
+      englishName: 'Pedigree Clan & Genealogy Interactive Tree',
+      subtitle: 'Phả Hệ Gia Tộc Thông Minh, Cây Phả Hệ Tương Tác & Lịch Giỗ Chạp',
+      description: 'Chế độ quản lý phả hệ dòng tộc số hóa: Sơ đồ cây tương tác phóng to thu nhỏ, quản lý hồ sơ thành viên kèm tư liệu sắc phong, thiết lập quan hệ cha-con, vợ-chồng, con nuôi, tra cứu danh bộ đa tiêu chí, lịch giỗ chạp tính Âm-Dương tự động nhắc nhở, phân quyền Trưởng tộc và hòm thư phê duyệt đề xuất cập nhật.',
+      icon: GitFork,
+      badge: 'Gia Phả Dòng Tộc 👑',
+      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+      themeGradient: 'from-amber-600/25 via-yellow-950/40 to-zinc-950',
+      accentColor: 'text-amber-400',
+      borderColor: 'border-amber-500/30 hover:border-amber-400',
+      activeBorderColor: 'border-amber-400 ring-2 ring-amber-400/40 shadow-amber-500/20',
+      iconBg: 'bg-gradient-to-br from-amber-500 via-yellow-600 to-amber-700 text-slate-950',
+      defaultTab: 'family_tree',
+      subPages: [
+        { title: 'Sơ Đồ Cây Tương Tác', desc: 'Phóng to thu nhỏ, cuộn và nhấp vào từng node thế hệ', icon: GitFork, tabKey: 'family_tree' },
+        { title: 'Hồ Sơ & Danh Bộ Thành Viên', desc: 'Lưu trữ tiểu sử, học vị, ảnh chân dung & tư liệu sắc phong', icon: Users, tabKey: 'family_tree' },
+        { title: 'Lịch Giỗ & Sự Kiện Gia Tộc', desc: 'Lịch Âm-Dương, đếm ngược ngày giỗ & gửi thông báo', icon: Calendar, tabKey: 'family_tree' },
+        { title: 'Phê Duyệt & Phân Quyền', desc: 'Trưởng họ toàn quyền, con cháu gửi đề xuất bổ sung', icon: ShieldCheck, tabKey: 'family_tree' }
+      ],
+      highlights: ['Sơ Đồ Cây Thu Phóng', 'Lịch Giỗ Âm-Dương Tự Động', 'Tư Liệu & Sắc Phong', 'Kiến Trúc Graph & Closure Table O(1)']
     }
   ];
 
@@ -542,9 +661,13 @@ export function HaevyEcosystemDrawer({
                   
                   {/* Icon & Badge Header */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${mode.iconBg}`}>
-                      <IconComp size={28} />
-                    </div>
+                    {mode.id === 'morning' ? (
+                      <HaevySpaceLogo variant="icon" size="lg" animated={true} />
+                    ) : (
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${mode.iconBg}`}>
+                        <IconComp size={28} />
+                      </div>
+                    )}
 
                     <div className="flex flex-col items-end gap-1.5">
                       <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${mode.badgeColor}`}>

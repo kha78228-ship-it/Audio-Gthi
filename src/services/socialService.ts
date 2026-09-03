@@ -12,7 +12,7 @@ import {
   where 
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Track } from '../types';
+import { Track, SpiritualShareAttachment } from '../types';
 
 /**
  * Generate a deterministic conversation ID for 2 users
@@ -68,6 +68,89 @@ export async function getOrCreateConversation(user1: any, user2: any): Promise<s
 }
 
 /**
+ * Helper to upload base64 or blob media to server disk to ensure Firestore documents remain tiny (<1KB)
+ * and media is permanently persisted and streaming-enabled.
+ */
+export async function uploadMediaToServer(
+  mediaData: string | Blob,
+  mediaType: 'video' | 'image' | 'voice' | 'audio',
+  fileName?: string
+): Promise<string> {
+  if (typeof mediaData === 'string' && (mediaData.startsWith('/api/') || mediaData.startsWith('http://') || mediaData.startsWith('https://'))) {
+    return mediaData;
+  }
+
+  try {
+    let base64String = '';
+    let format = '';
+
+    if (typeof mediaData === 'string') {
+      if (mediaData.startsWith('blob:')) {
+        const res = await fetch(mediaData);
+        const blob = await res.blob();
+        const buffer = await blob.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize) as unknown as number[]);
+        }
+        base64String = btoa(binary);
+        if (blob.type.includes('webm')) format = 'webm';
+        else if (blob.type.includes('mp4')) format = 'mp4';
+        else if (blob.type.includes('quicktime')) format = 'mov';
+        else if (blob.type.includes('png')) format = 'png';
+        else if (blob.type.includes('jpeg') || blob.type.includes('jpg')) format = 'jpg';
+      } else {
+        base64String = mediaData;
+      }
+    } else if (mediaData instanceof Blob) {
+      const buffer = await mediaData.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize) as unknown as number[]);
+      }
+      base64String = btoa(binary);
+      if (mediaData.type.includes('webm')) format = 'webm';
+      else if (mediaData.type.includes('mp4')) format = 'mp4';
+      else if (mediaData.type.includes('quicktime')) format = 'mov';
+      else if (mediaData.type.includes('png')) format = 'png';
+      else if (mediaData.type.includes('jpeg') || mediaData.type.includes('jpg')) format = 'jpg';
+    }
+
+    if (!base64String) {
+      return typeof mediaData === 'string' ? mediaData : '';
+    }
+
+    const uploadRes = await fetch('/api/media/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mediaBase64: base64String,
+        mediaType,
+        fileName,
+        format,
+      }),
+    });
+
+    if (uploadRes.ok) {
+      const data = await uploadRes.json();
+      if (data.url || data.mediaUrl) {
+        return data.url || data.mediaUrl;
+      }
+    } else {
+      console.warn('Server media upload responded with status:', uploadRes.status);
+    }
+  } catch (err) {
+    console.error('Error uploading media to server disk:', err);
+  }
+
+  return typeof mediaData === 'string' ? mediaData : '';
+}
+
+/**
  * Send a chat message with flexible parameter support (text, image, voice, call log, tracks)
  */
 export async function sendChatMessage(params: {
@@ -77,8 +160,13 @@ export async function sendChatMessage(params: {
   recipientUid?: string;
   text?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  videoDurationSec?: number;
+  videoThumbnail?: string;
   voiceUrl?: string;
   voiceDurationSec?: number;
+  isSenderAI?: boolean;
+  aiModelUsed?: string;
   callLog?: {
     type: 'voice' | 'video';
     durationSec: number;
@@ -86,7 +174,12 @@ export async function sendChatMessage(params: {
   };
   sharedTrack?: Track | null;
   trackAttachment?: any;
+  spiritualAttachment?: SpiritualShareAttachment;
   attachments?: any[];
+  isEncrypted?: boolean;
+  encryptedPayload?: string;
+  encryptionFingerprint?: string;
+  encryptionVersion?: string;
 }): Promise<{ success: boolean; message?: string }> {
   try {
     let convId = params.conversationId;
@@ -100,18 +193,40 @@ export async function sendChatMessage(params: {
       return { success: false, message: 'Thiếu ID cuộc trò chuyện' };
     }
 
+    // Persist large media (video, image, voice) to permanent server disk first
+    let finalVideoUrl = params.videoUrl;
+    if (finalVideoUrl && (finalVideoUrl.startsWith('data:') || finalVideoUrl.startsWith('blob:'))) {
+      finalVideoUrl = await uploadMediaToServer(finalVideoUrl, 'video');
+    }
+
+    let finalImageUrl = params.imageUrl;
+    if (finalImageUrl && (finalImageUrl.startsWith('data:') || finalImageUrl.startsWith('blob:'))) {
+      finalImageUrl = await uploadMediaToServer(finalImageUrl, 'image');
+    }
+
+    let finalVoiceUrl = params.voiceUrl;
+    if (finalVoiceUrl && (finalVoiceUrl.startsWith('data:') || finalVoiceUrl.startsWith('blob:'))) {
+      finalVoiceUrl = await uploadMediaToServer(finalVoiceUrl, 'voice');
+    }
+
     const messagesCol = collection(db, 'conversations', convId, 'messages');
     const track = params.sharedTrack || params.trackAttachment;
     const textContent = (params.text || '').trim();
 
     let previewText = textContent;
-    if (params.imageUrl) {
+    if (params.isEncrypted) {
+      previewText = '🔒 [Tin nhắn mã hóa 6 lớp]';
+    } else if (finalVideoUrl) {
+      previewText = previewText ? `[Video] ${previewText}` : '[Đã gửi một video 🎬]';
+    } else if (finalImageUrl) {
       previewText = previewText ? `[Hình ảnh] ${previewText}` : '[Đã gửi một hình ảnh 📷]';
-    } else if (params.voiceUrl) {
+    } else if (finalVoiceUrl) {
       previewText = `[Đoạn ghi âm 🎙️ ${params.voiceDurationSec ? params.voiceDurationSec + 's' : ''}]`;
     } else if (params.callLog) {
       const callTypeStr = params.callLog.type === 'video' ? 'Cuộc gọi video' : 'Cuộc gọi thoại';
       previewText = `[${callTypeStr} • ${Math.floor(params.callLog.durationSec / 60)}:${(params.callLog.durationSec % 60).toString().padStart(2, '0')}]`;
+    } else if (params.spiritualAttachment) {
+      previewText = `🔮 [${params.spiritualAttachment.title}] ${textContent || params.spiritualAttachment.subtitle || ''}`;
     } else if (track) {
       previewText = `[Tác phẩm: ${track.title}] ${textContent}`;
     }
@@ -125,16 +240,32 @@ export async function sendChatMessage(params: {
       isSenderVip: Boolean(params.sender.isVip),
       isSenderAuthor: Boolean(params.sender.isAuthorVerified),
       senderAuthorStageName: params.sender.stageName || params.sender.authorStageName || '',
-      text: textContent,
+      isSenderAI: Boolean(params.isSenderAI || params.sender.isSenderAI || params.sender.uid === 'haevy_ai_assistant'),
+      aiModelUsed: params.aiModelUsed || (params.isSenderAI ? 'Gemini 2.5 Flash' : undefined),
+      text: params.isEncrypted ? (params.encryptedPayload || textContent) : textContent,
+      isEncrypted: Boolean(params.isEncrypted),
       reactions: {},
       createdAt: serverTimestamp()
     };
 
-    if (params.imageUrl) {
-      msgData.imageUrl = params.imageUrl;
+    if (params.isEncrypted) {
+      msgData.encryptedPayload = params.encryptedPayload || textContent;
+      msgData.encryptionVersion = params.encryptionVersion || 'e2ee_6l_v1';
+      if (params.encryptionFingerprint) {
+        msgData.encryptionFingerprint = params.encryptionFingerprint;
+      }
     }
-    if (params.voiceUrl) {
-      msgData.voiceUrl = params.voiceUrl;
+
+    if (finalVideoUrl) {
+      msgData.videoUrl = finalVideoUrl;
+      if (params.videoDurationSec) msgData.videoDurationSec = params.videoDurationSec;
+      if (params.videoThumbnail) msgData.videoThumbnail = params.videoThumbnail;
+    }
+    if (finalImageUrl) {
+      msgData.imageUrl = finalImageUrl;
+    }
+    if (finalVoiceUrl) {
+      msgData.voiceUrl = finalVoiceUrl;
       msgData.voiceDurationSec = params.voiceDurationSec || 0;
     }
     if (params.callLog) {
@@ -142,6 +273,10 @@ export async function sendChatMessage(params: {
     }
     if (params.attachments && params.attachments.length > 0) {
       msgData.attachments = params.attachments;
+    }
+
+    if (params.spiritualAttachment) {
+      msgData.spiritualAttachment = params.spiritualAttachment;
     }
 
     if (track) {
@@ -171,6 +306,14 @@ export async function sendChatMessage(params: {
       lastMessageAt: serverTimestamp(),
       [`unreadCounts.${params.sender.uid}`]: 0
     };
+
+    if (params.isEncrypted) {
+      updatePayload.isE2EEEnabled = true;
+      updatePayload.e2eeLayerCount = 6;
+      if (params.encryptionFingerprint) {
+        updatePayload.e2eeFingerprint = params.encryptionFingerprint;
+      }
+    }
 
     if (recipientUid) {
       updatePayload[`unreadCounts.${recipientUid}`] = prevUnread + 1;

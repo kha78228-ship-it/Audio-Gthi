@@ -3,82 +3,166 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Navbar } from './components/Navbar';
+import { AuthModal } from './components/AuthModal';
+import { NotificationsModal } from './components/NotificationsModal';
+import { InstallPwaModal } from './components/InstallPwaModal';
+import { HaevyEcosystemLandingView } from './components/HaevyEcosystemLandingView';
+import { HaevyMorningView } from './components/HaevyMorningView';
 import { HomeView } from './components/HomeView';
 import { AudioLibraryView } from './components/AudioLibraryView';
-import { AudioPlayer } from './components/AudioPlayer';
-import { CommunityView } from './components/CommunityView';
-import { VipTopupView } from './components/VipTopupView';
-import { UserProfileView } from './components/UserProfileView';
-import { AdminDashboardView } from './components/AdminDashboardView';
-import { BottomTaskbar } from './components/BottomTaskbar';
-import { AuthModal } from './components/AuthModal';
-import { AuthorStudioModal } from './components/AuthorStudioModal';
-import { AuthorGiftShopModal } from './components/AuthorGiftShopModal';
-import { SleepTimerModal } from './components/SleepTimerModal';
+import { HaevyStudioView } from './components/HaevyStudioView';
 import { MessagesFriendsView } from './components/MessagesFriendsView';
 import { CoupleRomanceView } from './components/CoupleRomanceView';
 import { FinanceView } from './components/FinanceView';
-import { HaevyGamesView, HaevyGamesSubTab } from './components/HaevyGamesView';
-import { HaevyStudioView } from './components/HaevyStudioView';
-import { AuthorChannelView } from './components/AuthorChannelView';
-import { PublishAudioModal } from './components/PublishAudioModal';
-import { QuickChatModal } from './components/QuickChatModal';
-import { SystemAnnouncementBanner } from './components/SystemAnnouncementBanner';
-import { HaevyEcosystemDrawer } from './components/HaevyEcosystemDrawer';
-import { NotificationsModal } from './components/NotificationsModal';
-import { InstallPwaModal } from './components/InstallPwaModal';
-import { INITIAL_TRACKS } from './data';
+import { VipTopupView } from './components/VipTopupView';
+import { UserProfileView } from './components/UserProfileView';
+import { AdminDashboardView } from './components/AdminDashboardView';
+import { HaevySupportView } from './components/HaevySupportView';
+import { HaevyAIHubView } from './components/HaevyAIHubView';
+import { HaevySpiritualView } from './components/HaevySpiritualView';
+import { HaevyFamilyTreeView } from './components/HaevyFamilyTreeView';
+import { HaevyAIFloatingWidget } from './components/HaevyAIFloatingWidget';
+import { AudioPlayer } from './components/AudioPlayer';
+import { CommunityView } from './components/CommunityView';
+import { BottomTaskbar } from './components/BottomTaskbar';
+import { Navbar } from './components/Navbar';
+import { DesktopSidebar } from './components/DesktopSidebar';
+import { HaevyAllModesInfoModal } from './components/HaevyAllModesInfoModal';
+import { HaevyShortcutsModal } from './components/HaevyShortcutsModal';
+import { HaevyVoiceNavigationHUD } from './components/HaevyVoiceNavigationHUD';
+import { useVoiceCommander } from './hooks/useVoiceCommander';
+import { motion, AnimatePresence } from 'motion/react';
 import { Track, ActiveTab, EcosystemMode } from './types';
+import { matchShortcut, DEFAULT_SHORTCUTS_CONFIG } from './data/defaultShortcuts';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from './lib/firebase';
-import { Moon, CheckCircle2, Sparkles } from 'lucide-react';
-import { webAudioEqualizer } from './lib/webAudioEqualizer';
+import { 
+  Sparkles, 
+  Home, 
+  Moon, 
+  Mic, 
+  MessageSquare, 
+  Heart, 
+  Wallet, 
+  Crown, 
+  Boxes, 
+  Smartphone,
+  Maximize, 
+  Minimize, 
+  Bell, 
+  LogIn, 
+  User as UserIcon, 
+  Coins, 
+  ArrowLeft,
+  X,
+  ChevronDown,
+  ShieldCheck,
+  LifeBuoy,
+  Check,
+  BrainCircuit,
+  Keyboard,
+  GitFork
+} from 'lucide-react';
+
+export type HaevyMode = 
+  | 'portal'
+  | 'audio'
+  | 'games'
+  | 'space'
+  | 'messages'
+  | 'studio'
+  | 'finance'
+  | 'admin'
+  | 'couple'
+  | 'vip'
+  | 'support'
+  | 'haevy_ai'
+  | 'spiritual'
+  | 'family_tree'
+  | 'audio_library'
+  | 'profile';
+
+const MODES_CONFIG: {
+  id: HaevyMode;
+  name: string;
+  shortName: string;
+  icon: any;
+  color: string;
+  badge: string;
+}[] = [
+  { id: 'haevy_ai', name: 'Haevy AI Master', shortName: 'Haevy AI', icon: BrainCircuit, color: 'from-purple-500 via-indigo-500 to-pink-500', badge: 'AI Toàn Năng' },
+  { id: 'family_tree', name: 'Haevy Family Tree', shortName: 'Gia Phả', icon: GitFork, color: 'from-amber-600 via-yellow-600 to-amber-700', badge: 'Gia Phả Dòng Họ' },
+  { id: 'spiritual', name: 'Haevy Spiritual', shortName: 'Haevy Spiritual', icon: Moon, color: 'from-purple-600 via-indigo-600 to-pink-600', badge: 'Tâm Linh Vũ Trụ' },
+  { id: 'audio', name: 'Haevy Audio', shortName: 'Haevy Audio', icon: Moon, color: 'from-indigo-500 to-purple-600', badge: 'Audio & Music' },
+  { id: 'space', name: 'Haevy Space', shortName: 'Haevy Space', icon: Sparkles, color: 'from-cyan-500 to-blue-600', badge: '3D AR' },
+  { id: 'messages', name: 'Haevy Message', shortName: 'Haevy Message', icon: MessageSquare, color: 'from-sky-500 to-blue-600', badge: 'Messages' },
+  { id: 'studio', name: 'Haevy Studio', shortName: 'Haevy Studio', icon: Mic, color: 'from-rose-500 to-pink-600', badge: 'AI Voice' },
+  { id: 'finance', name: 'Haevy Finance', shortName: 'Haevy Finance', icon: Wallet, color: 'from-emerald-500 to-green-600', badge: 'Thu Chi 6 Hũ' },
+  { id: 'admin', name: 'Haevy Admin', shortName: 'Haevy Admin', icon: ShieldCheck, color: 'from-red-500 to-rose-600', badge: 'Quản Trị' },
+  { id: 'couple', name: 'I Love Haevy', shortName: 'I Love Haevy', icon: Heart, color: 'from-rose-500 to-red-600', badge: 'Cặp Đôi' },
+  { id: 'vip', name: 'Haevy VIP', shortName: 'Haevy VIP', icon: Crown, color: 'from-amber-400 to-yellow-500', badge: 'VIP Club' },
+  { id: 'support', name: 'Haevy Support', shortName: 'Haevy Support', icon: LifeBuoy, color: 'from-emerald-400 to-teal-500', badge: 'Hỗ Trợ 24/7' }
+];
 
 function MainApp() {
-  const { user, isAdmin, isAuthorVerified, isAnonymousAccount, addAudioPoints, incrementListenTime } = useAuth();
-  const [currentMode, setCurrentMode] = useState<EcosystemMode>('audio');
-  const [isModesDrawerOpen, setIsModesDrawerOpen] = useState(false);
+  const { user, isVip, audioPoints, isAdmin, isSuperAdmin, addAudioPoints, shortcutsConfig } = useAuth();
+  
+  // App Navigation & Active Mode State
+  const [currentMode, setCurrentMode] = useState<HaevyMode>('portal');
+  const [isModeSwitcherOpen, setIsModeSwitcherOpen] = useState(false);
+  
+  // Sub-tabs for each ecosystem mode
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
-  const [allTracks, setAllTracks] = useState<Track[]>(INITIAL_TRACKS);
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isPlayerDismissed, setIsPlayerDismissed] = useState(false);
-  const [selectedGenre, setSelectedGenre] = useState<string>('Tất cả');
   const [messageSubTab, setMessageSubTab] = useState<'chat' | 'feed' | 'friends'>('chat');
   const [coupleSubTab, setCoupleSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
   const [financeSubTab, setFinanceSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
-  const [adminSubTab, setAdminSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6'>('page1');
-  const [gamesSubTab, setGamesSubTab] = useState<HaevyGamesSubTab>('home');
+  const [adminSubTab, setAdminSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7'>('page1');
   const [studioSubTab, setStudioSubTab] = useState<'page1' | 'page2' | 'page3'>('page1');
   const [vipSubTab, setVipSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4'>('page1');
+  const [spiritualSubTab, setSpiritualSubTab] = useState<'tarot' | 'palmistry' | 'divination' | 'numerology' | 'crystal_oracle' | 'couple_spiritual' | 'tuvi' | 'astrology' | 'soundscapes'>('tarot');
+  const [haevyAISubTab, setHaevyAISubTab] = useState<'overview' | 'chat' | 'updates' | 'troubleshoot' | 'modes'>('overview');
+  const [shuffleMode, setShuffleMode] = useState<'off' | 'shuffle' | 'smart_shuffle'>('smart_shuffle');
+  const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
+
+  // Universal Cross-Ecosystem Mode & Sub-tab Navigator
+  const handleNavigateToMode = (mode: string, subTab?: string) => {
+    setCurrentMode(mode as HaevyMode);
+    if (mode === 'spiritual' && subTab) {
+      setSpiritualSubTab(subTab as any);
+    } else if (mode === 'messages' && subTab) {
+      setMessageSubTab(subTab as any);
+    } else if (mode === 'couple' && subTab) {
+      setCoupleSubTab(subTab as any);
+    } else if (mode === 'finance' && subTab) {
+      setFinanceSubTab(subTab as any);
+    } else if (mode === 'audio' && subTab) {
+      setActiveTab(subTab as any);
+    }
+  };
+
+  // Modals state
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState<'signin' | 'signup' | 'anonymous'>('signin');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isInstallPwaOpen, setIsInstallPwaOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [anonStudioWarning, setAnonStudioWarning] = useState<string | null>(null);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+  const [shortcutHUD, setShortcutHUD] = useState<{ title: string; subtitle?: string } | null>(null);
 
-  // Sync fullscreen change events
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement || (document as any).webkitFullscreenElement));
-    };
+  // Sub-triggers for Finance Quick Shortcuts
+  const [financePage2SubTab, setFinancePage2SubTab] = useState<'budget' | 'savings' | 'debts' | 'recurring'>('budget');
+  const [openWalletsTrigger, setOpenWalletsTrigger] = useState<number>(0);
+  const [openAddTransactionTrigger, setOpenAddTransactionTrigger] = useState<number>(0);
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-    };
-  }, []);
+  // Flash Floating Shortcut HUD Feedback
+  const triggerShortcutHUD = (title: string, subtitle?: string) => {
+    setShortcutHUD({ title, subtitle });
+    setTimeout(() => {
+      setShortcutHUD(prev => (prev?.title === title ? null : prev));
+    }, 2400);
+  };
 
   const handleToggleFullscreen = async () => {
     try {
@@ -99,48 +183,8 @@ function MainApp() {
       }
     } catch (err) {
       console.warn('Fullscreen error:', err);
-      // If direct fullscreen fails (e.g. iOS safari iframe constraint), open guide modal
       setIsInstallPwaOpen(true);
     }
-  };
-
-  // Author Channel & Story Series States
-  const [viewingAuthor, setViewingAuthor] = useState<{ uid?: string; stageName?: string } | null>(null);
-  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
-  const [publishSeriesPrefill, setPublishSeriesPrefill] = useState<{
-    seriesId: string;
-    seriesTitle: string;
-    nextEpisodeNumber: number;
-    genre: string;
-  } | null>(null);
-
-  // Sleep Timer States
-  const [isSleepTimerOpen, setIsSleepTimerOpen] = useState(false);
-  const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null);
-  const [sleepTimerSecondsLeft, setSleepTimerSecondsLeft] = useState<number | null>(null);
-  const [sleepToast, setSleepToast] = useState<string | null>(null);
-
-  // Quick Chat State
-  const [quickChatTarget, setQuickChatTarget] = useState<{
-    uid: string;
-    displayName: string;
-    accountId?: string;
-    photoURL?: string;
-    isVip?: boolean;
-    isAuthorVerified?: boolean;
-    authorStageName?: string;
-  } | null>(null);
-
-  const handleOpenQuickChat = (target: {
-    uid: string;
-    displayName: string;
-    accountId?: string;
-    photoURL?: string;
-    isVip?: boolean;
-    isAuthorVerified?: boolean;
-    authorStageName?: string;
-  }) => {
-    setQuickChatTarget(target);
   };
 
   const handleOpenAuth = (tab: 'signin' | 'signup' | 'anonymous' = 'signin') => {
@@ -148,611 +192,736 @@ function MainApp() {
     setIsAuthOpen(true);
   };
 
-  const handleSetSleepTimer = (minutes: number | null) => {
-    setSleepTimerMinutes(minutes);
-    if (minutes === null) {
-      setSleepTimerSecondsLeft(null);
-      setSleepToast('Đã tắt hẹn giờ.');
-      setTimeout(() => setSleepToast(null), 3000);
-    } else if (minutes === -1) {
-      setSleepTimerSecondsLeft(null);
-      setSleepToast('Đã bật hẹn giờ: Dừng phát sau khi hết bài hiện tại.');
-      setTimeout(() => setSleepToast(null), 3500);
-    } else {
-      const totalSec = minutes * 60;
-      setSleepTimerSecondsLeft(totalSec);
-      setSleepToast(`Đã bật hẹn giờ: Dừng phát nhạc sau ${minutes} phút.`);
-      setTimeout(() => setSleepToast(null), 3500);
-    }
-  };
+  // Web Speech API Voice Commander for universal voice-controlled ecosystem navigation
+  const {
+    isListening: isVoiceListening,
+    transcript: voiceTranscript,
+    lastMatchedCommand: voiceLastMatched,
+    errorMessage: voiceError,
+    toggleListening: toggleVoiceListening,
+    simulateCommand: simulateVoiceCommand
+  } = useVoiceCommander({
+    onNavigateMode: handleNavigateToMode,
+    onToggleFullscreen: handleToggleFullscreen,
+    onOpenNotifications: () => setIsNotificationsOpen(true),
+    onOpenShortcuts: () => setIsShortcutsModalOpen(true),
+    onOpenAuth: () => handleOpenAuth('signin'),
+    onShowHUDFeedback: triggerShortcutHUD
+  });
 
-  const handleAddSleepTimerMinutes = (extraMinutes: number) => {
-    setSleepTimerSecondsLeft((prev) => {
-      const newSec = (prev || 0) + extraMinutes * 60;
-      setSleepTimerMinutes(Math.ceil(newSec / 60));
-      setSleepToast(`Đã cộng thêm ${extraMinutes} phút vào hẹn giờ tắt.`);
-      setTimeout(() => setSleepToast(null), 3000);
-      return newSec;
-    });
-  };
+  // Audio Playback State
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [isLoadingTracks, setIsLoadingTracks] = useState(true);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(0.8);
+  const [isMuted, setIsMuted] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState('Tất cả');
 
-  const handleOpenGiftShop = (author?: {
-    uid: string;
-    stageName: string;
-    trackTitle?: string;
-    trackId?: string;
-  }) => {
-    setGiftShopTargetAuthor(author);
-    setIsGiftShopOpen(true);
-  };
-
-  // Unified Studio Audio Modal State (TTS, Publish, eKYC, My Tracks)
-  const [isStudioAudioOpen, setIsStudioAudioOpen] = useState(false);
-  const [studioInitialTab, setStudioInitialTab] = useState<'tts' | 'publish' | 'ekyc' | 'my-tracks'>('tts');
-
-  const handleOpenStudioAudio = (tab: 'tts' | 'publish' | 'ekyc' | 'my-tracks' = 'tts') => {
-    if (!user) {
-      handleOpenAuth('signin');
-      return;
-    }
-    if (isAnonymousAccount || (user as any).isAnonymous) {
-      setAnonStudioWarning('Tài khoản Ẩn Danh không có quyền truy cập Studio Tác Giả & AI Voice để đảm bảo bản quyền và xác minh danh tính. Bạn vui lòng đăng ký hoặc đăng nhập tài khoản chính thức để mở toàn bộ tính năng Studio!');
-      return;
-    }
-    setCurrentMode('studio');
-    setActiveTab('studio');
-    if (tab === 'ekyc') {
-      setStudioSubTab('page1');
-    } else if (tab === 'tts' || tab === 'publish') {
-      setStudioSubTab('page2');
-    } else if (tab === 'my-tracks') {
-      setStudioSubTab('page3');
-    }
-  };
-
-  const handleOpenPublishAudio = (prefilledSeries?: { seriesId: string; seriesTitle: string; nextEpisodeNumber: number; genre: string }) => {
-    if (!user) {
-      handleOpenAuth('signin');
-      return;
-    }
-    if (isAnonymousAccount || (user as any).isAnonymous) {
-      setAnonStudioWarning('Tài khoản Ẩn Danh không có quyền truy cập Studio Tác Giả & AI Voice để đảm bảo bản quyền và xác minh danh tính. Bạn vui lòng đăng ký hoặc đăng nhập tài khoản chính thức để mở toàn bộ tính năng Studio!');
-      return;
-    }
-    setPublishSeriesPrefill(prefilledSeries || null);
-    setIsPublishModalOpen(true);
-  };
-
-  const handleOpenAuthorStudio = () => handleOpenStudioAudio('my-tracks');
-  const handleOpenAuthorVerification = () => handleOpenStudioAudio('ekyc');
-  const handleOpenTextToAudio = () => handleOpenStudioAudio('tts');
-
-  const handleViewAuthorChannel = (authorUid?: string, authorStageName?: string) => {
-    setViewingAuthor({
-      uid: authorUid,
-      stageName: authorStageName
-    });
-  };
-
-  const handleSelectMode = (mode: EcosystemMode, initialTab?: ActiveTab) => {
-    setCurrentMode(mode);
-    if (initialTab) {
-      setActiveTab(initialTab);
-    } else {
-      switch (mode) {
-        case 'audio':
-          setActiveTab('home');
-          break;
-        case 'messages':
-          setActiveTab('messages');
-          break;
-        case 'couple':
-          setActiveTab('couple');
-          break;
-        case 'finance':
-          setActiveTab('finance');
-          break;
-        case 'admin':
-          setActiveTab('admin');
-          break;
-        case 'studio':
-          setActiveTab('studio');
-          break;
-        case 'games':
-          setActiveTab('games');
-          setGamesSubTab('home');
-          break;
-      }
-    }
-  };
-
-  const [isGiftShopOpen, setIsGiftShopOpen] = useState(false);
-  const [giftShopTargetAuthor, setGiftShopTargetAuthor] = useState<{
-    uid: string;
-    stageName: string;
-    trackTitle?: string;
-    trackId?: string;
-  } | undefined>(undefined);
-
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const currentTrack = allTracks[currentTrackIndex] || allTracks[0];
-
-  // Periodic listen rewards: Every 60 seconds while playing, award +5 Audio Points and increment listen time!
+  // Fetch Tracks from Firestore
   useEffect(() => {
-    if (!isPlaying || !user) return;
-
-    const interval = setInterval(() => {
-      // Award listen points & increment listen minutes
-      addAudioPoints(5, 'Thưởng nghe nhạc trực tuyến', 'listen');
-      incrementListenTime(1);
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, user]);
-
-  // Subscribe to community uploaded tracks from Firestore
-  useEffect(() => {
-    const tracksQuery = query(
-      collection(db, 'customTracks'),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(
-      tracksQuery,
-      (snapshot) => {
-        const hiddenTracks: string[] = JSON.parse(localStorage.getItem('admin_hidden_tracks') || '[]');
-        const customMap = new Map<string, Partial<Track>>();
-        const extraCustomTracks: Track[] = [];
-
-        snapshot.docs.forEach((docSnap) => {
-          const data = docSnap.data();
-          const rawId = docSnap.id;
-          const isInitial = INITIAL_TRACKS.some(t => t.id === rawId);
-
-          if (isInitial) {
-            customMap.set(rawId, {
-              isVipOnly: data.isVipOnly !== undefined ? Boolean(data.isVipOnly) : undefined,
-              bitrate: data.bitrate,
-              title: data.title,
-              artist: data.artist,
-              genre: data.genre,
-              url: data.url,
-              coverUrl: data.coverUrl,
-              description: data.description,
-            });
-          } else {
-            extraCustomTracks.push({
-              id: rawId.startsWith('custom-') ? rawId : `custom-${rawId}`,
-              title: data.title || 'Untitled Track',
-              artist: data.artist || 'Unknown Artist',
-              genre: data.genre || 'Khác',
-              url: data.url,
-              coverUrl: data.coverUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80',
-              durationSec: data.durationSec || 210,
-              plays: data.plays || 1,
-              isVipOnly: Boolean(data.isVipOnly),
-              bitrate: data.bitrate || (data.isVipOnly ? 'Lossless 24-bit/96kHz (Đặc quyền VIP)' : '320kbps Hi-Fi'),
-              addedBy: data.addedBy,
-              addedByName: data.addedByName,
-              createdAt: data.createdAt,
-              stageName: data.stageName,
-              isAuthorVerified: data.isAuthorVerified,
-              description: data.description,
-              isSeries: Boolean(data.isSeries),
-              seriesId: data.seriesId,
-              seriesTitle: data.seriesTitle,
-              episodeNumber: data.episodeNumber !== undefined ? Number(data.episodeNumber) : undefined,
-              episodeTitle: data.episodeTitle,
-              totalEpisodes: data.totalEpisodes !== undefined ? Number(data.totalEpisodes) : undefined,
-              storylineSummary: data.storylineSummary,
-              nextTrackId: data.nextTrackId,
-            });
-          }
-        });
-
-        // Apply overrides to initial tracks
-        const mergedInitial = INITIAL_TRACKS.map(baseTrack => {
-          if (customMap.has(baseTrack.id)) {
-            const override = customMap.get(baseTrack.id)!;
-            return {
-              ...baseTrack,
-              ...override,
-              id: baseTrack.id,
-            };
-          }
-          return baseTrack;
-        });
-
-        const allMerged = [...mergedInitial, ...extraCustomTracks].filter(
-          t => !hiddenTracks.includes(t.id) && !hiddenTracks.includes(t.id.replace('custom-', ''))
-        );
-
-        setAllTracks(allMerged);
-      },
-      (err) => {
-        console.error('Error fetching custom tracks:', err);
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
-
-  // Sleep Timer countdown effect
-  useEffect(() => {
-    if (!isPlaying || sleepTimerSecondsLeft === null || sleepTimerSecondsLeft <= 0) return;
-
-    const timer = setInterval(() => {
-      setSleepTimerSecondsLeft((prev) => {
-        if (prev === null || prev <= 1) {
-          // Time is up! Stop playback
-          setIsPlaying(false);
-          setSleepTimerMinutes(null);
-          setSleepToast('💤 Đã tự động dừng phát nhạc theo hẹn giờ tắt ngủ.');
-          setTimeout(() => setSleepToast(null), 5000);
-          return null;
-        }
-        return prev - 1;
+    try {
+      setIsLoadingTracks(true);
+      const q = query(collection(db, 'tracks'), orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Track));
+        setTracks(list);
+        setIsLoadingTracks(false);
+      }, (error) => {
+        console.warn('Firestore tracks listener error:', error);
+        setIsLoadingTracks(false);
       });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isPlaying, sleepTimerSecondsLeft]);
-
-  // Audio Playback effect
-  useEffect(() => {
-    if (audioRef.current) {
-      webAudioEqualizer.init(audioRef.current);
+      return () => unsubscribe();
+    } catch (e) {
+      console.warn('Tracks query error:', e);
+      setIsLoadingTracks(false);
     }
   }, []);
 
+  // Sync fullscreen change events
   useEffect(() => {
-    if (isPlaying) {
-      webAudioEqualizer.resume();
-      if (audioRef.current) {
-        webAudioEqualizer.init(audioRef.current);
-      }
-      audioRef.current?.play().catch(() => {
-        setIsPlaying(false);
-      });
-    } else {
-      audioRef.current?.pause();
-    }
-  }, [isPlaying, currentTrackIndex]);
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement || (document as any).webkitFullscreenElement));
+    };
 
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
-    }
-  }, [volume, isMuted]);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   const handlePlayTrack = (track: Track) => {
-    setIsPlayerDismissed(false);
-    const idx = allTracks.findIndex((t) => t.id === track.id);
-    if (idx !== -1) {
-      setCurrentTrackIndex(idx);
-      setIsPlaying(true);
-    } else {
-      setAllTracks((prev) => [track, ...prev]);
-      setCurrentTrackIndex(0);
-      setIsPlaying(true);
-    }
-  };
-
-  const handleClosePlayer = () => {
-    setIsPlaying(false);
-    setIsPlayerDismissed(true);
+    setCurrentTrack(track);
+    setIsPlaying(true);
   };
 
   const handleTogglePlay = () => {
     setIsPlaying(!isPlaying);
   };
 
-  const handlePlayNext = () => {
-    if (allTracks.length === 0) return;
-
-    // Check if current track belongs to a storyline series with next episode
-    if (currentTrack?.isSeries && currentTrack.episodeNumber !== undefined) {
-      const nextEpNum = currentTrack.episodeNumber + 1;
-      const nextEpisodeIdx = allTracks.findIndex(
-        (t) => (
-          (currentTrack.seriesId && t.seriesId === currentTrack.seriesId) ||
-          (currentTrack.seriesTitle && t.seriesTitle && t.seriesTitle.trim().toLowerCase() === currentTrack.seriesTitle.trim().toLowerCase())
-        ) && t.episodeNumber === nextEpNum
-      );
-      if (nextEpisodeIdx !== -1) {
-        setCurrentTrackIndex(nextEpisodeIdx);
-        setIsPlaying(true);
-        return;
+  // Map mode selection from cards & menu
+  const handleSelectMode = (modeKey: string, initialSubTab?: string) => {
+    if (modeKey === 'haevy_ai') {
+      setCurrentMode('haevy_ai');
+      setActiveTab('haevy_ai');
+      if (initialSubTab) {
+        setHaevyAISubTab(initialSubTab as any);
       }
-    }
-
-    // Default cyclic next
-    setCurrentTrackIndex((prev) => (prev + 1) % allTracks.length);
-    setIsPlaying(true);
-  };
-
-  const handlePlayPrev = () => {
-    if (allTracks.length === 0) return;
-
-    // Check if current track belongs to a storyline series with previous episode
-    if (currentTrack?.isSeries && currentTrack.episodeNumber !== undefined && currentTrack.episodeNumber > 1) {
-      const prevEpNum = currentTrack.episodeNumber - 1;
-      const prevEpisodeIdx = allTracks.findIndex(
-        (t) => (
-          (currentTrack.seriesId && t.seriesId === currentTrack.seriesId) ||
-          (currentTrack.seriesTitle && t.seriesTitle && t.seriesTitle.trim().toLowerCase() === currentTrack.seriesTitle.trim().toLowerCase())
-        ) && t.episodeNumber === prevEpNum
-      );
-      if (prevEpisodeIdx !== -1) {
-        setCurrentTrackIndex(prevEpisodeIdx);
-        setIsPlaying(true);
-        return;
-      }
-    }
-
-    // Default cyclic previous
-    setCurrentTrackIndex((prev) => (prev - 1 + allTracks.length) % allTracks.length);
-    setIsPlaying(true);
-  };
-
-  const handleAudioEnded = () => {
-    if (sleepTimerMinutes === -1) {
-      // Stop after current track finished
-      setIsPlaying(false);
-      setSleepTimerMinutes(null);
-      setSleepTimerSecondsLeft(null);
-      setSleepToast('💤 Đã dừng phát sau khi hết bài hát theo hẹn giờ.');
-      setTimeout(() => setSleepToast(null), 5000);
+    } else if (modeKey === 'spiritual') {
+      setCurrentMode('spiritual');
+      setActiveTab('spiritual');
+    } else if (modeKey === 'audio') {
+      setCurrentMode('audio');
+      setActiveTab('home');
+    } else if (modeKey === 'games') {
+      setCurrentMode('games');
+      setActiveTab('games');
+    } else if (modeKey === 'space') {
+      setCurrentMode('space');
+      setActiveTab('space');
+    } else if (modeKey === 'messages') {
+      setCurrentMode('messages');
+      setActiveTab('messages');
+    } else if (modeKey === 'studio') {
+      setCurrentMode('studio');
+      setActiveTab('studio');
+    } else if (modeKey === 'finance') {
+      setCurrentMode('finance');
+      setActiveTab('finance');
+    } else if (modeKey === 'admin') {
+      setCurrentMode('admin');
+      setActiveTab('admin');
+    } else if (modeKey === 'couple') {
+      setCurrentMode('couple');
+      setActiveTab('couple');
+    } else if (modeKey === 'vip') {
+      setCurrentMode('vip');
+      setActiveTab('vip');
+    } else if (modeKey === 'support') {
+      setCurrentMode('support');
+      setActiveTab('support');
+    } else if (modeKey === 'profile') {
+      setCurrentMode('profile');
+      setActiveTab('profile');
+    } else if (modeKey === 'audio_library') {
+      setCurrentMode('audio_library');
+      setActiveTab('library');
+    } else if (modeKey === 'family_tree') {
+      setCurrentMode('family_tree');
+      setActiveTab('family_tree' as any);
     } else {
-      handlePlayNext();
+      setCurrentMode('portal');
+      setActiveTab('portal');
     }
   };
 
-  const handleSeek = (time: number) => {
-    setProgress(time);
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
+  // Shortcut Action Dispatcher (Callable from Keydown & Shortcut Modal)
+  const handleShortcutAction = (action: string) => {
+    switch (action) {
+      case 'mode_family_tree':
+        handleSelectMode('family_tree');
+        triggerShortcutHUD('👑 Haevy Family Tree', 'Gia Phả Dòng Họ Thông Minh');
+        break;
+      case 'mode_space':
+        handleSelectMode('space');
+        triggerShortcutHUD('🌌 Haevy Space', 'Không gian 3D AR Vũ Trụ');
+        break;
+      case 'mode_finance':
+        handleSelectMode('finance');
+        triggerShortcutHUD('💰 Haevy Finance', 'Quản Lý Thu Chi & Tài Chính');
+        break;
+      case 'mode_haevy_ai':
+        handleSelectMode('haevy_ai');
+        triggerShortcutHUD('🧠 Haevy AI Master', 'Trợ Lý AI Toàn Năng');
+        break;
+      case 'mode_morning':
+        setCurrentMode('audio');
+        setActiveTab('morning');
+        triggerShortcutHUD('☀️ Haevy Morning', 'Bắt đầu ngày mới tràn đầy năng lượng');
+        break;
+      case 'mode_spiritual':
+        handleSelectMode('spiritual');
+        triggerShortcutHUD('🔮 Haevy Spiritual', 'Tarot, Tử Vi & Sóng Âm');
+        break;
+      case 'mode_couple':
+        handleSelectMode('couple');
+        triggerShortcutHUD('💖 I Love Haevy', 'Không Gian Cặp Đôi Lãng Mạn');
+        break;
+      case 'mode_studio':
+        handleSelectMode('studio');
+        triggerShortcutHUD('🎙️ Haevy Studio', 'Phòng Thu AI Voice');
+        break;
+      case 'mode_games':
+        handleSelectMode('games');
+        triggerShortcutHUD('🎮 Haevy Games', 'Đấu Trường Giải Trí');
+        break;
+      case 'mode_vip':
+        handleSelectMode('vip');
+        triggerShortcutHUD('👑 Haevy VIP Club', 'Đặc Quyền Hội Viên');
+        break;
+      case 'mode_portal':
+        handleSelectMode('portal');
+        triggerShortcutHUD('🪐 Haevy Portal', 'Cổng Sinh Thái Toàn Diện');
+        break;
+      case 'open_mode_switcher':
+        setIsModeSwitcherOpen(true);
+        break;
+      case 'finance_jars':
+        setCurrentMode('finance');
+        setActiveTab('finance');
+        setFinanceSubTab('page2');
+        setFinancePage2SubTab('budget');
+        triggerShortcutHUD('🏺 6 Hũ Tiền & Ngân Sách 50/30/20', 'Phím tắt: Ctrl + G');
+        break;
+      case 'finance_add':
+        setCurrentMode('finance');
+        setActiveTab('finance');
+        setOpenAddTransactionTrigger(Date.now());
+        triggerShortcutHUD('➕ Thêm Khoản Thu Chi Mới', 'Phím tắt: Alt + N');
+        break;
+      case 'finance_wallets':
+        setCurrentMode('finance');
+        setActiveTab('finance');
+        setOpenWalletsTrigger(Date.now());
+        triggerShortcutHUD('💳 Quản Lý Danh Sách Ví & Tài Khoản', 'Phím tắt: Alt + W');
+        break;
+      case 'finance_savings':
+        setCurrentMode('finance');
+        setActiveTab('finance');
+        setFinanceSubTab('page2');
+        setFinancePage2SubTab('savings');
+        triggerShortcutHUD('🐷 Mục Tiêu Tiết Kiệm & Tích Lũy', 'Phím tắt: Alt + S');
+        break;
+      case 'finance_debts':
+        setCurrentMode('finance');
+        setActiveTab('finance');
+        setFinanceSubTab('page2');
+        setFinancePage2SubTab('debts');
+        triggerShortcutHUD('👥 Sổ Theo Dõi Vay Nợ & Trả Góp', 'Phím tắt: Alt + D');
+        break;
+      case 'finance_calculators':
+        setCurrentMode('finance');
+        setActiveTab('finance');
+        setFinanceSubTab('page4');
+        triggerShortcutHUD('🧮 Máy Tính Lãi Kép & Hoạch Định', 'Phím tắt: Alt + C');
+        break;
+      case 'finance_family':
+        setCurrentMode('finance');
+        setActiveTab('finance');
+        setFinanceSubTab('page3');
+        triggerShortcutHUD('👨‍👩‍👧 Quỹ Chung Gia Đình & Người Thương', 'Phím tắt: Alt + F');
+        break;
+      case 'media_play_pause':
+        handleTogglePlay();
+        break;
+      case 'media_mute':
+        setIsMuted(m => !m);
+        triggerShortcutHUD(isMuted ? '🔊 Đã bật âm thanh' : '🔇 Đã tắt âm thanh');
+        break;
+      case 'media_fullscreen':
+        handleToggleFullscreen();
+        break;
+      case 'media_next': {
+        const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+        if (idx !== -1 && idx < tracks.length - 1) handlePlayTrack(tracks[idx + 1]);
+        break;
+      }
+      case 'media_prev': {
+        const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+        if (idx > 0) handlePlayTrack(tracks[idx - 1]);
+        break;
+      }
+      case 'media_volume_up':
+        setVolume(v => {
+          const next = Math.min(1, Math.round((v + 0.1) * 10) / 10);
+          triggerShortcutHUD(`🔊 Âm lượng: ${Math.round(next * 100)}%`);
+          return next;
+        });
+        break;
+      case 'media_volume_down':
+        setVolume(v => {
+          const next = Math.max(0, Math.round((v - 0.1) * 10) / 10);
+          triggerShortcutHUD(`🔉 Âm lượng: ${Math.round(next * 100)}%`);
+          return next;
+        });
+        break;
+      case 'toggle_shortcuts':
+        setIsShortcutsModalOpen(prev => !prev);
+        break;
+      case 'close_modal':
+        setIsShortcutsModalOpen(false);
+        setIsModeSwitcherOpen(false);
+        setIsAuthOpen(false);
+        setIsNotificationsOpen(false);
+        setIsInstallPwaOpen(false);
+        break;
+      default:
+        break;
     }
   };
 
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setProgress(audioRef.current.currentTime);
-    }
-  };
+  // Keyboard shortcuts for desktop users (Customizable via Firestore shortcuts_config)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in inputs, textareas or contenteditable elements
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
 
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
-  };
+      const activeConfig = shortcutsConfig || DEFAULT_SHORTCUTS_CONFIG;
+      const configItems = Object.values(activeConfig);
+
+      // Search matching dynamic shortcut
+      for (const item of configItems) {
+        if (matchShortcut(e, item)) {
+          e.preventDefault();
+          handleShortcutAction(item.action);
+          return;
+        }
+      }
+
+      // Fallback emergency handlers
+      if (e.code === 'Escape') {
+        setIsShortcutsModalOpen(false);
+        setIsModeSwitcherOpen(false);
+        setIsAuthOpen(false);
+        setIsNotificationsOpen(false);
+        setIsInstallPwaOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentTrack, tracks, isPlaying, isMuted, shortcutsConfig]);
+
+  const activeModeConfig = MODES_CONFIG.find(m => m.id === currentMode);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-zinc-100 flex flex-col justify-start p-3 sm:p-6 md:p-8 font-sans selection:bg-zinc-800">
-      {/* Top Navigation */}
-      <Navbar
-        currentMode={currentMode}
-        onSelectMode={handleSelectMode}
-        onOpenEcosystemDrawer={() => setIsModesDrawerOpen(true)}
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        onOpenAuth={() => handleOpenAuth('signin')}
-        onOpenAnonPass={() => handleOpenAuth('anonymous')}
-        onOpenStudioAudio={handleOpenStudioAudio}
-        onOpenNotifications={() => setIsNotificationsOpen(true)}
-        onToggleFullscreen={handleToggleFullscreen}
-        isFullscreen={isFullscreen}
-        onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-zinc-100 flex flex-col justify-start font-sans selection:bg-amber-500/30 selection:text-amber-200">
+      
+      {/* ========================================================================= */}
+      {/* TOP NAVIGATION BAR FOR MODES (RESTORING EACH MODE'S AUTHENTIC LOGO) */}
+      {/* ========================================================================= */}
+      {currentMode !== 'portal' && currentMode !== 'space' && currentMode !== 'haevy_ai' && (
+        <header className="w-full bg-zinc-950/95 backdrop-blur-2xl border-b border-zinc-800/80 sticky top-0 z-50 px-3 sm:px-6 pt-3 pb-0 shadow-xl">
+          <Navbar
+            currentMode={currentMode as EcosystemMode}
+            onSelectMode={(mode, initialTab) => {
+              handleSelectMode(mode);
+              if (initialTab) setActiveTab(initialTab);
+            }}
+            onOpenEcosystemDrawer={() => setIsModeSwitcherOpen(true)}
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+            onOpenAuth={() => handleOpenAuth('signin')}
+            onOpenStudioAudio={() => setCurrentMode('studio')}
+            onOpenNotifications={() => setIsNotificationsOpen(true)}
+            onToggleFullscreen={handleToggleFullscreen}
+            isFullscreen={isFullscreen}
+            onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
+            onToggleVoiceListen={toggleVoiceListening}
+            isVoiceListening={isVoiceListening}
+          />
+        </header>
+      )}
+
+      {/* Global Comprehensive All Modes Info Modal (Triggered by Smartphone button or Mode Logos across all modes) */}
+      <HaevyAllModesInfoModal
+        isOpen={isModeSwitcherOpen}
+        onClose={() => setIsModeSwitcherOpen(false)}
+        onSelectMode={(mode, initialTab) => {
+          handleSelectMode(mode);
+          if (initialTab) setActiveTab(initialTab);
+          setIsModeSwitcherOpen(false);
+        }}
       />
 
-      {/* Global System Announcement Banner */}
-      <SystemAnnouncementBanner />
-
-      {/* Main Tab Content */}
-      <main className={`flex-1 flex flex-col justify-start w-full max-w-full ${activeTab === 'profile' ? 'pb-8 sm:pb-12' : 'pb-36 sm:pb-40'}`}>
-        {/* If user is specifically viewing an author's channel */}
-        {viewingAuthor ? (
-          <AuthorChannelView
-            authorUid={viewingAuthor.uid}
-            authorStageName={viewingAuthor.stageName}
-            allTracks={allTracks}
-            currentTrack={currentTrack}
-            isPlaying={isPlaying}
-            onPlayTrack={handlePlayTrack}
-            onTogglePlay={handleTogglePlay}
-            onClose={() => setViewingAuthor(null)}
-            onOpenGiftShop={handleOpenGiftShop}
-            onOpenPublishAudio={handleOpenPublishAudio}
-            onOpenAuth={() => handleOpenAuth('signin')}
-            onOpenVipHub={() => setActiveTab('topup')}
-          />
+      {/* ========================================================================= */}
+      {/* ACTIVE MODE VIEW RENDERING (WITH RESPONSIVE DESKTOP LAYOUT & SMOOTH MOTION) */}
+      {/* ========================================================================= */}
+      <AnimatePresence mode="wait" initial={false}>
+        {currentMode === 'portal' ? (
+          <motion.main
+            key="mode-portal"
+            initial={{ opacity: 0, scale: 0.98, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: -8 }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full flex flex-col items-center flex-1"
+          >
+            <HaevyEcosystemLandingView
+              onOpenAuth={handleOpenAuth}
+              onOpenNotifications={() => setIsNotificationsOpen(true)}
+              unreadNotificationCount={0}
+              onToggleFullscreen={handleToggleFullscreen}
+              isFullscreen={isFullscreen}
+              onSelectMode={handleSelectMode}
+              onToggleVoiceListen={toggleVoiceListening}
+              isVoiceListening={isVoiceListening}
+            />
+          </motion.main>
+        ) : currentMode === 'space' ? (
+          <motion.main
+            key="mode-space"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full flex flex-col items-center flex-1"
+          >
+            <div className="w-full h-full flex flex-col">
+              <HaevyMorningView
+                allTracks={tracks}
+                currentTrack={currentTrack}
+                isPlayingTrack={isPlaying}
+                onPlayTrack={handlePlayTrack}
+                onToggleTrackPlay={handleTogglePlay}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onGoToAudioHome={() => setCurrentMode('audio')}
+                onShareToCommunity={() => setCurrentMode('messages')}
+                onOpenEcosystemDrawer={() => setIsModeSwitcherOpen(true)}
+                onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
+                onOpenNotifications={() => setIsNotificationsOpen(true)}
+                onToggleFullscreen={handleToggleFullscreen}
+                isFullscreen={isFullscreen}
+                onSelectMode={handleSelectMode}
+              />
+            </div>
+          </motion.main>
+        ) : currentMode === 'haevy_ai' ? (
+          <motion.main
+            key="mode-haevy_ai"
+            initial={{ opacity: 0, scale: 0.99, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.99, y: -10 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full h-[100dvh] flex flex-col items-center flex-1 p-0 m-0 overflow-hidden"
+          >
+            <HaevyAIHubView
+              onBackToPortal={() => setCurrentMode('portal')}
+              onSelectMode={handleSelectMode}
+              onSelectTab={(tab) => setActiveTab(tab as any)}
+              onOpenAuth={() => handleOpenAuth('signin')}
+              activeSubTab={haevyAISubTab}
+              onSelectSubTab={setHaevyAISubTab}
+              onPlayTrack={handlePlayTrack}
+              onOpenEcosystemDrawer={() => setIsModeSwitcherOpen(true)}
+              onOpenNotifications={() => setIsNotificationsOpen(true)}
+            />
+          </motion.main>
         ) : (
-          <>
-            {activeTab === 'home' && (
-              <HomeView
-                tracks={allTracks}
-                currentTrack={currentTrack}
-                isPlaying={isPlaying}
-                onPlayTrack={handlePlayTrack}
-                onTogglePlay={handleTogglePlay}
-                onSelectTab={setActiveTab}
-                onFilterGenre={(genre) => setSelectedGenre(genre)}
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onOpenPublishAudio={handleOpenPublishAudio}
-                onViewAuthorChannel={handleViewAuthorChannel}
-              />
-            )}
+          <motion.div
+            key="mode-standard-shell"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-full flex-1 flex flex-row items-start justify-center max-w-[1700px] mx-auto px-0 lg:px-4"
+          >
+            {/* Desktop Intuitive Pro Sidebar */}
+            <DesktopSidebar
+              currentMode={currentMode as EcosystemMode}
+              onSelectMode={(mode, initialTab) => {
+                handleSelectMode(mode);
+                if (initialTab) setActiveTab(initialTab);
+              }}
+              activeTab={activeTab}
+              onSelectTab={setActiveTab}
+              onOpenAuth={() => handleOpenAuth('signin')}
+              onOpenAnonPass={() => {}}
+              onOpenStudioAudio={() => handleSelectMode('studio')}
+              onOpenVipHub={() => handleSelectMode('vip')}
+              allTracks={tracks}
+              currentTrack={currentTrack}
+              isPlaying={isPlaying}
+              onPlayTrack={handlePlayTrack}
+              onTogglePlay={handleTogglePlay}
+            />
 
-            {activeTab === 'library' && (
-              <AudioLibraryView
-                tracks={allTracks}
-                currentTrack={currentTrack}
-                isPlaying={isPlaying}
-                onPlayTrack={handlePlayTrack}
-                onTogglePlay={handleTogglePlay}
-                selectedGenre={selectedGenre}
-                onSelectGenre={setSelectedGenre}
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onOpenVipHub={() => setActiveTab('topup')}
-                onOpenPublishAudio={handleOpenPublishAudio}
-                onOpenAuthorStudio={handleOpenAuthorStudio}
-                onViewAuthorChannel={handleViewAuthorChannel}
-              />
-            )}
+            {/* Main Content Area for Desktop & Mobile with Smooth Mode Transitions */}
+            <main className="w-full flex flex-col items-center flex-1 min-w-0">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={currentMode}
+                  initial={{ opacity: 0, y: 10, filter: 'blur(3px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, y: -8, filter: 'blur(3px)' }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="w-full flex flex-col items-center"
+                >
+                  {/* 1. Haevy Audio */}
+                  {currentMode === 'audio' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                          key={activeTab}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.18 }}
+                        >
+                          {activeTab === 'home' && (
+                            <HomeView
+                              tracks={tracks}
+                              currentTrack={currentTrack}
+                              isPlaying={isPlaying}
+                              onPlayTrack={handlePlayTrack}
+                              onTogglePlay={handleTogglePlay}
+                              isLoading={isLoadingTracks}
+                              onSelectTab={(tab: ActiveTab) => {
+                                if (tab === 'library') setActiveTab('library');
+                                else if (tab === 'community') setActiveTab('community');
+                                else if (tab === 'player') setActiveTab('player');
+                                else if (tab === 'studio') setCurrentMode('studio');
+                                else if (tab === 'messages') setCurrentMode('messages');
+                                else if (tab === 'vip') setCurrentMode('vip');
+                                else setActiveTab(tab);
+                              }}
+                              onFilterGenre={(genre) => {
+                                setSelectedGenre(genre);
+                                setActiveTab('library');
+                              }}
+                              onOpenAuth={() => handleOpenAuth('signin')}
+                              onOpenPublishAudio={() => setCurrentMode('studio')}
+                            />
+                          )}
 
-            {activeTab === 'player' && (
-              <AudioPlayer
-                playlist={allTracks}
-                currentTrack={currentTrack}
-                isPlaying={isPlaying}
-                progress={progress}
-                duration={duration}
-                volume={volume}
-                isMuted={isMuted}
-                onTogglePlay={handleTogglePlay}
-                onPlayNext={handlePlayNext}
-                onPlayPrev={handlePlayPrev}
-                onSeek={handleSeek}
-                onVolumeChange={setVolume}
-                onToggleMute={() => setIsMuted(!isMuted)}
-                onSelectTrack={handlePlayTrack}
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onOpenVipHub={() => setActiveTab('topup')}
-                onOpenGiftShop={handleOpenGiftShop}
-                onOpenSleepTimer={() => setIsSleepTimerOpen(true)}
-                sleepTimerSecondsLeft={sleepTimerSecondsLeft}
-                sleepTimerActive={sleepTimerMinutes !== null}
-              />
-            )}
+                          {activeTab === 'library' && (
+                            <AudioLibraryView
+                              tracks={tracks}
+                              currentTrack={currentTrack}
+                              isPlaying={isPlaying}
+                              onPlayTrack={handlePlayTrack}
+                              onTogglePlay={handleTogglePlay}
+                              isLoading={isLoadingTracks}
+                              onOpenAuth={() => handleOpenAuth('signin')}
+                              onOpenPublishAudio={() => setCurrentMode('studio')}
+                              selectedGenre={selectedGenre}
+                              onSelectGenre={setSelectedGenre}
+                            />
+                          )}
 
-            {activeTab === 'messages' && (
-              <MessagesFriendsView
-                tracks={allTracks}
-                currentTrack={currentTrack}
-                onPlayTrack={handlePlayTrack}
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onOpenGiftShop={handleOpenGiftShop}
-                activeSubTab={messageSubTab}
-                onSelectSubTab={setMessageSubTab}
-              />
-            )}
+                          {activeTab === 'community' && (
+                            <CommunityView
+                              tracks={tracks}
+                              currentTrack={currentTrack}
+                              isPlaying={isPlaying}
+                              onPlayTrack={handlePlayTrack}
+                              onOpenAuth={() => handleOpenAuth('signin')}
+                            />
+                          )}
 
-            {activeTab === 'community' && (
-              <CommunityView
-                tracks={allTracks}
-                currentTrack={currentTrack}
-                isPlaying={isPlaying}
-                onPlayTrack={handlePlayTrack}
-                onOpenAuth={() => handleOpenAuth('signin')}
-              />
-            )}
+                          {activeTab === 'player' && (
+                            <AudioPlayer
+                              playlist={tracks}
+                              currentTrack={currentTrack}
+                              isPlaying={isPlaying}
+                              progress={progress}
+                              duration={duration}
+                              volume={volume}
+                              isMuted={isMuted}
+                              onTogglePlay={handleTogglePlay}
+                              onPlayNext={() => {
+                                const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+                                if (idx !== -1 && idx < tracks.length - 1) handlePlayTrack(tracks[idx + 1]);
+                              }}
+                              onPlayPrev={() => {
+                                const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+                                if (idx > 0) handlePlayTrack(tracks[idx - 1]);
+                              }}
+                              onSeek={(val) => setProgress(val)}
+                              onVolumeChange={(val) => setVolume(val)}
+                              onToggleMute={() => setIsMuted(!isMuted)}
+                              onSelectTrack={handlePlayTrack}
+                              onOpenAuth={() => handleOpenAuth('signin')}
+                              onOpenVipHub={() => setCurrentMode('vip')}
+                              shuffleMode={shuffleMode}
+                              repeatMode={repeatMode}
+                              onToggleShuffle={() => setShuffleMode(s => s === 'smart_shuffle' ? 'shuffle' : s === 'shuffle' ? 'off' : 'smart_shuffle')}
+                              onToggleRepeat={() => setRepeatMode(r => r === 'off' ? 'all' : r === 'all' ? 'one' : 'off')}
+                            />
+                          )}
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+                  )}
 
-            {activeTab === 'couple' && (
-              <CoupleRomanceView
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onOpenGiftShop={handleOpenGiftShop}
-                allTracks={allTracks}
-                tracks={allTracks}
-                currentTrack={currentTrack}
-                isPlaying={isPlaying}
-                onPlayTrack={handlePlayTrack}
-                activePage={coupleSubTab}
-                onSelectPage={setCoupleSubTab}
-              />
-            )}
+                  {currentMode === 'audio_library' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <AudioLibraryView
+                        tracks={tracks}
+                        currentTrack={currentTrack}
+                        isPlaying={isPlaying}
+                        onPlayTrack={handlePlayTrack}
+                        onTogglePlay={handleTogglePlay}
+                        onOpenAuth={() => handleOpenAuth('signin')}
+                        onOpenPublishAudio={() => setCurrentMode('studio')}
+                        selectedGenre={selectedGenre}
+                        onSelectGenre={setSelectedGenre}
+                      />
+                    </div>
+                  )}
 
-            {activeTab === 'finance' && (
-              <FinanceView
-                currentUserId={user?.uid || 'user_guest'}
-                isVip={user?.isVip ?? true}
-                onUpgradeVip={() => setActiveTab('topup')}
-                activePage={financeSubTab}
-                onSelectPage={setFinanceSubTab}
-              />
-            )}
+                  {/* 3. Haevy Message */}
+                  {currentMode === 'messages' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <MessagesFriendsView
+                        tracks={tracks}
+                        currentTrack={currentTrack}
+                        onPlayTrack={handlePlayTrack}
+                        onOpenAuth={() => handleOpenAuth('signin')}
+                        activeSubTab={messageSubTab}
+                        onSelectSubTab={setMessageSubTab}
+                        onNavigateToMode={handleNavigateToMode}
+                      />
+                    </div>
+                  )}
 
-            {(activeTab === 'vip' || activeTab === 'topup') && (
-              <VipTopupView
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onGoToProfile={() => setActiveTab('profile')}
-                allTracks={allTracks}
-                currentTrack={currentTrack}
-                onOpenGiftShopModal={handleOpenGiftShop}
-                activePage={vipSubTab}
-                onSelectPage={setVipSubTab}
-              />
-            )}
+                  {/* 4. Haevy Studio */}
+                  {currentMode === 'studio' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <HaevyStudioView
+                        activeSubTab={studioSubTab}
+                        onSelectSubTab={setStudioSubTab}
+                      />
+                    </div>
+                  )}
 
-            {activeTab === 'profile' && (
-              <UserProfileView
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onGoToTopup={() => setActiveTab('topup')}
-                onGoToHome={() => setActiveTab('home')}
-                onSelectTab={setActiveTab}
-                onOpenAuthorStudio={handleOpenAuthorStudio}
-                onOpenAuthorVerification={handleOpenAuthorVerification}
-                onOpenPublishAudio={handleOpenPublishAudio}
-                onOpenGiftShop={() => handleOpenGiftShop()}
-                onOpenAdmin={() => {
-                  setCurrentMode('admin');
-                  setActiveTab('admin');
-                }}
-              />
-            )}
+                  {/* 5. Haevy Finance */}
+                  {currentMode === 'finance' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <FinanceView
+                        currentUserId={user?.uid}
+                        isVip={isVip}
+                        onUpgradeVip={() => setCurrentMode('vip')}
+                        activePage={financeSubTab}
+                        onSelectPage={setFinanceSubTab}
+                        initialPage2SubTab={financePage2SubTab}
+                        openWalletsTrigger={openWalletsTrigger}
+                        openAddTransactionTrigger={openAddTransactionTrigger}
+                      />
+                    </div>
+                  )}
 
-            {activeTab === 'admin' && (
-              <AdminDashboardView
-                onBackToHome={() => {
-                  setCurrentMode('audio');
-                  setActiveTab('home');
-                }}
-                onOpenAuth={() => handleOpenAuth('signin')}
-                adminSubTab={adminSubTab}
-                onSelectAdminSubTab={setAdminSubTab}
-                allTracks={allTracks}
-                onPlayTrack={handlePlayTrack}
-                currentTrack={currentTrack}
-                isPlaying={isPlaying}
-              />
-            )}
+                  {/* 6. Haevy Admin */}
+                  {currentMode === 'admin' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <AdminDashboardView
+                        allTracks={tracks}
+                        onPlayTrack={handlePlayTrack}
+                        onBackToHome={() => setCurrentMode('portal')}
+                        onOpenAuth={() => handleOpenAuth('signin')}
+                        adminSubTab={adminSubTab}
+                        onSelectAdminSubTab={setAdminSubTab}
+                      />
+                    </div>
+                  )}
 
-            {activeTab === 'games' && (
-              <HaevyGamesView
-                activeSubTab={gamesSubTab}
-                onSelectSubTab={setGamesSubTab}
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onOpenVipHub={() => setActiveTab('topup')}
-              />
-            )}
+                  {/* 7. I Love Haevy */}
+                  {currentMode === 'couple' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <CoupleRomanceView
+                        tracks={tracks}
+                        currentTrack={currentTrack}
+                        onPlayTrack={handlePlayTrack}
+                        onOpenAuth={() => handleOpenAuth('signin')}
+                        activePage={coupleSubTab}
+                        onSelectPage={setCoupleSubTab}
+                        onNavigateToMode={handleNavigateToMode}
+                      />
+                    </div>
+                  )}
 
-            {activeTab === 'studio' && (
-              <HaevyStudioView
-                activeSubTab={studioSubTab}
-                onSelectSubTab={setStudioSubTab}
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onPlayTrack={(track) => {
-                  const idx = allTracks.findIndex(t => t.id === track.id);
-                  if (idx !== -1) {
-                    setCurrentTrackIndex(idx);
-                    setIsPlaying(true);
-                  } else {
-                    setAllTracks(prev => [track, ...prev]);
-                    setCurrentTrackIndex(0);
-                    setIsPlaying(true);
-                  }
-                }}
-              />
-            )}
-          </>
+                  {/* 8. Haevy VIP */}
+                  {currentMode === 'vip' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <VipTopupView
+                        onOpenAuth={() => handleOpenAuth('signin')}
+                        onGoToProfile={() => setCurrentMode('profile')}
+                        activePage={vipSubTab}
+                        onSelectPage={setVipSubTab}
+                      />
+                    </div>
+                  )}
+
+                  {/* 9. Haevy Support */}
+                  {currentMode === 'support' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <HaevySupportView
+                        onBackToPortal={() => setCurrentMode('portal')}
+                        onOpenAuth={() => handleOpenAuth('signin')}
+                      />
+                    </div>
+                  )}
+
+                  {/* 10. Haevy Spiritual (Tarot, Tử Vi, Chiêm Tinh, Sóng Âm Solfeggio) */}
+                  {currentMode === 'spiritual' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <HaevySpiritualView
+                        initialSubTab={spiritualSubTab}
+                        onNavigateToMode={handleNavigateToMode}
+                        onEarnCoins={(amount, reason) => {
+                          if (addAudioPoints) {
+                            addAudioPoints(amount, reason, 'bonus');
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* 11. Haevy Family Tree (Gia Phả Dòng Họ & Sơ Đồ Cây Tương Tác) */}
+                  {currentMode === 'family_tree' && (
+                    <div className="w-full max-w-7xl px-0 sm:px-4 py-2 pb-36">
+                      <HaevyFamilyTreeView
+                        onBackToPortal={() => setCurrentMode('portal')}
+                        tracks={tracks}
+                        onPlayTrack={handlePlayTrack}
+                        onNavigateToMode={handleNavigateToMode}
+                      />
+                    </div>
+                  )}
+
+                  {/* User Profile subview */}
+                  {currentMode === 'profile' && (
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
+                      <UserProfileView
+                        onOpenAuth={() => handleOpenAuth('signin')}
+                        onGoToTopup={() => setCurrentMode('vip')}
+                        onGoToHome={() => setCurrentMode('portal')}
+                      />
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </main>
+          </motion.div>
         )}
-      </main>
+      </AnimatePresence>
 
-      {/* Persistent Bottom Taskbar with Mini Player and Navigation Tabs (Hidden when full-screen Ecosystem Drawer is open or when on Profile View) */}
-      {!isModesDrawerOpen && activeTab !== 'profile' && (
-        <BottomTaskbar
-          currentMode={currentMode}
+      {/* Global Haevy AI Floating Assistant Widget (Available in all screens except full Haevy AI mode) */}
+      {currentMode !== 'haevy_ai' && (
+        <HaevyAIFloatingWidget
+          onOpenFullAI={(subTab) => handleSelectMode('haevy_ai', subTab || 'chat')}
           onSelectMode={handleSelectMode}
-          onOpenModesSlider={() => setIsModesDrawerOpen(true)}
+          onSelectTab={(tab) => setActiveTab(tab as any)}
+        />
+      )}
+
+      {/* Consolidated Bottom Taskbar with Docked Subtabs & Mini Player for All Modes */}
+      {currentMode !== 'portal' && currentMode !== 'space' && currentMode !== 'haevy_ai' && activeTab !== 'player' && (
+        <BottomTaskbar
+          currentMode={currentMode as EcosystemMode}
+          onSelectMode={(mode, initialTab) => {
+            handleSelectMode(mode);
+            if (initialTab) setActiveTab(initialTab);
+          }}
+          onOpenModesSlider={() => setIsModeSwitcherOpen(true)}
           activeTab={activeTab}
           onSelectTab={setActiveTab}
           messageSubTab={messageSubTab}
@@ -763,58 +932,55 @@ function MainApp() {
           onSelectFinanceSubTab={setFinanceSubTab}
           adminSubTab={adminSubTab}
           onSelectAdminSubTab={setAdminSubTab}
-          gamesSubTab={gamesSubTab}
-          onSelectGamesSubTab={setGamesSubTab}
           studioSubTab={studioSubTab}
           onSelectStudioSubTab={setStudioSubTab}
           vipSubTab={vipSubTab}
           onSelectVipSubTab={setVipSubTab}
-          currentTrack={isPlayerDismissed ? null : currentTrack}
+          haevyAISubTab={haevyAISubTab}
+          onSelectHaevyAISubTab={setHaevyAISubTab}
+          currentTrack={currentTrack}
           isPlaying={isPlaying}
           progress={progress}
           duration={duration}
           volume={volume}
           isMuted={isMuted}
           onTogglePlay={handleTogglePlay}
-          onPlayNext={handlePlayNext}
-          onPlayPrev={handlePlayPrev}
-          onSeek={handleSeek}
-          onVolumeChange={setVolume}
+          onPlayNext={() => {
+            const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+            if (idx !== -1 && idx < tracks.length - 1) handlePlayTrack(tracks[idx + 1]);
+          }}
+          onPlayPrev={() => {
+            const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+            if (idx > 0) handlePlayTrack(tracks[idx - 1]);
+          }}
+          onSeek={(val) => setProgress(val)}
+          onVolumeChange={(val) => setVolume(val)}
           onToggleMute={() => setIsMuted(!isMuted)}
           onOpenFullPlayer={() => setActiveTab('player')}
           onOpenAuth={() => handleOpenAuth('signin')}
-          onCloseTrack={handleClosePlayer}
-          onOpenSleepTimer={() => setIsSleepTimerOpen(true)}
-          sleepTimerSecondsLeft={sleepTimerSecondsLeft}
-          sleepTimerActive={sleepTimerMinutes !== null}
+          onCloseTrack={() => {
+            setCurrentTrack(null);
+            setIsPlaying(false);
+          }}
+          shuffleMode={shuffleMode}
+          repeatMode={repeatMode}
+          onToggleShuffle={() => setShuffleMode(s => s === 'smart_shuffle' ? 'shuffle' : s === 'shuffle' ? 'off' : 'smart_shuffle')}
+          onToggleRepeat={() => setRepeatMode(r => r === 'off' ? 'all' : r === 'all' ? 'one' : 'off')}
         />
       )}
-
-      {/* Global Horizontal Mode Carousel Drawer triggered from Bottom Dock */}
-      <HaevyEcosystemDrawer
-        isOpen={isModesDrawerOpen}
-        onClose={() => setIsModesDrawerOpen(false)}
-        currentMode={currentMode}
-        onSelectMode={handleSelectMode}
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        onOpenStudioAudio={handleOpenStudioAudio}
-        onOpenAuth={() => handleOpenAuth('signin')}
-        onOpenNotifications={() => setIsNotificationsOpen(true)}
-        onToggleFullscreen={handleToggleFullscreen}
-        isFullscreen={isFullscreen}
-        onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
-      />
 
       {/* Global Notifications Modal */}
       <NotificationsModal
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
-        onSelectTab={setActiveTab}
-        onSelectMode={handleSelectMode}
-        onOpenChatWithUser={(partnerUid) => {
+        onSelectTab={() => {}}
+        onSelectMode={(mode) => {
           setIsNotificationsOpen(false);
-          handleSelectMode('messages', 'messages');
+          handleSelectMode(mode);
+        }}
+        onOpenChatWithUser={() => {
+          setIsNotificationsOpen(false);
+          setCurrentMode('messages');
         }}
       />
 
@@ -826,34 +992,50 @@ function MainApp() {
         isFullscreen={isFullscreen}
       />
 
-      {/* Sleep Timer Toast Banner */}
-      {sleepToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-zinc-950/95 border border-amber-500/50 shadow-2xl backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center gap-2.5 text-xs text-amber-200 animate-in fade-in slide-in-from-top-3">
-          <Moon size={16} className="text-amber-400 fill-amber-400/40 shrink-0 animate-pulse" />
-          <span className="font-semibold">{sleepToast}</span>
+      {/* Global Keyboard Shortcuts Cheat Sheet Modal */}
+      <HaevyShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
+        onSelectShortcutAction={handleShortcutAction}
+      />
+
+      {/* Universal Voice-Controlled Ecosystem Navigation HUD (SpeechRecognition) */}
+      <HaevyVoiceNavigationHUD
+        isListening={isVoiceListening}
+        transcript={voiceTranscript}
+        lastMatchedCommand={voiceLastMatched}
+        errorMessage={voiceError}
+        onToggleListening={toggleVoiceListening}
+        onSelectSuggestion={simulateVoiceCommand}
+      />
+
+      {/* Dynamic Heads-Up Display (HUD) for triggered shortcuts */}
+      {shortcutHUD && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-fadeIn">
+          <div className="px-5 py-2.5 rounded-2xl bg-zinc-950/95 border border-purple-500/50 text-white shadow-2xl backdrop-blur-xl flex items-center gap-3 shadow-purple-500/20">
+            <div className="w-8 h-8 rounded-xl bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-purple-300">
+              <Keyboard size={16} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-white">{shortcutHUD.title}</p>
+              {shortcutHUD.subtitle && (
+                <p className="text-[10px] text-zinc-400 font-medium">{shortcutHUD.subtitle}</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Hidden Global Audio Element */}
-      <audio
-        ref={audioRef}
-        src={currentTrack?.url}
-        crossOrigin="anonymous"
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={handleAudioEnded}
-      />
-
-      {/* Sleep Timer Modal */}
-      <SleepTimerModal
-        isOpen={isSleepTimerOpen}
-        onClose={() => setIsSleepTimerOpen(false)}
-        activeDuration={sleepTimerMinutes}
-        secondsLeft={sleepTimerSecondsLeft}
-        onSetTimer={handleSetSleepTimer}
-        onAddMinutes={handleAddSleepTimerMinutes}
-        currentTrackTitle={currentTrack?.title}
-      />
+      {/* Global Quick Shortcut Pill Button (Bottom right floating) */}
+      <button
+        onClick={() => setIsShortcutsModalOpen(true)}
+        className="fixed bottom-24 sm:bottom-28 right-4 z-40 hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-950/80 hover:bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800/80 hover:border-purple-500/40 backdrop-blur-md shadow-lg text-[11px] font-bold transition-all cursor-pointer group"
+        title="Bấm ? hoặc click để xem bảng phím tắt toàn cục"
+      >
+        <Keyboard size={13} className="text-purple-400 group-hover:scale-110 transition-transform" />
+        <span>Phím tắt</span>
+        <kbd className="px-1.5 py-0.2 rounded bg-zinc-900 text-[9px] text-zinc-300 border border-zinc-700 font-mono">?</kbd>
+      </button>
 
       {/* Auth Modal */}
       <AuthModal 
@@ -862,95 +1044,6 @@ function MainApp() {
         onClose={() => setIsAuthOpen(false)} 
       />
 
-      {/* Unified Author & Audio Studio Modal (TTS, Publishing, eKYC & My Tracks) */}
-      <AuthorStudioModal
-        isOpen={isStudioAudioOpen}
-        initialTab={studioInitialTab}
-        onClose={() => setIsStudioAudioOpen(false)}
-        onSelectTrack={handlePlayTrack}
-      />
-
-      {/* Author Gift Shop Modal */}
-      <AuthorGiftShopModal
-        isOpen={isGiftShopOpen}
-        onClose={() => setIsGiftShopOpen(false)}
-        onOpenAuth={() => handleOpenAuth('signin')}
-        onGoToTopup={() => {
-          setIsGiftShopOpen(false);
-          setActiveTab('topup');
-        }}
-        preselectedAuthor={giftShopTargetAuthor}
-        allTracks={allTracks}
-        currentTrack={currentTrack}
-      />
-
-      {/* Quick Direct Chat Modal */}
-      <QuickChatModal
-        isOpen={!!quickChatTarget}
-        onClose={() => setQuickChatTarget(null)}
-        targetUser={quickChatTarget}
-        tracks={allTracks}
-        onPlayTrack={handlePlayTrack}
-        onOpenGiftShop={handleOpenGiftShop}
-        onGoToFullChat={(recipientUid) => {
-          setQuickChatTarget(null);
-          setActiveTab('messages');
-        }}
-      />
-
-      {/* Publish Audio & Series Storylines Modal */}
-      <PublishAudioModal
-        isOpen={isPublishModalOpen}
-        onClose={() => {
-          setIsPublishModalOpen(false);
-          setPublishSeriesPrefill(null);
-        }}
-        prefilledSeries={publishSeriesPrefill}
-      />
-
-      {/* Anonymous Account Studio Restriction Warning Modal */}
-      {anonStudioWarning && (
-        <div 
-          id="anon-studio-warning-backdrop"
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in"
-          onClick={() => setAnonStudioWarning(null)}
-        >
-          <div 
-            id="anon-studio-warning-dialog"
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <Sparkles size={24} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-white">Tính Năng Dành Cho Tài Khoản Chính Thức</h3>
-              <p className="text-zinc-400 text-xs sm:text-sm mt-2 leading-relaxed">
-                {anonStudioWarning}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setAnonStudioWarning(null)}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs"
-              >
-                Để sau
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAnonStudioWarning(null);
-                  handleOpenAuth('signup');
-                }}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs shadow-md"
-              >
-                Tạo tài khoản ngay
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

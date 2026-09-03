@@ -20,6 +20,7 @@ import { Track } from '../types';
 import { GENRE_LIST } from '../data';
 import { useAuth } from '../context/AuthContext';
 import { UploadTrackModal } from './UploadTrackModal';
+import { SkeletonGrid, SkeletonList, Skeleton } from './common/Skeleton';
 
 interface AudioLibraryViewProps {
   tracks: Track[];
@@ -35,6 +36,7 @@ interface AudioLibraryViewProps {
   onOpenAuthorStudio?: () => void;
   onRefreshCustomTracks?: () => void;
   onViewAuthorChannel?: (authorUid: string, authorName?: string) => void;
+  isLoading?: boolean;
 }
 
 export function AudioLibraryView({
@@ -51,6 +53,7 @@ export function AudioLibraryView({
   onOpenAuthorStudio,
   onRefreshCustomTracks,
   onViewAuthorChannel,
+  isLoading = false,
 }: AudioLibraryViewProps) {
   const { 
     user, 
@@ -312,7 +315,13 @@ export function AudioLibraryView({
       </div>
 
       {/* Track List Results */}
-      {filteredTracks.length === 0 ? (
+      {isLoading && tracks.length === 0 ? (
+        viewMode === 'grid' ? (
+          <SkeletonGrid count={8} columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" />
+        ) : (
+          <SkeletonList count={8} />
+        )
+      ) : filteredTracks.length === 0 ? (
         <div className="text-center py-16 px-4 bg-zinc-900/40 border border-zinc-800/60 rounded-3xl flex flex-col items-center gap-3">
           <Disc3 size={40} className="text-zinc-600 animate-spin-slow" />
           <h3 className="text-lg font-bold text-zinc-300">Không tìm thấy bài hát</h3>

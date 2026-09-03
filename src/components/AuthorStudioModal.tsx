@@ -49,7 +49,6 @@ import {
   TTS_VOICES, 
   AMBIENT_BACKGROUNDS, 
   generateGeminiSpeech, 
-  generateAiScript,
   TtsVoiceOption,
   AmbientBackgroundOption
 } from '../services/ttsService';
@@ -242,12 +241,6 @@ export function AuthorStudioModal({
   const [ambientVolume, setAmbientVolume] = useState<number>(0.25);
   const [stylePrompt, setStylePrompt] = useState<string>('');
 
-  // AI Script Generation
-  const [aiTopicInput, setAiTopicInput] = useState('');
-  const [aiDurationType, setAiDurationType] = useState<'short' | 'medium' | 'long'>('medium');
-  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
-  const [showScriptGenBox, setShowScriptGenBox] = useState(false);
-
   // TTS Output
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
@@ -257,35 +250,6 @@ export function AuthorStudioModal({
   const [ttsError, setTtsError] = useState<string | null>(null);
   const [ttsSuccess, setTtsSuccess] = useState<string | null>(null);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Handle AI Script Generation
-  const handleGenerateScript = async () => {
-    if (!aiTopicInput.trim()) {
-      alert('Vui lòng nhập chủ đề hoặc ý tưởng kịch bản.');
-      return;
-    }
-    setIsGeneratingScript(true);
-    setTtsError(null);
-    try {
-      const result = await generateAiScript({
-        topic: aiTopicInput,
-        genre: ttsGenre,
-        durationType: aiDurationType
-      });
-      if (result && result.script) {
-        setTtsTitle(result.title || 'Tác phẩm Audio Mới');
-        setTtsText(result.script);
-        setShowScriptGenBox(false);
-        setTtsSuccess('Đã sáng tác xong kịch bản bằng Gemini AI!');
-      } else {
-        setTtsError('Không thể tạo kịch bản lúc này.');
-      }
-    } catch (err: any) {
-      setTtsError(err.message || 'Lỗi kết nối tạo kịch bản.');
-    } finally {
-      setIsGeneratingScript(false);
-    }
-  };
 
   // Fee for TTS Audio Synthesis (Points) - Tăng gấp 5 lần theo yêu cầu (VIP: 50 pts, Bản Thường: 75 pts, Admin: 0 pts)
   const ttsPointsCost = isAdmin ? 0 : isVip ? 50 : 75;
@@ -914,75 +878,7 @@ export function AuthorStudioModal({
                   </p>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setShowScriptGenBox(!showScriptGenBox)}
-                className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-              >
-                <Wand2 size={13} className="text-amber-400" />
-                <span>{showScriptGenBox ? 'Đóng Trợ Lý Sáng Tác' : 'AI Sáng Tác Kịch Bản (Gemini 3.7)'}</span>
-              </button>
             </div>
-
-            {/* AI Script Generator Drawer */}
-            {showScriptGenBox && (
-              <div className="p-4 rounded-2xl bg-zinc-950 border border-amber-500/40 space-y-3 animate-in slide-in-from-top-2 duration-150">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                    <Wand2 size={14} /> Trợ lý viết kịch bản AI Gemini 3.7
-                  </span>
-                  <span className="text-[10px] text-zinc-400">Tự động viết lời dẫn diễn cảm & tiêu đề</span>
-                </div>
-
-                <input
-                  type="text"
-                  value={aiTopicInput}
-                  onChange={(e) => setAiTopicInput(e.target.value)}
-                  placeholder="Nhập ý tưởng (VD: Khúc tự tình đêm mưa, mở đầu truyện tiên hiệp trên đỉnh Thái Sơn...)"
-                  className="w-full bg-zinc-900 border border-zinc-700 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 outline-none"
-                />
-
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-1 text-[11px] text-zinc-400">
-                    <span>Độ dài:</span>
-                    {(['short', 'medium', 'long'] as const).map((len) => (
-                      <button
-                        key={len}
-                        type="button"
-                        onClick={() => setAiDurationType(len)}
-                        className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer ${
-                          aiDurationType === len
-                            ? 'bg-amber-400 text-black'
-                            : 'bg-zinc-850 text-zinc-400 hover:text-white'
-                        }`}
-                      >
-                        {len === 'short' ? '1 phút (~100 từ)' : len === 'long' ? '3-4 phút (~400 từ)' : '2 phút (~220 từ)'}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={isGeneratingScript}
-                    onClick={handleGenerateScript}
-                    className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  >
-                    {isGeneratingScript ? (
-                      <>
-                        <Loader2 size={13} className="animate-spin" />
-                        <span>Đang viết kịch bản...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={13} />
-                        <span>Tạo kịch bản ngay</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Presets Quick Templates */}
             <div className="space-y-1.5">

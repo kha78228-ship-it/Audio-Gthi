@@ -474,7 +474,12 @@ export function AdminAudioQuizManager({ showToast }: AdminAudioQuizManagerProps)
         await updateDoc(doc(db, 'audioQuizTracks', editingId), payload);
         showToast(`Đã cập nhật bài hát "${songTitle}" thành công!`);
         if (logSystemActivity) {
-          logSystemActivity('update_audio_quiz_track', `Admin cập nhật câu hỏi bài hát: ${songTitle}`);
+          logSystemActivity({
+            action: 'system_config_update',
+            actionTitle: 'Cập nhật bài hát câu đố',
+            targetType: 'setting',
+            details: `Admin cập nhật câu hỏi bài hát: ${songTitle}`
+          });
         }
       } else {
         await addDoc(collection(db, 'audioQuizTracks'), {
@@ -485,7 +490,12 @@ export function AdminAudioQuizManager({ showToast }: AdminAudioQuizManagerProps)
         });
         showToast(`Đã thêm bài hát "${songTitle}" vào Haevy Games!`);
         if (logSystemActivity) {
-          logSystemActivity('create_audio_quiz_track', `Admin thêm bài hát đố vui mới: ${songTitle} (${artist})`);
+          logSystemActivity({
+            action: 'system_config_update',
+            actionTitle: 'Thêm bài hát câu đố',
+            targetType: 'setting',
+            details: `Admin thêm bài hát đố vui mới: ${songTitle} (${artist})`
+          });
         }
       }
 
@@ -545,7 +555,12 @@ export function AdminAudioQuizManager({ showToast }: AdminAudioQuizManagerProps)
       await deleteDoc(doc(db, 'audioQuizTracks', trackId));
       showToast(`Đã xóa bài hát "${title}" thành công`);
       if (logSystemActivity) {
-        logSystemActivity('delete_audio_quiz_track', `Admin xóa bài hát câu đố: ${title}`);
+        logSystemActivity({
+          action: 'system_config_update',
+          actionTitle: 'Xóa bài hát câu đố',
+          targetType: 'setting',
+          details: `Admin xóa bài hát câu đố: ${title}`
+        });
       }
     } catch (e) {
       showToast('Lỗi khi xóa bài hát', 'error');

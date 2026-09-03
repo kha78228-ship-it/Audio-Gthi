@@ -45,9 +45,14 @@ import {
   SubAdminPermissions,
   SystemAnnouncement,
   SystemGlobalConfig,
-  AdminHomeCustomConfig
+  AdminHomeCustomConfig,
+  HaevyUpcomingEvent,
+  EventStatus,
+  ShortcutItemConfig,
+  ShortcutsConfig
 } from '../types';
 import { INITIAL_TRACKS } from '../data';
+import { DEFAULT_SHORTCUTS_CONFIG } from '../data/defaultShortcuts';
 import { useGlobalPresenceHeartbeat } from '../services/presenceService';
 
 interface CustomAuthUser {
@@ -227,14 +232,43 @@ interface AuthContextType {
   updateHomeCustomConfig: (config: Partial<AdminHomeCustomConfig>) => Promise<{ success: boolean; message: string }>;
   resetHomeCustomConfig: () => Promise<{ success: boolean; message: string }>;
 
+  // Ecosystem Upcoming & Live Events Management (Quản Lý & Tùy Chỉnh Sự Kiện)
+  upcomingEvents: HaevyUpcomingEvent[];
+  createUpcomingEvent: (eventData: Partial<HaevyUpcomingEvent>) => Promise<{ success: boolean; message: string; eventId?: string }>;
+  updateUpcomingEvent: (eventId: string, eventData: Partial<HaevyUpcomingEvent>) => Promise<{ success: boolean; message: string }>;
+  deleteUpcomingEvent: (eventId: string) => Promise<{ success: boolean; message: string }>;
+  toggleEventPin: (eventId: string, isPinned: boolean) => Promise<{ success: boolean; message: string }>;
+  toggleEventStatus: (eventId: string, status: EventStatus) => Promise<{ success: boolean; message: string }>;
+  registerForEvent: (eventId: string) => Promise<{ success: boolean; message: string; rewardAwarded?: number }>;
+  claimEventReward: (eventId: string) => Promise<{ success: boolean; message: string; rewardAwarded?: number }>;
+
   // Batch Operations
   batchRewardUsers: (targetUids: string[], points: number, vipDays: number, reason: string) => Promise<{ success: boolean; message: string; count: number }>;
 
-  signInWithGoogle: () => Promise<void>;
+  // Personal Keyboard Shortcuts Customization & Cloud Sync
+  shortcutsConfig: ShortcutsConfig;
+  isShortcutsSyncing: boolean;
+  updateShortcutsConfig: (newConfig: ShortcutsConfig) => Promise<{ success: boolean; message: string }>;
+  updateSingleShortcut: (actionId: string, updates: Partial<ShortcutItemConfig>) => Promise<{ success: boolean; message: string }>;
+  resetShortcutsToDefault: () => Promise<{ success: boolean; message: string }>;
+
+  signInWithGoogle: (referralCode?: string) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string, name?: string, referralCode?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
+
+const DEFAULT_SUB_ADMIN_PERMISSIONS: SubAdminPermissions = {
+  canManageAuthors: false,
+  canManageTracks: false,
+  canManageCommunity: false,
+  canManageUsers: false,
+  canCreateVipAndPasses: false,
+  canPostAnnouncements: false,
+  canManageSystemConfig: false,
+  canBatchReward: false,
+  canViewAuditLogs: false
+};
 
 const DEFAULT_VIP_SETTINGS: VipSettings = {
   hifiMode: true,
@@ -290,6 +324,99 @@ export const DEFAULT_HOME_CUSTOM_CONFIG: AdminHomeCustomConfig = {
   customBadgeText: '⭐ Giao diện được cá nhân hóa bởi Haevy Admin',
   version: 1,
 };
+
+export const DEFAULT_UPCOMING_EVENTS: HaevyUpcomingEvent[] = [
+  {
+    id: 'event-grand-ecosystem-2026',
+    title: 'Đại Lễ Hệ Sinh Thái Haevy 2026',
+    subtitle: 'Đêm Hội Âm Nhạc & Khai Mở Không Gian Vũ Trụ 3D',
+    description: 'Sự kiện lớn nhất năm: Khai mạc chuỗi đại tiệc âm thanh Lossless Hi-Fi, tặng thưởng 500 Xu Haevy cho toàn bộ thành viên check-in và ra mắt phòng trà 3D Space AR trực tiếp.',
+    badge: '👑 ĐẠI LỄ HỆ SINH THÁI',
+    category: 'holiday',
+    theme: 'gold_luxury',
+    customGradientFrom: '#fbbf24',
+    customGradientTo: '#f59e0b',
+    bannerImageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop',
+    iconName: 'crown',
+    startAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(),
+    endAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    countdownEnabled: true,
+    status: 'upcoming',
+    ctaText: 'Đăng Ký Nhận 500 Xu',
+    ctaAction: 'mode_portal',
+    rewardCoins: 500,
+    rewardBadgeText: '+500 Xu & Huy Hiệu',
+    targetAudience: 'all',
+    displayLocations: ['portal', 'audio_home', 'top_ribbon'],
+    isPinned: true,
+    priorityOrder: 100,
+    viewCount: 1248,
+    joinedCount: 382,
+    createdAt: new Date().toISOString(),
+    createdBy: 'admin',
+    createdByName: 'Haevy Admin Master'
+  },
+  {
+    id: 'event-crowd-tournament-x2',
+    title: 'Giải Đấu Trí Đám Đông ×2 Triệu Xu',
+    subtitle: 'Vòng Đua Tranh Bảng Vàng Siêu Trí Tuệ',
+    description: 'Tham gia giải đấu trực tiếp mỗi tối 20:00: Trả lời các câu hỏi xu hướng âm nhạc và công nghệ, tỷ lệ nhân đôi x2 xu cược và tổng giải thưởng 1,000,000 Xu Haevy.',
+    badge: '⚡ GIẢI ĐẤU ×2 XU',
+    category: 'tournament',
+    theme: 'cyber_fire',
+    customGradientFrom: '#ef4444',
+    customGradientTo: '#f97316',
+    bannerImageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1200&auto=format&fit=crop',
+    iconName: 'trophy',
+    startAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000).toISOString(),
+    endAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    countdownEnabled: true,
+    status: 'upcoming',
+    ctaText: 'Vào Đấu Trường Ngay',
+    ctaAction: 'mode_games',
+    rewardCoins: 1000,
+    rewardBadgeText: 'Giải Thưởng 1,000,000 Xu',
+    targetAudience: 'all',
+    displayLocations: ['portal', 'audio_home'],
+    isPinned: false,
+    priorityOrder: 90,
+    viewCount: 890,
+    joinedCount: 245,
+    createdAt: new Date().toISOString(),
+    createdBy: 'admin',
+    createdByName: 'Haevy Admin Master'
+  },
+  {
+    id: 'event-space-3d-aurora',
+    title: 'Triển Lãm Không Gian 3D Cực Quang',
+    subtitle: 'Đắm Chìm Âm Thanh Sóng Não & Tranh Nghệ Thuật',
+    description: 'Trải nghiệm không gian thực tế ảo 3D Space với hiệu ứng Cực Quang Huyền Ảo và âm thanh thư giãn Alpha Wave giảm căng thẳng tuyệt đối.',
+    badge: '🌌 SPACE 3D AR',
+    category: 'space_ar',
+    theme: 'neon_galaxy',
+    customGradientFrom: '#8b5cf6',
+    customGradientTo: '#3b82f6',
+    bannerImageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1200&auto=format&fit=crop',
+    iconName: 'sparkles',
+    startAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 12 * 60 * 60 * 1000).toISOString(),
+    endAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    countdownEnabled: true,
+    status: 'upcoming',
+    ctaText: 'Trải Nghiệm Không Gian 3D',
+    ctaAction: 'mode_space',
+    rewardCoins: 200,
+    rewardBadgeText: '+200 Xu Tinh Thần',
+    targetAudience: 'all',
+    displayLocations: ['portal'],
+    isPinned: false,
+    priorityOrder: 80,
+    viewCount: 654,
+    joinedCount: 167,
+    createdAt: new Date().toISOString(),
+    createdBy: 'admin',
+    createdByName: 'Haevy Admin Master'
+  }
+];
 
 const ANON_SESSION_KEY = 'audiohub_anon_vip_session';
 const LOCAL_USER_KEY = 'audiohub_custom_auth_user';
@@ -358,7 +485,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [accountId, setAccountId] = useState<string>('GUEST-000000');
   const [role, setRole] = useState<AdminRole>('user');
-  const [subAdminPermissions, setSubAdminPermissions] = useState<SubAdminPermissions>({});
+  const [subAdminPermissions, setSubAdminPermissions] = useState<SubAdminPermissions>(DEFAULT_SUB_ADMIN_PERMISSIONS);
   const [systemAnnouncements, setSystemAnnouncements] = useState<SystemAnnouncement[]>([]);
   const [systemGlobalConfig, setSystemGlobalConfig] = useState<SystemGlobalConfig>(DEFAULT_GLOBAL_CONFIG);
   const [homeCustomConfig, setHomeCustomConfig] = useState<AdminHomeCustomConfig>(() => {
@@ -369,6 +496,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Error reading saved home custom config:', e);
     }
     return DEFAULT_HOME_CUSTOM_CONFIG;
+  });
+  const [upcomingEvents, setUpcomingEvents] = useState<HaevyUpcomingEvent[]>(() => {
+    try {
+      const cached = localStorage.getItem('haevy_upcoming_events_cache');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return DEFAULT_UPCOMING_EVENTS;
   });
   const [favorites, setFavorites] = useState<string[]>([]);
   const [audioPoints, setAudioPoints] = useState<number>(0);
@@ -385,6 +519,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authorStageName, setAuthorStageName] = useState<string>('');
   const [authorBio, setAuthorBio] = useState<string>('');
   const [authorVerificationData, setAuthorVerificationData] = useState<AuthorVerification | null>(null);
+
+  // Personal Keyboard Shortcuts Config State with local cache fallback
+  const [shortcutsConfig, setShortcutsConfig] = useState<ShortcutsConfig>(() => {
+    try {
+      const saved = localStorage.getItem('haevy_shortcuts_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...DEFAULT_SHORTCUTS_CONFIG, ...parsed };
+      }
+    } catch (e) {
+      console.warn('Error reading cached shortcuts config:', e);
+    }
+    return DEFAULT_SHORTCUTS_CONFIG;
+  });
+  const [isShortcutsSyncing, setIsShortcutsSyncing] = useState<boolean>(false);
 
   // Anonymous Guest VIP Session
   const [anonymousVipSession, setAnonymousVipSession] = useState<AnonymousVipSession | null>(() => {
@@ -589,7 +738,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (data.subAdminPermissions) {
             setSubAdminPermissions(data.subAdminPermissions);
           } else {
-            setSubAdminPermissions({});
+            setSubAdminPermissions(DEFAULT_SUB_ADMIN_PERMISSIONS);
           }
           setAudioPoints(typeof data.audioPoints === 'number' ? data.audioPoints : 0);
           setTotalEarnedPoints(typeof data.totalEarnedPoints === 'number' ? data.totalEarnedPoints : 0);
@@ -599,6 +748,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setVipExpiresAt(data.vipExpiresAt || null);
           if (data.vipSettings) {
             setVipSettings({ ...DEFAULT_VIP_SETTINGS, ...data.vipSettings });
+          }
+
+          // Real-time listener for user personal shortcuts_config in Firestore
+          if (data.shortcuts_config && typeof data.shortcuts_config === 'object') {
+            const merged = { ...DEFAULT_SHORTCUTS_CONFIG, ...data.shortcuts_config };
+            setShortcutsConfig(merged);
+            try {
+              localStorage.setItem('haevy_shortcuts_config', JSON.stringify(merged));
+            } catch (e) {}
+          } else if (data.shortcutsConfig && typeof data.shortcutsConfig === 'object') {
+            const merged = { ...DEFAULT_SHORTCUTS_CONFIG, ...data.shortcutsConfig };
+            setShortcutsConfig(merged);
+            try {
+              localStorage.setItem('haevy_shortcuts_config', JSON.stringify(merged));
+            } catch (e) {}
           }
 
           // Author Verification States
@@ -711,6 +875,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return () => unsub();
     } catch (e) {
       console.warn('Home customization init notice:', e);
+    }
+  }, []);
+
+  // Listen to Ecosystem Upcoming & Live Events in Real-time
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'systemEvents'));
+      const unsub = onSnapshot(
+        q,
+        (snap) => {
+          if (!snap.empty) {
+            const list: HaevyUpcomingEvent[] = [];
+            snap.forEach((d) => {
+              list.push({ id: d.id, ...(d.data() as any) });
+            });
+            list.sort((a, b) => {
+              if (a.isPinned && !b.isPinned) return -1;
+              if (!a.isPinned && b.isPinned) return 1;
+              if ((b.priorityOrder || 0) !== (a.priorityOrder || 0)) {
+                return (b.priorityOrder || 0) - (a.priorityOrder || 0);
+              }
+              return new Date(a.startAt || 0).getTime() - new Date(b.startAt || 0).getTime();
+            });
+            setUpcomingEvents(list);
+            localStorage.setItem('haevy_upcoming_events_cache', JSON.stringify(list));
+          } else {
+            setUpcomingEvents(DEFAULT_UPCOMING_EVENTS);
+          }
+        },
+        (err) => {
+          console.warn('System events listener note:', err);
+        }
+      );
+      return () => unsub();
+    } catch (e) {
+      console.warn('System events init notice:', e);
     }
   }, []);
 
@@ -1055,11 +1255,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isVipOnly = Boolean(trackData.isVipOnly);
       const bitrate = trackData.bitrate || (isVipOnly ? 'Lossless 24-bit/96kHz (Đặc quyền VIP)' : '320kbps Hi-Fi');
 
+      let finalAudioUrl = trackData.url.trim();
+
+      // Persist blob: audio URLs to permanent server disk storage so audio plays across sessions and page reloads
+      if (finalAudioUrl.startsWith('blob:')) {
+        try {
+          const blobRes = await fetch(finalAudioUrl);
+          const blobData = await blobRes.blob();
+          const arrayBuffer = await blobData.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = '';
+          const chunkSize = 0x8000;
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize) as unknown as number[]);
+          }
+          const base64 = btoa(binary);
+          const uploadRes = await fetch('/api/audio/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audioBase64: base64,
+              fileName: `publish-${cleanTitle.replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}.wav`,
+              format: 'wav',
+            }),
+          });
+          if (uploadRes.ok) {
+            const data = await uploadRes.json();
+            if (data.audioUrl) {
+              finalAudioUrl = data.audioUrl;
+            }
+          }
+        } catch (uploadErr) {
+          console.warn('Could not persist audio blob to server disk, keeping current URL:', uploadErr);
+        }
+      }
+
       const payload: Record<string, any> = {
         title: cleanTitle,
         artist: cleanArtist,
         genre: trackData.genre || 'Khác',
-        url: trackData.url.trim(),
+        url: finalAudioUrl,
         coverUrl,
         durationSec: trackData.durationSec || 210,
         plays: 0,
@@ -2082,6 +2317,318 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ADMIN: Create Upcoming / Live Event
+  const createUpcomingEvent = async (
+    eventData: Partial<HaevyUpcomingEvent>
+  ): Promise<{ success: boolean; message: string; eventId?: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền tạo và tùy biến sự kiện.' };
+    }
+    try {
+      const payload: Partial<HaevyUpcomingEvent> = {
+        title: eventData.title || 'Sự kiện Mới Hệ Sinh Thái Haevy',
+        subtitle: eventData.subtitle || '',
+        description: eventData.description || '',
+        badge: eventData.badge || 'SẮP DIỄN RA',
+        category: eventData.category || 'music',
+        theme: eventData.theme || 'gold_luxury',
+        customGradientFrom: eventData.customGradientFrom || '#fbbf24',
+        customGradientTo: eventData.customGradientTo || '#f59e0b',
+        customBorderColor: eventData.customBorderColor || '',
+        customTextColor: eventData.customTextColor || '',
+        bannerImageUrl: eventData.bannerImageUrl || '',
+        iconName: eventData.iconName || 'sparkles',
+        startAt: eventData.startAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        endAt: eventData.endAt || new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+        countdownEnabled: eventData.countdownEnabled !== undefined ? eventData.countdownEnabled : true,
+        status: eventData.status || 'upcoming',
+        ctaText: eventData.ctaText || 'Tham Gia Ngay',
+        ctaAction: eventData.ctaAction || 'mode_portal',
+        ctaUrl: eventData.ctaUrl || '',
+        rewardCoins: eventData.rewardCoins || 0,
+        rewardBadgeText: eventData.rewardBadgeText || '',
+        targetAudience: eventData.targetAudience || 'all',
+        targetAccountIds: eventData.targetAccountIds || [],
+        displayLocations: eventData.displayLocations || ['portal', 'audio_home'],
+        isPinned: eventData.isPinned || false,
+        priorityOrder: eventData.priorityOrder || 50,
+        viewCount: 0,
+        joinedCount: 0,
+        registeredUserIds: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: user?.uid || 'admin',
+        createdByName: user?.displayName || user?.email || 'Haevy Admin',
+      };
+
+      const docRef = await addDoc(collection(db, 'systemEvents'), payload);
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_HOME_LAYOUT',
+        actionTitle: 'Tạo Sự Kiện Mới Trong Hệ Sinh Thái',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'home_customization',
+        targetId: docRef.id,
+        targetName: payload.title,
+        details: `Đã tạo sự kiện "${payload.title}" (${payload.category}) bắt đầu lúc ${new Date(payload.startAt!).toLocaleString('vi-VN')}.`,
+        severity: 'info',
+      });
+
+      return {
+        success: true,
+        message: `Đã tạo thành công sự kiện "${payload.title}"! Giao diện đã được xuất bản và đồng bộ toàn hệ sinh thái.`,
+        eventId: docRef.id,
+      };
+    } catch (e: any) {
+      console.error('Error creating upcoming event:', e);
+      return { success: false, message: 'Lỗi khi tạo sự kiện: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Update Upcoming / Live Event
+  const updateUpcomingEvent = async (
+    eventId: string,
+    eventData: Partial<HaevyUpcomingEvent>
+  ): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền chỉnh sửa sự kiện.' };
+    }
+    try {
+      const payload = {
+        ...eventData,
+        updatedAt: serverTimestamp(),
+      };
+      await setDoc(doc(db, 'systemEvents', eventId), payload, { merge: true });
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_HOME_LAYOUT',
+        actionTitle: 'Cập nhật Tùy Biến Giao Diện Sự Kiện',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'home_customization',
+        targetId: eventId,
+        targetName: eventData.title || eventId,
+        details: `Cập nhật thông số & giao diện sự kiện ID ${eventId}.`,
+        severity: 'info',
+      });
+
+      return { success: true, message: 'Đã cập nhật tùy biến giao diện sự kiện thành công!' };
+    } catch (e: any) {
+      console.error('Error updating upcoming event:', e);
+      return { success: false, message: 'Lỗi khi cập nhật sự kiện: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Delete Upcoming Event
+  const deleteUpcomingEvent = async (eventId: string): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền xóa sự kiện.' };
+    }
+    try {
+      await deleteDoc(doc(db, 'systemEvents', eventId));
+
+      await recordSystemAuditLog({
+        action: 'UPDATE_HOME_LAYOUT',
+        actionTitle: 'Xóa Sự Kiện Hệ Sinh Thái',
+        actorId: user?.uid || 'admin',
+        actorName: user?.displayName || user?.email || 'Quản trị viên',
+        actorEmail: user?.email || '',
+        actorRole: 'admin',
+        targetType: 'home_customization',
+        targetId: eventId,
+        details: `Đã xóa sự kiện ID ${eventId} khỏi hệ thống.`,
+        severity: 'warning',
+      });
+
+      return { success: true, message: 'Đã xóa sự kiện thành công!' };
+    } catch (e: any) {
+      console.error('Error deleting upcoming event:', e);
+      return { success: false, message: 'Lỗi khi xóa sự kiện: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Toggle Event Pin
+  const toggleEventPin = async (eventId: string, isPinned: boolean): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền ghim sự kiện.' };
+    }
+    try {
+      await setDoc(doc(db, 'systemEvents', eventId), {
+        isPinned,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      return { success: true, message: isPinned ? 'Đã ghim sự kiện lên đầu trang!' : 'Đã bỏ ghim sự kiện.' };
+    } catch (e: any) {
+      return { success: false, message: 'Lỗi khi ghim sự kiện: ' + (e.message || '') };
+    }
+  };
+
+  // ADMIN: Toggle Event Status
+  const toggleEventStatus = async (eventId: string, status: EventStatus): Promise<{ success: boolean; message: string }> => {
+    if (!isAdmin) {
+      return { success: false, message: 'Chỉ Quản trị viên mới có quyền đổi trạng thái.' };
+    }
+    try {
+      await setDoc(doc(db, 'systemEvents', eventId), {
+        status,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      const statusLabels: Record<EventStatus, string> = {
+        upcoming: 'Sắp diễn ra',
+        live: 'Đang diễn ra (Trực tiếp)',
+        live_now: 'Đang diễn ra (Trực tiếp)',
+        ended: 'Đã kết thúc',
+        completed: 'Đã hoàn thành',
+        cancelled: 'Đã hủy',
+        draft: 'Bản nháp (Ẩn)',
+      };
+      return { success: true, message: `Đã chuyển trạng thái sự kiện sang: ${statusLabels[status] || status}` };
+    } catch (e: any) {
+      return { success: false, message: 'Lỗi khi đổi trạng thái: ' + (e.message || '') };
+    }
+  };
+
+  // USER / MEMBER: Register / RSVP for Event
+  const registerForEvent = async (eventId: string): Promise<{ success: boolean; message: string; rewardAwarded?: number }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để đăng ký tham gia sự kiện và nhận quà.' };
+    }
+    try {
+      const eventRef = doc(db, 'systemEvents', eventId);
+      const evSnap = await getDoc(eventRef);
+      if (!evSnap.exists()) {
+        return { success: false, message: 'Sự kiện không tồn tại hoặc đã kết thúc.' };
+      }
+      const evData = evSnap.data() as HaevyUpcomingEvent;
+      const registeredList = evData.registeredUserIds || [];
+
+      if (registeredList.includes(user.uid)) {
+        return { success: false, message: 'Bạn đã đăng ký tham gia sự kiện này rồi!' };
+      }
+
+      // Add user to registered array and increment joinedCount
+      await updateDoc(eventRef, {
+        registeredUserIds: arrayUnion(user.uid),
+        joinedCount: increment(1),
+      });
+
+      // Award bonus coins if event has rewards
+      let awarded = 0;
+      if (evData.rewardCoins && evData.rewardCoins > 0) {
+        awarded = evData.rewardCoins;
+        const uRef = doc(db, 'users', user.uid);
+        await setDoc(uRef, {
+          audioPoints: increment(awarded),
+          totalEarnedPoints: increment(awarded),
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+
+        await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+          title: `🎁 Quà đăng ký sự kiện: ${evData.title}`,
+          amount: awarded,
+          type: 'bonus',
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      return {
+        success: true,
+        message: `Đăng ký thành công sự kiện "${evData.title}"! ${awarded > 0 ? `Nhận ngay +${awarded.toLocaleString()} Xu Haevy.` : 'Hệ thống sẽ nhắc bạn khi sự kiện bắt đầu!'}`,
+        rewardAwarded: awarded,
+      };
+    } catch (e: any) {
+      console.error('Error registering for event:', e);
+      return { success: false, message: 'Lỗi đăng ký sự kiện: ' + (e.message || '') };
+    }
+  };
+
+  // USER / MEMBER: Claim Event Reward Coins Directly
+  const claimEventReward = async (eventId: string): Promise<{ success: boolean; message: string; rewardAwarded?: number }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để nhận Xu thưởng sự kiện.' };
+    }
+    try {
+      const eventRef = doc(db, 'systemEvents', eventId);
+      const evSnap = await getDoc(eventRef);
+      let evData: HaevyUpcomingEvent | undefined;
+      
+      if (evSnap.exists()) {
+        evData = { id: evSnap.id, ...(evSnap.data() as any) };
+      } else {
+        evData = upcomingEvents.find(e => e.id === eventId);
+      }
+
+      if (!evData) {
+        return { success: false, message: 'Sự kiện không tồn tại hoặc đã kết thúc.' };
+      }
+
+      const claimedList = evData.claimedUserIds || [];
+      if (claimedList.includes(user.uid)) {
+        return { success: false, message: 'Bạn đã nhận phần thưởng của sự kiện này rồi!' };
+      }
+
+      const rewardAmount = evData.rewardCoins || 0;
+      if (rewardAmount <= 0) {
+        return { success: false, message: 'Sự kiện này không có phần thưởng Xu kèm theo.' };
+      }
+
+      // Update event document if exists in Firestore
+      if (evSnap.exists()) {
+        await updateDoc(eventRef, {
+          claimedUserIds: arrayUnion(user.uid),
+          registeredUserIds: arrayUnion(user.uid),
+          joinedCount: increment(1),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      // Update user coins
+      const uRef = doc(db, 'users', user.uid);
+      await setDoc(uRef, {
+        audioPoints: increment(rewardAmount),
+        totalEarnedPoints: increment(rewardAmount),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      // Record point transaction
+      await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+        title: `🎁 Nhận Xu thưởng sự kiện: ${evData.title}`,
+        amount: rewardAmount,
+        type: 'bonus',
+        createdAt: serverTimestamp(),
+      });
+
+      // Update local state
+      setAudioPoints((prev) => (prev || 0) + rewardAmount);
+      setUpcomingEvents((prev) =>
+        prev.map((e) =>
+          e.id === eventId
+            ? {
+                ...e,
+                claimedUserIds: [...(e.claimedUserIds || []), user.uid],
+                registeredUserIds: [...(e.registeredUserIds || []), user.uid],
+                joinedCount: (e.joinedCount || 0) + 1,
+              }
+            : e
+        )
+      );
+
+      return {
+        success: true,
+        message: `Chúc mừng bạn đã nhận thành công +${rewardAmount.toLocaleString()} Xu Haevy từ sự kiện "${evData.title}"!`,
+        rewardAwarded: rewardAmount,
+      };
+    } catch (e: any) {
+      console.error('Error claiming event reward:', e);
+      return { success: false, message: 'Lỗi khi nhận thưởng sự kiện: ' + (e.message || '') };
+    }
+  };
+
   // ADMIN: Batch Reward / Compensation for Multiple Users
   const batchRewardUsers = async (
     targetUids: string[], 
@@ -3066,6 +3613,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateShortcutsConfig = async (newConfig: ShortcutsConfig): Promise<{ success: boolean; message: string }> => {
+    setIsShortcutsSyncing(true);
+    try {
+      setShortcutsConfig(newConfig);
+      try {
+        localStorage.setItem('haevy_shortcuts_config', JSON.stringify(newConfig));
+      } catch (e) {}
+
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, {
+          shortcuts_config: newConfig,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+      return { success: true, message: 'Đã lưu và đồng bộ phím tắt thành công!' };
+    } catch (err) {
+      console.error('Lỗi khi cập nhật shortcuts_config:', err);
+      return { success: false, message: 'Lỗi lưu lên đám mây, đã lưu trên thiết bị.' };
+    } finally {
+      setIsShortcutsSyncing(false);
+    }
+  };
+
+  const updateSingleShortcut = async (actionId: string, updates: Partial<ShortcutItemConfig>): Promise<{ success: boolean; message: string }> => {
+    const current = shortcutsConfig[actionId] || DEFAULT_SHORTCUTS_CONFIG[actionId];
+    if (!current) return { success: false, message: 'Không tìm thấy cấu hình phím tắt.' };
+    
+    const updatedItem: ShortcutItemConfig = {
+      ...current,
+      ...updates,
+      isCustomized: true
+    };
+    
+    const newConfig: ShortcutsConfig = {
+      ...shortcutsConfig,
+      [actionId]: updatedItem
+    };
+
+    return updateShortcutsConfig(newConfig);
+  };
+
+  const resetShortcutsToDefault = async (): Promise<{ success: boolean; message: string }> => {
+    setIsShortcutsSyncing(true);
+    try {
+      setShortcutsConfig(DEFAULT_SHORTCUTS_CONFIG);
+      try {
+        localStorage.setItem('haevy_shortcuts_config', JSON.stringify(DEFAULT_SHORTCUTS_CONFIG));
+      } catch (e) {}
+
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, {
+          shortcuts_config: DEFAULT_SHORTCUTS_CONFIG,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+      return { success: true, message: 'Đã khôi phục phím tắt về mặc định ban đầu!' };
+    } catch (err) {
+      console.error('Lỗi khi khôi phục phím tắt mặc định:', err);
+      return { success: false, message: 'Lỗi khi khôi phục trên máy chủ.' };
+    } finally {
+      setIsShortcutsSyncing(false);
+    }
+  };
+
   const logout = async () => {
     localStorage.removeItem(LOCAL_USER_KEY);
     localStorage.removeItem(ANON_SESSION_KEY);
@@ -3161,7 +3774,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         homeCustomConfig,
         updateHomeCustomConfig,
         resetHomeCustomConfig,
+        upcomingEvents,
+        createUpcomingEvent,
+        updateUpcomingEvent,
+        deleteUpcomingEvent,
+        toggleEventPin,
+        toggleEventStatus,
+        registerForEvent,
+        claimEventReward,
         batchRewardUsers,
+        shortcutsConfig,
+        isShortcutsSyncing,
+        updateShortcutsConfig,
+        updateSingleShortcut,
+        resetShortcutsToDefault,
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,

@@ -108,16 +108,22 @@ export function CardGameTable({
   // Landscape & Fullscreen & Auto Orientation
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [windowDimensions, setWindowDimensions] = useState<{ width: number; height: number }>(() => {
+    if (typeof window !== 'undefined') {
+      return { width: window.innerWidth, height: window.innerHeight };
+    }
+    return { width: 390, height: 844 };
+  });
   const [isPortrait, setIsPortrait] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return window.innerHeight > window.innerWidth && window.innerWidth < 768;
+      return window.innerHeight > window.innerWidth;
     }
     return false;
   });
   const [forceRotateLandscape, setForceRotateLandscape] = useState<boolean>(false);
   const tableRef = useRef<HTMLDivElement>(null);
 
-  // Auto request landscape orientation
+  // Auto request landscape orientation via Screen Orientation API
   const tryLockLandscape = async () => {
     try {
       // @ts-ignore
@@ -130,11 +136,14 @@ export function CardGameTable({
     }
   };
 
-  // Orientation Detection & Auto Lock Lifecycle
+  // Orientation Detection & Window Resize Lifecycle
   useEffect(() => {
     const handleCheckOrientation = () => {
       if (typeof window !== 'undefined') {
-        const portrait = window.innerHeight > window.innerWidth && window.innerWidth < 768;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        setWindowDimensions({ width: w, height: h });
+        const portrait = h > w;
         setIsPortrait(portrait);
       }
     };
@@ -143,7 +152,7 @@ export function CardGameTable({
     window.addEventListener('resize', handleCheckOrientation);
     window.addEventListener('orientationchange', handleCheckOrientation);
 
-    // Auto lock to landscape on entry
+    // Auto attempt landscape lock
     tryLockLandscape();
 
     return () => {
@@ -157,6 +166,15 @@ export function CardGameTable({
         }
       } catch {}
     };
+  }, []);
+
+  // Listen to fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   // Players State
@@ -774,38 +792,55 @@ export function CardGameTable({
     setTimeout(() => setActiveReaction(null), 3000);
   };
 
-  return (
+  const isRotated = forceRotateLandscape && isPortrait;
+
+  const tableInnerContent = (
     <div
       ref={tableRef}
-      className={`relative w-full overflow-hidden transition-all duration-300 ${
-        isFullscreen
-          ? 'fixed inset-0 z-50 bg-zinc-950 flex flex-col justify-between p-2 sm:p-4'
+      style={
+        isRotated
+          ? {
+              width: `${windowDimensions.height}px`,
+              height: `${windowDimensions.width}px`,
+              maxWidth: `${windowDimensions.height}px`,
+              maxHeight: `${windowDimensions.width}px`,
+              transform: 'rotate(90deg)',
+              transformOrigin: 'center center',
+            }
+          : undefined
+      }
+      className={`relative select-none transition-all duration-200 ${
+        isRotated
+          ? 'bg-zinc-950 text-white flex flex-col justify-between p-2 sm:p-3 overflow-hidden shadow-2xl shrink-0'
+          : isFullscreen
+          ? 'fixed inset-0 z-50 bg-zinc-950 flex flex-col justify-between p-2 sm:p-4 overflow-hidden'
           : 'min-h-[620px] rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl p-3 sm:p-5 flex flex-col justify-between'
       }`}
     >
       {/* Toast popup */}
       {toastMsg && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-amber-500 text-black font-black text-xs sm:text-sm rounded-full shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 border border-yellow-300">
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 bg-amber-500 text-black font-black text-xs sm:text-sm rounded-full shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 border border-yellow-300 pointer-events-none">
           {toastMsg}
         </div>
       )}
 
-      {/* Auto Landscape Reminder / Quick Toggle on Mobile */}
-      {isPortrait && tableState === 'playing' && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/95 border border-amber-500/60 px-3.5 py-1.5 rounded-full shadow-2xl flex items-center gap-2 backdrop-blur-md animate-pulse max-w-[90vw]">
-          <RotateCw size={14} className="text-amber-400 animate-spin shrink-0" />
-          <span className="text-[11px] text-zinc-200 font-medium whitespace-nowrap truncate">
-            Đã bật chế độ ngang tự động
+      {/* Auto Landscape Reminder / Quick Toggle on Mobile Portrait */}
+      {isPortrait && !forceRotateLandscape && tableState === 'playing' && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/95 border border-amber-500/60 px-3.5 py-1.5 rounded-full shadow-2xl flex items-center gap-2 backdrop-blur-md animate-pulse max-w-[92vw]">
+          <RotateCw size={13} className="text-amber-400 shrink-0" />
+          <span className="text-[11px] text-zinc-200 font-medium truncate">
+            Xoay ngang để trải nghiệm bàn đấu 13 lá tốt nhất
           </span>
           <button
             type="button"
             onClick={() => {
-              setForceRotateLandscape(prev => !prev);
+              setForceRotateLandscape(true);
               tryLockLandscape();
+              showToast('Đã bật chế độ Xoay Ngang Casino 🃏');
             }}
-            className="text-[10px] font-black text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-md hover:bg-amber-500/30 whitespace-nowrap cursor-pointer"
+            className="text-[10px] font-black text-black bg-amber-400 hover:bg-amber-300 px-2 py-0.5 rounded-md whitespace-nowrap cursor-pointer shrink-0"
           >
-            {forceRotateLandscape ? 'Tắt Xoay' : 'Xoay Ngang'}
+            Xoay Ngang
           </button>
         </div>
       )}
@@ -826,25 +861,25 @@ export function CardGameTable({
       {/* ========================================================================= */}
       {/* HEADER CONTROL BAR                                                        */}
       {/* ========================================================================= */}
-      <div className="flex items-center justify-between gap-2 bg-zinc-900/90 border border-zinc-800 rounded-2xl p-2.5 px-4 shadow-xl backdrop-blur-md z-30">
+      <div className="flex items-center justify-between gap-2 bg-zinc-900/90 border border-zinc-800 rounded-2xl p-2 px-3 sm:px-4 shadow-xl backdrop-blur-md z-30 shrink-0">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onExit}
-            className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-zinc-300 hover:text-amber-400 hover:bg-zinc-800 px-3 py-1.5 rounded-xl transition-all cursor-pointer group"
+            className="flex items-center gap-1.5 text-xs font-bold text-zinc-300 hover:text-amber-400 hover:bg-zinc-800 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer group"
           >
-            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="hidden xs:inline">Thoát Bàn</span>
+            <ArrowLeft size={15} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="hidden xs:inline">Thoát</span>
           </button>
 
-          <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-black">
+          <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-black">
             {GAME_TITLES[gameType].tag}
           </span>
         </div>
 
         {/* Center Game Room Info */}
         <div className="text-center hidden md:block">
-          <h3 className="text-xs sm:text-sm font-black text-white flex items-center justify-center gap-1.5">
+          <h3 className="text-xs font-black text-white flex items-center justify-center gap-1.5">
             {GAME_TITLES[gameType].title}
             <span className="text-zinc-500 font-mono text-[11px]">({customRoomCode})</span>
           </h3>
@@ -853,11 +888,11 @@ export function CardGameTable({
           </p>
         </div>
 
-        {/* Right Tools: Fullscreen / Sound / Balance */}
-        <div className="flex items-center gap-2">
+        {/* Right Tools: Fullscreen / Landscape Toggle / Sound / Balance */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* User Balance */}
           <div className="flex items-center gap-1.5 bg-zinc-950 px-2.5 py-1 rounded-xl border border-zinc-800">
-            <Coins size={14} className="text-amber-400 shrink-0" />
+            <Coins size={13} className="text-amber-400 shrink-0" />
             <span className="text-xs font-black text-amber-400 font-mono">
               {(audioPoints || 0).toLocaleString('vi-VN')}
             </span>
@@ -869,27 +904,34 @@ export function CardGameTable({
               setIsMuted(!isMuted);
               sound.isMuted = !isMuted;
             }}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+            title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
           >
-            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
           </button>
 
-          {/* Landscape Orientation Toggle */}
+          {/* Landscape Orientation Toggle (Supports 90° Rotated Mode on vertical phones & native landscape) */}
           <button
             type="button"
             onClick={() => {
-              setForceRotateLandscape(prev => !prev);
+              const nextState = !forceRotateLandscape;
+              setForceRotateLandscape(nextState);
               tryLockLandscape();
+              if (nextState) {
+                showToast('Đã kích hoạt chế độ Xoay Ngang Casino 🃏');
+              } else {
+                showToast('Đã quay lại chế độ Màn Hình Dọc 📱');
+              }
             }}
-            className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer ${
+            className={`p-1.5 px-2 rounded-lg transition-all flex items-center gap-1 cursor-pointer text-xs font-bold ${
               forceRotateLandscape
-                ? 'bg-amber-500 text-black font-black'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                ? 'bg-amber-500 text-black font-black shadow-md shadow-amber-500/20'
+                : 'text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700'
             }`}
-            title="Tự Động Xoay Ngang Màn Hình / Chế Độ Bàn Casino"
+            title="Xoay Ngang Màn Hình / Chế Độ Bàn Casino"
           >
-            <RotateCw size={15} className={forceRotateLandscape ? 'animate-spin' : ''} />
-            <span className="text-[11px] font-bold hidden sm:inline">
+            <RotateCw size={14} className={forceRotateLandscape ? 'rotate-90 transition-transform text-black' : ''} />
+            <span className="hidden xs:inline">
               {forceRotateLandscape ? 'Đang Xoay' : 'Xoay Ngang'}
             </span>
           </button>
@@ -900,7 +942,7 @@ export function CardGameTable({
             className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
             title="Toàn Màn Hình"
           >
-            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
           </button>
         </div>
       </div>
@@ -1470,4 +1512,14 @@ export function CardGameTable({
       )}
     </div>
   );
+
+  if (isRotated) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black flex items-center justify-center overflow-hidden touch-manipulation">
+        {tableInnerContent}
+      </div>
+    );
+  }
+
+  return tableInnerContent;
 }

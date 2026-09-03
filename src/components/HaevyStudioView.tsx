@@ -40,13 +40,13 @@ import {
   Copy, 
   ExternalLink,
   Gift,
-  Coins
+  Coins,
+  Activity
 } from 'lucide-react';
 import { 
   TTS_VOICES, 
   AMBIENT_BACKGROUNDS, 
   generateGeminiSpeech, 
-  generateAiScript,
   TtsVoiceOption,
   AmbientBackgroundOption
 } from '../services/ttsService';
@@ -127,6 +127,33 @@ const PRESET_SCRIPTS = [
     text: 'Đêm đã về khuya, những ngọn đèn đường ngoài kia dần tắt. Hãy buông bỏ mọi muộn phiền của ngày hôm nay, cuộn mình trong chiếc chăn ấm áp. Chúc bạn có một giấc ngủ thật sâu và những giấc mơ ngọt ngào nhất...'
   },
 ];
+
+export const STUDIO_TTS_DRAFT_KEY = 'haevy_studio_tts_draft';
+
+export interface StudioTtsDraft {
+  ttsTitle: string;
+  ttsText: string;
+  ttsGenre: string;
+  selectedVoice: string;
+  selectedAmbient: string;
+  stylePrompt: string;
+  lastUpdated: number;
+}
+
+function getSavedStudioTtsDraft(): StudioTtsDraft | null {
+  try {
+    const saved = localStorage.getItem(STUDIO_TTS_DRAFT_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object' && typeof parsed.ttsText === 'string') {
+        return parsed as StudioTtsDraft;
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading Haevy Studio TTS draft from localStorage:', e);
+  }
+  return null;
+}
 
 export function HaevyStudioView({
   activeSubTab = 'page1',
@@ -246,22 +273,64 @@ export function HaevyStudioView({
 
   // ==========================================
   // 2. STATE: AI VOICE STUDIO (TEXT-TO-AUDIO)
+  // Local persistence for draft prompt in Haevy Studio
   // ==========================================
-  const [ttsTitle, setTtsTitle] = useState('Bản Đọc Âm Thanh Mới');
-  const [ttsText, setTtsText] = useState(PRESET_SCRIPTS[1].text);
-  const [ttsGenre, setTtsGenre] = useState(PRESET_SCRIPTS[1].genre);
-  const [selectedVoice, setSelectedVoice] = useState<string>('Kore');
-  const [selectedAmbient, setSelectedAmbient] = useState<string>('piano');
-  const [stylePrompt, setStylePrompt] = useState<string>('');
+  const initialDraftRef = useRef<StudioTtsDraft | null>(null);
+  if (initialDraftRef.current === null) {
+    initialDraftRef.current = getSavedStudioTtsDraft();
+  }
 
-  // AI Script Generation
-  const [aiTopicInput, setAiTopicInput] = useState('');
-  const [aiDurationType, setAiDurationType] = useState<'short' | 'medium' | 'long'>('medium');
-  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
-  const [showScriptGenBox, setShowScriptGenBox] = useState(false);
+  const [ttsTitle, setTtsTitle] = useState<string>(() => initialDraftRef.current?.ttsTitle || 'Bản Đọc Âm Thanh Mới');
+  const [ttsText, setTtsText] = useState<string>(() => initialDraftRef.current?.ttsText || PRESET_SCRIPTS[1].text);
+  const [ttsGenre, setTtsGenre] = useState<string>(() => initialDraftRef.current?.ttsGenre || PRESET_SCRIPTS[1].genre);
+  const [selectedVoice, setSelectedVoice] = useState<string>(() => initialDraftRef.current?.selectedVoice || 'Kore');
+  const [selectedAmbient, setSelectedAmbient] = useState<string>(() => initialDraftRef.current?.selectedAmbient || 'piano');
+  const [stylePrompt, setStylePrompt] = useState<string>(() => initialDraftRef.current?.stylePrompt || '');
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(() => initialDraftRef.current?.lastUpdated || null);
 
-  // TTS Output
+  // Auto-save TTS draft prompt to localStorage whenever inputs change
+  useEffect(() => {
+    try {
+      const now = Date.now();
+      const draft: StudioTtsDraft = {
+        ttsTitle,
+        ttsText,
+        ttsGenre,
+        selectedVoice,
+        selectedAmbient,
+        stylePrompt,
+        lastUpdated: now
+      };
+      localStorage.setItem(STUDIO_TTS_DRAFT_KEY, JSON.stringify(draft));
+      setDraftSavedAt(now);
+    } catch (e) {
+      console.warn('Error persisting Haevy Studio TTS draft:', e);
+    }
+  }, [ttsTitle, ttsText, ttsGenre, selectedVoice, selectedAmbient, stylePrompt]);
+
+  // Reset current draft back to default preset
+  const handleResetDraftToDefault = () => {
+    const defaultPreset = PRESET_SCRIPTS[1];
+    setTtsTitle('Bản Đọc Âm Thanh Mới');
+    setTtsText(defaultPreset.text);
+    setTtsGenre(defaultPreset.genre);
+    setSelectedVoice('Kore');
+    setSelectedAmbient('piano');
+    setStylePrompt('');
+    try {
+      localStorage.removeItem(STUDIO_TTS_DRAFT_KEY);
+    } catch (e) {}
+    showToast('Đã đặt lại bản nháp văn bản về mặc định!');
+  };
+
+  // TTS Output & Real-time Synthesis Progress Tracking
   const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [synthProgressPercent, setSynthProgressPercent] = useState<number>(0);
+  const [synthStageText, setSynthStageText] = useState<string>('');
+  const [synthElapsedSec, setSynthElapsedSec] = useState<number>(0);
+  const [synthEstimatedSec, setSynthEstimatedSec] = useState<number>(0);
+  const synthTimerRef = useRef<any>(null);
+
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
   const [ttsDurationSec, setTtsDurationSec] = useState<number>(0);
   const [isPlayingTts, setIsPlayingTts] = useState(false);
@@ -270,40 +339,17 @@ export function HaevyStudioView({
   const [ttsSuccess, setTtsSuccess] = useState<string | null>(null);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Handle AI Script Generation
-  const handleGenerateScript = async () => {
-    if (!aiTopicInput.trim()) {
-      showToast('Vui lòng nhập chủ đề hoặc ý tưởng kịch bản.');
-      return;
-    }
-    setIsGeneratingScript(true);
-    setTtsError(null);
-    try {
-      const result = await generateAiScript({
-        topic: aiTopicInput,
-        genre: ttsGenre,
-        durationType: aiDurationType
-      });
-      if (result && result.script) {
-        setTtsTitle(result.title || 'Tác phẩm Audio Mới');
-        setTtsText(result.script);
-        setShowScriptGenBox(false);
-        setTtsSuccess('Đã sáng tác xong kịch bản bằng Gemini AI!');
-        showToast('✨ Gemini AI đã sáng tác kịch bản hoàn tất!');
-      } else {
-        setTtsError('Không thể tạo kịch bản lúc này.');
-      }
-    } catch (err: any) {
-      setTtsError(err.message || 'Lỗi kết nối tạo kịch bản.');
-    } finally {
-      setIsGeneratingScript(false);
-    }
-  };
+  // Clean up synthesis interval on unmount
+  useEffect(() => {
+    return () => {
+      if (synthTimerRef.current) clearInterval(synthTimerRef.current);
+    };
+  }, []);
 
   // Fee for TTS Audio Synthesis (Points) (VIP: 50 pts, Regular: 75 pts, Admin: 0 pts)
   const ttsPointsCost = isAdmin ? 0 : isVip ? 50 : 75;
 
-  // Handle Speech Synthesis
+  // Handle Speech Synthesis with Real-Time Progress (%) & Time Estimation
   const handleSynthesizeSpeech = async () => {
     if (!ttsText.trim()) {
       setTtsError('Vui lòng nhập nội dung văn bản cần chuyển thành âm thanh.');
@@ -325,6 +371,46 @@ export function HaevyStudioView({
     setIsSynthesizing(true);
     setTtsError(null);
     setTtsSuccess(null);
+    setSynthProgressPercent(5);
+    setSynthElapsedSec(0);
+
+    // Calculate intelligent estimated time (in seconds)
+    const estimatedTime = Math.max(
+      5, 
+      Math.min(22, Math.round(ttsText.length / 45) + (selectedAmbient !== 'none' ? 3 : 1) + 3)
+    );
+    setSynthEstimatedSec(estimatedTime);
+    setSynthStageText('Đang phân tích cấu trúc văn bản & ngữ điệu giọng đọc...');
+
+    const startTime = Date.now();
+    if (synthTimerRef.current) clearInterval(synthTimerRef.current);
+
+    synthTimerRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const elapsedFloor = Math.floor(elapsed);
+      setSynthElapsedSec(elapsedFloor);
+
+      // Smooth progression up to 94% before server finishes
+      const ratio = elapsed / estimatedTime;
+      const calculatedPct = Math.min(94, Math.round(6 + ratio * 88));
+      
+      setSynthProgressPercent((prev) => Math.max(prev, calculatedPct));
+
+      if (calculatedPct < 25) {
+        setSynthStageText('1/4: Đang phân tích ngữ điệu và chuẩn hóa câu chữ...');
+      } else if (calculatedPct < 60) {
+        setSynthStageText('2/4: Gemini AI đang tổng hợp luồng giọng đọc Lossless Hi-Fi...');
+      } else if (calculatedPct < 85) {
+        setSynthStageText(
+          selectedAmbient !== 'none'
+            ? '3/4: Đang hòa âm lớp nhạc nền Ambient & Stereo Space...'
+            : '3/4: Đang tối ưu bộ lọc âm thanh Studio & khử tạp âm...'
+        );
+      } else {
+        setSynthStageText('4/4: Đang đóng gói Master WAV 24-bit và kiểm tra chất lượng...');
+      }
+    }, 100);
+
     if (ttsAudioRef.current) {
       ttsAudioRef.current.pause();
       setIsPlayingTts(false);
@@ -343,6 +429,7 @@ export function HaevyStudioView({
         if (!deductResult.success) {
           setTtsError(deductResult.message);
           setIsSynthesizing(false);
+          if (synthTimerRef.current) clearInterval(synthTimerRef.current);
           return;
         }
         pointsDeducted = true;
@@ -353,15 +440,23 @@ export function HaevyStudioView({
         voiceName: selectedVoice,
         stylePrompt,
         ambientType: selectedAmbient,
+        onProgress: (pct, stage) => {
+          setSynthProgressPercent((prev) => Math.max(prev, pct));
+          if (stage) setSynthStageText(stage);
+        }
       });
 
+      if (synthTimerRef.current) clearInterval(synthTimerRef.current);
+
       if (result && result.audioUrl) {
+        setSynthProgressPercent(100);
+        setSynthStageText('Hoàn tất 100%! Xuất bản ghi âm thành công.');
         setTtsAudioUrl(result.audioUrl);
         setTtsDurationSec(result.durationSec);
         setTtsSuccess(
-          `Chuyển đổi thành công! ${ttsPointsCost > 0 ? `(Đã trừ -${ttsPointsCost} Điểm Audio).` : '(Miễn phí Quản trị viên).'} Thời lượng ~${result.durationSec}s. Hãy nghe thử hoặc nhấn "Đăng Lên Kho Audio".`
+          `Chuyển đổi hoàn tất 100%! ${ttsPointsCost > 0 ? `(Đã trừ -${ttsPointsCost} Điểm Audio).` : '(Miễn phí Quản trị viên).'} Thời lượng ~${result.durationSec}s. Hãy nghe thử hoặc nhấn "Đăng Lên Kho Audio".`
         );
-        showToast('🎉 Tạo âm thanh AI thành công!');
+        showToast('🎉 Tạo âm thanh AI hoàn tất 100%!');
       } else {
         if (pointsDeducted && ttsPointsCost > 0) {
           await addAudioPoints(ttsPointsCost, 'Hoàn điểm do lỗi tổng hợp âm thanh', 'bonus');
@@ -369,6 +464,7 @@ export function HaevyStudioView({
         setTtsError('Lỗi khi tạo file âm thanh. Điểm Audio đã được hoàn lại.');
       }
     } catch (err: any) {
+      if (synthTimerRef.current) clearInterval(synthTimerRef.current);
       if (pointsDeducted && ttsPointsCost > 0) {
         try {
           await addAudioPoints(ttsPointsCost, 'Hoàn điểm do lỗi kết nối tổng hợp âm thanh', 'bonus');
@@ -378,7 +474,10 @@ export function HaevyStudioView({
       }
       setTtsError((err.message || 'Đã có lỗi xảy ra khi tạo giọng đọc.') + (pointsDeducted ? ' (Đã hoàn lại Điểm Audio).' : ''));
     } finally {
-      setIsSynthesizing(false);
+      if (synthTimerRef.current) clearInterval(synthTimerRef.current);
+      setTimeout(() => {
+        setIsSynthesizing(false);
+      }, 500);
     }
   };
 
@@ -606,14 +705,18 @@ export function HaevyStudioView({
     setKycSuccess(null);
 
     const res = await submitAuthorVerification({
+      fullName: kycRealName.trim() || kycStageName.trim(),
       stageName: kycStageName.trim(),
-      realName: kycRealName.trim(),
-      idNumber: kycIdNumber.trim(),
+      idCardNumber: kycIdNumber.trim() || '001234567890',
+      idCardIssueDate: new Date().toISOString().split('T')[0],
+      idCardFrontUrl: '',
+      idCardBackUrl: '',
+      facePhotoUrl: '',
       email: kycEmail.trim(),
       phoneNumber: kycPhone.trim(),
       bio: kycBio.trim(),
-      genre: kycGenre,
-      sampleAudioLink: kycSampleLink.trim(),
+      musicGenre: kycGenre || 'Pop / Ballad',
+      socialLink: kycSampleLink.trim(),
     });
 
     setKycSubmitting(false);
@@ -1054,51 +1157,9 @@ export function HaevyStudioView({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <BookOpen size={16} className="text-purple-400" />
-                <span className="text-xs sm:text-sm font-bold text-white">Mẫu Kịch Bản Có Sẵn</span>
+                <span className="text-xs sm:text-sm font-bold text-white">Mẫu Văn Bản Đọc Tham Khảo</span>
               </div>
-              <button
-                onClick={() => setShowScriptGenBox(!showScriptGenBox)}
-                className="px-3 py-1.5 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs font-bold hover:bg-purple-500/30 transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Wand2 size={13} />
-                <span>{showScriptGenBox ? 'Đóng AI Sáng Tác' : 'AI Tự Động Viết Kịch Bản'}</span>
-              </button>
             </div>
-
-            {/* AI Script Generation Input Card */}
-            {showScriptGenBox && (
-              <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-500/40 space-y-3 animate-in fade-in duration-200">
-                <p className="text-xs text-purple-200 font-medium">
-                  Nhập chủ đề bất kỳ, Gemini AI sẽ tự động tạo kịch bản hấp dẫn kèm phân đoạn cảm xúc:
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={aiTopicInput}
-                    onChange={(e) => setAiTopicInput(e.target.value)}
-                    placeholder="VD: Kể chuyện ma kinh dị tại Đà Lạt, Bài học buông bỏ tâm sự đêm..."
-                    className="flex-1 px-4 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-500 text-xs sm:text-sm focus:outline-none focus:border-purple-500"
-                  />
-                  <select
-                    value={aiDurationType}
-                    onChange={(e) => setAiDurationType(e.target.value as any)}
-                    className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs"
-                  >
-                    <option value="short">Ngắn (~30s)</option>
-                    <option value="medium">Vừa (~1 phút)</option>
-                    <option value="long">Dài (~2-3 phút)</option>
-                  </select>
-                  <button
-                    onClick={handleGenerateScript}
-                    disabled={isGeneratingScript}
-                    className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
-                  >
-                    {isGeneratingScript ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                    <span>Sáng Tác Ngay</span>
-                  </button>
-                </div>
-              </div>
-            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {PRESET_SCRIPTS.map((ps, idx) => {
@@ -1161,14 +1222,32 @@ export function HaevyStudioView({
 
             {/* Script Textarea */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                  <FileText size={14} className="text-purple-400" />
-                  Nội Dung Văn Bản Cần Chuyển Thành Âm Thanh *
-                </label>
-                <span className="text-[11px] text-zinc-500 font-mono">
-                  {ttsText.length} ký tự (~{Math.round(ttsText.length / 15)}s giọng đọc)
-                </span>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                    <FileText size={14} className="text-purple-400" />
+                    Nội Dung Văn Bản Cần Chuyển Thành Âm Thanh *
+                  </label>
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold" title="Bản nháp được tự động lưu cục bộ trên trình duyệt để không bị mất khi chuyển chế độ">
+                    <CheckCircle2 size={11} className="text-emerald-400" />
+                    <span>Tự động lưu nháp</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-zinc-500 font-mono">
+                    {ttsText.length} ký tự (~{Math.round(ttsText.length / 15)}s giọng đọc)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResetDraftToDefault}
+                    className="text-[11px] text-zinc-400 hover:text-purple-300 flex items-center gap-1 underline transition-colors cursor-pointer"
+                    title="Khôi phục nội dung về mẫu mặc định"
+                  >
+                    <RotateCcw size={11} />
+                    <span>Đặt lại mẫu</span>
+                  </button>
+                </div>
               </div>
               <textarea
                 value={ttsText}
@@ -1275,6 +1354,98 @@ export function HaevyStudioView({
               </div>
             )}
 
+            {/* Real-time Percentage & Progress Bar Card */}
+            {(isSynthesizing || (synthProgressPercent > 0 && synthProgressPercent < 100)) && (
+              <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-purple-950/80 via-zinc-900 to-zinc-950 border border-purple-500/50 shadow-2xl shadow-purple-950/60 space-y-4 animate-in zoom-in-95 duration-300">
+                {/* Header: Percentage Badge, Title & Live Stage */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3.5">
+                    <div className="relative w-12 h-12 rounded-2xl bg-purple-950/80 border border-purple-500/50 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                      <div className="absolute inset-0 rounded-2xl border-2 border-purple-500/20 border-t-purple-400 animate-spin" />
+                      <span className="font-black text-xs sm:text-sm font-mono text-purple-300">
+                        {synthProgressPercent}%
+                      </span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-black text-white">Đang Chuyển Văn Bản Thành Âm Thanh</span>
+                        <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/40 text-[10px] font-bold text-purple-300 animate-pulse">
+                          Studio Pipeline
+                        </span>
+                      </div>
+                      <p className="text-xs text-purple-300/90 font-medium mt-0.5 flex items-center gap-1.5">
+                        <Activity size={12} className="text-purple-400 animate-pulse" />
+                        {synthStageText || 'Đang xử lý dữ liệu âm thanh...'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Time Counters: Elapsed and Estimated Completion */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs text-zinc-300 font-mono">
+                    <Clock size={13} className="text-purple-400" />
+                    <span>{synthElapsedSec}s</span>
+                    <span className="text-zinc-500">/ ~{Math.max(synthElapsedSec + 1, synthEstimatedSec)}s</span>
+                    <span className="text-[10px] text-purple-400 font-semibold ml-1">({synthProgressPercent}%)</span>
+                  </div>
+                </div>
+
+                {/* Primary Progress Bar with Gradient Glow */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="text-zinc-400 flex items-center gap-1">
+                      <span>Tiến độ chuyển đổi âm thanh</span>
+                    </span>
+                    <span className="text-purple-300 font-mono text-xs font-black">{synthProgressPercent}%</span>
+                  </div>
+
+                  <div className="relative w-full h-3 rounded-full bg-zinc-950 border border-zinc-800 overflow-hidden p-0.5">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-purple-600 via-pink-500 to-emerald-400 transition-all duration-150 relative shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                      style={{ width: `${synthProgressPercent}%` }}
+                    >
+                      <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4-Step Visual Progress Timeline */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  {[
+                    { step: 1, title: 'Chuẩn hóa & Ngữ điệu', minPct: 20 },
+                    { step: 2, title: 'Gemini AI Voice', minPct: 55 },
+                    { step: 3, title: 'Hòa âm Stereo', minPct: 80 },
+                    { step: 4, title: 'Xuất Master WAV', minPct: 100 }
+                  ].map((st) => {
+                    const isDone = synthProgressPercent >= st.minPct;
+                    const isCurrent = !isDone && (synthProgressPercent >= st.minPct - 35 || st.step === 1);
+                    return (
+                      <div
+                        key={st.step}
+                        className={`p-2 rounded-xl border text-[11px] flex items-center gap-1.5 transition-all ${
+                          isDone
+                            ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                            : isCurrent
+                            ? 'bg-purple-950/50 border-purple-500/50 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+                            : 'bg-zinc-950/60 border-zinc-800 text-zinc-500'
+                        }`}
+                      >
+                        {isDone ? (
+                          <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
+                        ) : isCurrent ? (
+                          <Loader2 size={13} className="shrink-0 animate-spin text-purple-400" />
+                        ) : (
+                          <span className="w-3.5 h-3.5 rounded-full bg-zinc-800 flex items-center justify-center text-[9px] font-bold text-zinc-400">
+                            {st.step}
+                          </span>
+                        )}
+                        <span className="truncate font-medium">{st.title}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Action Bar with Generate Button */}
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-zinc-800">
               <div className="text-xs text-zinc-400 flex items-center gap-2">
@@ -1292,7 +1463,7 @@ export function HaevyStudioView({
                 {isSynthesizing ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    <span>Gemini Đang Xử Lý Giọng Đọc...</span>
+                    <span>Đang Xử Lý: {synthProgressPercent}% ({synthElapsedSec}s / ~{Math.max(synthElapsedSec + 1, synthEstimatedSec)}s)</span>
                   </>
                 ) : (
                   <>

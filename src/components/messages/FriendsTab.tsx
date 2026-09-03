@@ -441,8 +441,8 @@ export function FriendsTab({
                               )}
                             </div>
                             {isOnline ? (
-                              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-sm flex items-center justify-center">
-                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white" />
                               </span>
                             ) : (
                               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-950" />
@@ -535,8 +535,8 @@ export function FriendsTab({
                           )}
                         </div>
                         {isOnline ? (
-                          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
-                            <span className="w-1 h-1 rounded-full bg-white animate-pulse" />
+                          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center" title="Đang trực tuyến">
+                            <span className="w-1 h-1 rounded-full bg-white" />
                           </span>
                         ) : (
                           <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-zinc-600 border-2 border-zinc-950" />
@@ -728,7 +728,7 @@ export function FriendsTab({
               {friendships.map((f) => {
                 if (!user) return null;
                 const friendUid = f.userIds.find(id => id !== user.uid) || '';
-                const friendData = f.users ? f.users[friendUid] || {} : {};
+                const friendData = (f.users ? f.users[friendUid] || {} : {}) as any;
                 const name = friendData.stageName || friendData.displayName || 'Bạn Bè';
                 const isOnline = isUserOnline(friendUid);
                 const statusDetails = getUserStatus(friendUid);
@@ -755,8 +755,8 @@ export function FriendsTab({
                         </div>
                         {/* Presence badge */}
                         {isOnline ? (
-                          <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-sm flex items-center justify-center" title="Đang trực tuyến">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                          <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center" title="Đang trực tuyến">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
                           </span>
                         ) : (
                           <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-950" title={statusDetails.statusText} />
@@ -781,7 +781,7 @@ export function FriendsTab({
                           </p>
                           {isOnline ? (
                             <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                               Online
                             </span>
                           ) : (

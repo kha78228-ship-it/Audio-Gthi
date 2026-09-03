@@ -521,7 +521,7 @@ export function NotificationsModal({
         category: 'system',
         ecosystemTitle: 'Haevy System • Thông Báo BQT',
         title: ann.title,
-        message: ann.message,
+        message: ann.message || ann.content || '',
         createdAt: ann.createdAt || new Date(),
         isRead: readIds.includes(`ann-${ann.id}`),
         iconType: ann.customIcon || 'megaphone',

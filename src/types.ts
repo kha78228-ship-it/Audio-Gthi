@@ -33,7 +33,7 @@ export interface PointTransaction {
   id: string;
   title: string;
   amount: number; // positive for earn, negative for spend
-  type: 'listen' | 'checkin' | 'upload' | 'post' | 'comment' | 'redeem_vip' | 'bonus' | 'gift_author' | 'receive_gift' | 'tts_synthesis' | 'spend' | 'topup_coins' | 'gift_vip' | 'receive_vip' | 'transfer_coins' | 'receive_coins' | 'game_crowd_bet' | 'game_crowd_win' | 'game_crowd_refund';
+  type: 'listen' | 'checkin' | 'upload' | 'post' | 'comment' | 'redeem_vip' | 'bonus' | 'gift_author' | 'receive_gift' | 'tts_synthesis' | 'spend' | 'topup_coins' | 'gift_vip' | 'receive_vip' | 'transfer_coins' | 'receive_coins' | 'game_crowd_bet' | 'game_crowd_win' | 'game_crowd_refund' | 'game_reward' | 'game_bet';
   createdAt: any;
 }
 
@@ -152,6 +152,13 @@ export interface CommunityPost {
   isAuthorVip?: boolean;
   isAuthorAdmin?: boolean;
   content: string;
+  imageUrl?: string;
+  spatialInfo?: {
+    strokesCount?: number;
+    styleName?: string;
+    theme?: string;
+    mode?: string;
+  };
   trackId?: string;
   trackTitle?: string;
   trackArtist?: string;
@@ -166,9 +173,81 @@ export interface CommunityPost {
   isHidden?: boolean;
 }
 
-export type EcosystemMode = 'audio' | 'messages' | 'couple' | 'finance' | 'admin' | 'studio' | 'games';
+export type EcosystemMode = 'portal' | 'audio' | 'messages' | 'couple' | 'finance' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'vip' | 'support' | 'profile' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree';
 
-export type ActiveTab = 'home' | 'library' | 'player' | 'community' | 'messages' | 'couple' | 'finance' | 'topup' | 'vip' | 'profile' | 'admin' | 'studio' | 'games';
+export type ActiveTab = 'portal' | 'home' | 'library' | 'player' | 'community' | 'messages' | 'couple' | 'finance' | 'topup' | 'vip' | 'profile' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'support' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree';
+
+export interface HaevyAIMessage {
+  id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  timestamp: string;
+  category?: 'all' | 'companion' | 'ecosystem' | 'updates' | 'troubleshooting' | 'general';
+  suggestedActions?: Array<{
+    label: string;
+    actionType: 'navigate_mode' | 'navigate_tab' | 'open_modal' | 'prompt_preset' | 'open_link';
+    target: string;
+    icon?: string;
+  }>;
+  actionData?: {
+    type: 'audio_stats' | 'couple_anniversary' | 'finance_transaction' | 'play_music' | 'reward_points' | 'security_diagnostics' | string;
+    [key: string]: any;
+  };
+  audioUrl?: string;
+  isSpeaking?: boolean;
+}
+
+export interface HaevyAIUserContext {
+  displayName?: string;
+  email?: string;
+  accountId?: string;
+  isVip?: boolean;
+  vipTier?: string;
+  audioPoints?: number;
+  totalEarnedPoints?: number;
+  totalListenedMinutes?: number;
+  favoriteGenres?: string[];
+  recentMood?: string;
+  authorStatus?: string;
+  isAuthorVerified?: boolean;
+  stageName?: string;
+  securityScore?: number;
+  lockLevel?: string;
+  coupleInfo?: {
+    isCoupled: boolean;
+    partnerName?: string;
+    relationshipType?: string;
+    anniversaryDate?: string;
+    lovePoints?: number;
+  };
+  currentMode?: string;
+}
+
+export type SpaceTheme = 
+  | 'ocean_sunrise'    // Bình Minh Biển Vàng
+  | 'pine_forest'      // Rừng Thông Sương Sớm
+  | 'cloud_mountain'   // Đỉnh Núi Biển Mây
+  | 'city_balcony'     // Ban Công Bình Minh Phố Thị
+  | 'bamboo_zen'       // Thiền Viện Trúc Lâm
+  | 'cosmic_earth'     // Bình Minh Trái Đất Vũ Trụ
+  | 'solar_dawn'       // Ánh Dương Hoàng Kim
+  | 'cosmic_aurora'    // Cực Quang Huyền Ảo
+  | 'cherry_blossom'   // Hoa Anh Đào
+  | 'zen_emerald'      // Ngọc Bích Tỉnh Thức
+  | 'live_camera';     // Camera Thực Tế Toàn Cảnh
+
+export type MorningTheme = SpaceTheme;
+export type SpaceSoundscape = 'birds_dawn' | 'alpha_wave' | 'zen_stream' | 'acoustic_sun' | 'ocean_waves' | 'forest_wind' | 'haevy_track';
+export type MorningSoundscape = SpaceSoundscape;
+
+export interface SpaceSessionStats {
+  energyCharged: number; // 0 to 100
+  streakDays: number;
+  lastCompletedDate?: string;
+  totalGesturesTriggered: number;
+  minutesAwake: number;
+}
+export type MorningSessionStats = SpaceSessionStats;
 
 export type CoupleRelationshipType = 'dating' | 'engaged' | 'married';
 
@@ -248,7 +327,7 @@ export interface CoupleData {
   relationshipType: CoupleRelationshipType;
   anniversaryDate: string; // YYYY-MM-DD
   coupleTitle: string;
-  theme: 'rose_romance' | 'sunset_glow' | 'starlight_midnight' | 'pure_diamond';
+  theme: 'rose_romance' | 'sunset_glow' | 'starlight_midnight' | 'pure_diamond' | 'starlight_galaxy' | 'sunset_amber' | 'sakura_blossom' | string;
   lovePoints: number;
   sharedSongIds: string[];
   bannerUrl?: string;
@@ -420,10 +499,11 @@ export interface ChatMessageTrackAttachment {
 }
 
 export interface ChatMessageAttachment {
-  type: 'voice' | 'image' | 'file';
+  type: 'voice' | 'image' | 'video' | 'file';
   url: string;
   durationSec?: number;
   fileName?: string;
+  thumbnailUrl?: string;
 }
 
 export interface ChatMessage {
@@ -436,9 +516,14 @@ export interface ChatMessage {
   senderAccountId?: string;
   isSenderVip?: boolean;
   isSenderAuthor?: boolean;
+  isSenderAI?: boolean;
+  aiModelUsed?: string;
   senderAuthorStageName?: string;
   text: string;
   imageUrl?: string;
+  videoUrl?: string;
+  videoDurationSec?: number;
+  videoThumbnail?: string;
   voiceUrl?: string;
   voiceDurationSec?: number;
   attachments?: ChatMessageAttachment[];
@@ -449,6 +534,7 @@ export interface ChatMessage {
   };
   trackAttachment?: ChatMessageTrackAttachment;
   sharedTrack?: ChatMessageTrackAttachment;
+  spiritualAttachment?: SpiritualShareAttachment;
   pointsGift?: {
     amount: number;
     giftName: string;
@@ -457,6 +543,40 @@ export interface ChatMessage {
   reactions?: Record<string, any>; // emoji -> list of UIDs or map
   createdAt: any;
   isRead?: boolean;
+  isEncrypted?: boolean;
+  encryptionVersion?: 'e2ee_6l_v1' | string;
+  encryptionFingerprint?: string;
+  encryptedPayload?: string;
+}
+
+export interface CallUserParticipant {
+  uid: string;
+  displayName: string;
+  accountId?: string;
+  photoURL?: string;
+  isVip?: boolean;
+  isAuthorVerified?: boolean;
+  authorStageName?: string;
+}
+
+export type CallStatus = 'ringing' | 'connected' | 'rejected' | 'ended' | 'missed';
+
+export interface ActiveCallSession {
+  id: string;
+  caller: CallUserParticipant;
+  recipient: CallUserParticipant;
+  type: 'voice' | 'video';
+  status: CallStatus;
+  conversationId?: string;
+  callerAudioEnabled?: boolean;
+  callerVideoEnabled?: boolean;
+  recipientAudioEnabled?: boolean;
+  recipientVideoEnabled?: boolean;
+  startedAt: any;
+  connectedAt?: any;
+  endedAt?: any;
+  durationSec?: number;
+  rejectReason?: string;
 }
 
 export interface ConversationParticipant {
@@ -477,7 +597,11 @@ export interface Conversation {
   lastMessageSenderUid: string;
   lastMessageAt: any;
   unreadCount?: Record<string, number>;
+  unreadCounts?: Record<string, number>;
   createdAt: any;
+  isE2EEEnabled?: boolean;
+  e2eeFingerprint?: string;
+  e2eeLayerCount?: number;
 }
 
 export interface ReferralCode {
@@ -509,11 +633,32 @@ export interface AnonymousVipSession {
   isActive: boolean;
   guestId: string; // e.g. "GUEST-VIP-8492"
   passCode: string;
+  code?: string;
   durationDays: number;
   activatedAt: string;
   expiresAt: string;
   type: '3_digit_month' | '1_week';
 }
+
+export type ShortcutCategory = 'navigation' | 'finance' | 'media' | 'system';
+
+export interface ShortcutItemConfig {
+  id: string;
+  action: string;
+  label: string;
+  desc: string;
+  category: ShortcutCategory;
+  code: string;
+  keyChar?: string;
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+  allowAltOrCtrl?: boolean;
+  enabled: boolean;
+  isCustomized?: boolean;
+}
+
+export type ShortcutsConfig = Record<string, ShortcutItemConfig>;
 
 export interface UserAccountData {
   uid: string;
@@ -532,6 +677,7 @@ export interface UserAccountData {
   authorStageName?: string;
   authorBio?: string;
   authorVerificationId?: string;
+  shortcuts_config?: ShortcutsConfig;
   role?: 'admin' | 'user';
   isBanned?: boolean;
   bannedReason?: string;
@@ -700,6 +846,7 @@ export interface SystemAuditLog {
     | 'CREATE_ANNOUNCEMENT'
     | 'DELETE_ANNOUNCEMENT'
     | 'UPDATE_SYSTEM_CONFIG'
+    | 'system_config_update'
     | 'UPDATE_HOME_LAYOUT'
     | 'BATCH_REWARD';
   actionTitle: string;
@@ -707,7 +854,7 @@ export interface SystemAuditLog {
   actorName: string;
   actorEmail?: string;
   actorRole: 'admin' | 'user' | 'author';
-  targetType: 'comment' | 'audio_track' | 'post' | 'user' | 'author_verification' | 'pass_code' | 'referral_code' | 'gift' | 'system_announcement' | 'system_config' | 'home_customization';
+  targetType: 'comment' | 'audio_track' | 'post' | 'user' | 'author_verification' | 'pass_code' | 'referral_code' | 'gift' | 'system_announcement' | 'system_config' | 'setting' | 'home_customization';
   targetId?: string;
   targetName?: string;
   details: string;
@@ -716,7 +863,7 @@ export interface SystemAuditLog {
   createdAt: any;
 }
 
-export type AdminRole = 'super_admin' | 'sub_admin' | 'moderator';
+export type AdminRole = 'user' | 'admin' | 'super_admin' | 'sub_admin' | 'moderator';
 
 export interface SubAdminPermissions {
   canManageAuthors: boolean;
@@ -745,6 +892,9 @@ export interface SystemAnnouncement {
   id: string;
   title: string;
   content: string;
+  message?: string;
+  linkUrl?: string;
+  linkText?: string;
   type: 'urgent' | 'event' | 'maintenance' | 'general';
   targetAudience: 'all' | 'vip' | 'authors';
   isPinned: boolean;
@@ -765,6 +915,112 @@ export interface SystemAnnouncement {
   expiresAt?: string;
 }
 
+export type AdminSubTab = 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7';
+
+// ================= HAEVY ECOSYSTEM UPCOMING & LIVE EVENTS =================
+export type EventCategory = 
+  | 'music'              // Đại nhạc hội / Âm nhạc
+  | 'album_launch'       // Ra mắt Album mới
+  | 'live_show'          // Live show âm thanh
+  | 'giveaway'           // Phát quà & Tri ân Xu
+  | 'tournament'         // Giải đấu Đấu Trí ×2
+  | 'games_tournament'   // Giải đấu Games
+  | 'space_ar'           // Triển lãm Tranh Không Gian 3D AR
+  | 'couple'             // Lễ Tình Nhân Couple
+  | 'vip_promo'          // Siêu Ưu Đãi VIP
+  | 'vip_gala'           // Dạ tiệc Gala VIP
+  | 'holiday'            // Đại Lễ & Ngày Hội Hệ Sinh Thái
+  | 'workshop'           // Hội thảo sáng tác / Studio
+  | 'seasonal'           // Sự kiện theo mùa
+  | 'exclusive_premiere' // Công chiếu độc quyền
+  | 'system';            // Nâng cấp & Bảo trì hệ thống
+
+export type EventTheme = 
+  | 'gold_luxury'     // Hoàng Kim Đại Lễ (Vàng & Đen sang trọng)
+  | 'neon_galaxy'     // Vũ Trụ Neon (Tím & Xanh Cyan huyền ảo)
+  | 'cyber_fire'      // Cyberpunk Lửa Đỏ (Đỏ & Cam rực cháy)
+  | 'aurora_green'    // Cực Quang Ngọc Bích (Xanh Ngọc & Emerald)
+  | 'sakura_pink'     // Hoa Anh Đào Valentine (Hồng & Pastel ngọt ngào)
+  | 'royal_purple'    // Hoàng Gia Quyền Lực (Tím Thẫm & Vàng)
+  | 'midnight_blue'   // Đêm Bắc Cực (Xanh Đậm & Bạc)
+  | 'emerald_zen'     // Ngọc Bích Zen
+  | 'sunset_orange'   // Hoàng Hôn Rực Rỡ
+  | 'neon_cyber'      // Neon Cyber
+  | 'rose_romance'    // Hoa Hồng Tình Yêu
+  | 'midnight_purple' // Tím Đêm
+  | 'ocean_deep'      // Đại Dương Xanh Sâu
+  | 'dark_mono'       // Tối Giản Monochromatic
+  | 'custom';         // Tùy chỉnh màu tự do
+
+export type EventStatus = 'upcoming' | 'live' | 'live_now' | 'ended' | 'completed' | 'cancelled' | 'draft';
+export type EventTargetAudience = 'all' | 'vip' | 'vip_only' | 'authors' | 'verified_authors' | 'couple_only' | 'guests' | 'specific_accounts';
+export type EventAudience = EventTargetAudience;
+export type EventDisplayLocation = 'portal' | 'audio_home' | 'top_ribbon' | 'modal_spotlight' | 'home_banner' | 'events_tab' | 'popup_modal' | 'ticker_bar';
+
+export type EventIconName = 'sparkles' | 'crown' | 'gift' | 'flame' | 'trophy' | 'music' | 'heart' | 'zap' | 'radio' | 'calendar' | 'rocket' | 'star';
+
+export type EventRewardDisplayStyle = 
+  | 'gold_chest'      // Rương Vàng Hoàng Kim Lấp Lánh
+  | 'neon_crystal'    // Pha Lê Tinh Thể Vũ Trụ
+  | 'gift_box'        // Hộp Quà Phát Sáng Thắt Nơ
+  | 'lucky_wheel'     // Vòng Quay May Mắn Vàng
+  | 'coin_fountain'   // Mưa Xu Haevy 3D
+  | 'royal_card'      // Thẻ Bài Hoàng Gia VIP
+  | 'minimal_badge';  // Huy Hiệu Tinh Gọn
+
+export type EventHostingMode = 
+  | 'mode_portal'    // Cổng Hệ Sinh Thái Haevy
+  | 'mode_audio'     // Chế Độ Âm Nhạc & Trình Phát Lossless
+  | 'mode_games'     // Chế Độ Games & Đấu Trí Đám Đông
+  | 'mode_space'     // Chế Độ Không Gian 3D Space AR
+  | 'mode_messages'  // Chế Độ Tin Nhắn & Bảng Tin
+  | 'mode_studio'    // Chế Độ Phòng Thu & Sáng Tác
+  | 'mode_finance'   // Chế Độ Tài Chính & Quản Lý Dòng Tiền
+  | 'mode_couple'    // Chế Độ Cặp Đôi
+  | 'mode_vip'       // Chế Độ Đặc Quyền VIP
+  | 'mode_live'      // Khán Đài Trực Tiếp / Live Broadcast
+  | 'open_link';     // Liên Kết Web Ngoài Tùy Chỉnh
+
+export interface HaevyUpcomingEvent {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  badge: string; // e.g. "SẮP DIỄN RA", "HOT", "ĐẠI LỄ", "X2 XU HAEVY", "TOURNAMENT", "VIP ONLY"
+  category: EventCategory;
+  theme: EventTheme;
+  customGradientFrom?: string;
+  customGradientTo?: string;
+  customBorderColor?: string;
+  customTextColor?: string;
+  bannerImageUrl?: string;
+  iconName?: EventIconName;
+  startAt: string; // ISO date string e.g. "2026-09-02T19:00:00.000Z"
+  endAt?: string; // ISO date string
+  countdownEnabled: boolean;
+  status: EventStatus;
+  ctaText: string; // e.g. "Tham Gia Ngay", "Đặt Lịch Nhắc", "Xem Chi Tiết", "Nhận 500 Xu"
+  ctaAction: 'mode_portal' | 'mode_audio' | 'mode_space' | 'mode_messages' | 'mode_studio' | 'mode_finance' | 'mode_couple' | 'mode_vip' | 'mode_games' | 'mode_support' | 'open_link' | 'custom_modal';
+  ctaUrl?: string;
+  hostingMode?: EventHostingMode;
+  rewardCoins?: number;
+  rewardBadgeText?: string;
+  rewardDisplayStyle?: EventRewardDisplayStyle;
+  targetAudience: EventAudience;
+  targetAccountIds?: string[];
+  displayLocations: EventDisplayLocation[];
+  isPinned: boolean;
+  priorityOrder: number;
+  viewCount?: number;
+  joinedCount?: number;
+  registeredUserIds?: string[];
+  claimedUserIds?: string[];
+  createdAt: any;
+  updatedAt?: any;
+  createdBy?: string;
+  createdByName?: string;
+}
+
 export interface SystemGlobalConfig {
   maintenanceMode: boolean;
   maintenanceMessage: string;
@@ -776,9 +1032,9 @@ export interface SystemGlobalConfig {
   dailyCheckinBonus: number;
 }
 
-export type HomeTargetAudience = 'all' | 'vip' | 'authors' | 'guests' | 'specific_accounts';
-export type HomeHeroStyle = 'classic_spotlight' | 'cinematic_wide' | 'storyline_epic' | 'minimal_clean' | 'cyber_glow';
-export type HomeHeroAction = 'play_track' | 'open_library' | 'open_vip' | 'open_studio' | 'open_community' | 'open_games' | 'open_author';
+export type HomeTargetAudience = 'all' | 'vip' | 'authors' | 'guests' | 'users' | 'vips' | 'admins' | 'specific_accounts';
+export type HomeHeroStyle = 'classic_spotlight' | 'cinematic_wide' | 'storyline_epic' | 'minimal_clean' | 'cyber_glow' | string;
+export type HomeHeroAction = 'play_track' | 'open_library' | 'open_vip' | 'open_studio' | 'open_community' | 'open_games' | 'open_author' | string;
 
 export interface CuratedCollectionItem {
   id: string;
@@ -794,8 +1050,34 @@ export interface AdminHomeCustomConfig {
   targetAudience: HomeTargetAudience;
   targetAccountIds: string[]; // List of account IDs (e.g. HV-123456, AH-ADMIN) or UIDs/emails
   titleTag?: string;
+  sectionVisibility?: {
+    genres?: boolean;
+    trending?: boolean;
+    collections?: boolean;
+  };
+  showGreetingBanner?: boolean;
+  heroSection?: {
+    heroTrackId?: string;
+    overrideHero?: boolean;
+    heroTitle?: string;
+    heroSubtitle?: string;
+    heroBadgeText?: string;
+    heroCtaText?: string;
+    heroCoverUrl?: string;
+    heroStyle?: string;
+  };
+  pinnedTrackIds?: string[];
   // Greeting Announcement Ribbon
   showAdminGreetingBanner: boolean;
+  greetingBanner?: {
+    badgeText?: string;
+    title?: string;
+    subtitle?: string;
+    bgColor?: string;
+    textColor?: string;
+    ctaText?: string;
+    ctaLinkTab?: string;
+  };
   greetingBannerText: string;
   greetingBannerSubtext?: string;
   greetingBannerIcon: 'sparkles' | 'crown' | 'radio' | 'flame' | 'heart' | 'zap' | 'gift';
@@ -1177,6 +1459,7 @@ export interface SupportMessage {
   id: string;
   sender: 'user' | 'ai' | 'support_admin';
   text: string;
+  imageUrl?: string;
   timestamp: string;
   suggestedActions?: Array<{ label: string; action: string }>;
 }
@@ -1211,4 +1494,605 @@ export interface UserPresence {
   activePlatform?: string;
   updatedAt?: any;
 }
+
+// ================= HAEVY SPIRITUAL (TAROT, TỬ VI, CHIÊM TINH) =================
+export type SpiritualSubTab = 'tarot' | 'tuvi' | 'astrology' | 'soundscape' | 'oracle_ai';
+
+export interface TarotCard {
+  id: string;
+  number: number;
+  nameVi: string;
+  nameEn: string;
+  arcana: 'major' | 'minor';
+  suit?: 'wands' | 'cups' | 'swords' | 'pentacles' | 'none';
+  romanNumeral: string;
+  imageSymbol: string;
+  imageUrl?: string;
+  element: 'Lửa' | 'Nước' | 'Khí' | 'Đất' | 'Tâm Thức';
+  celestialSign?: string;
+  uprightMeaning: string;
+  reversedMeaning: string;
+  keywords: string[];
+  advice: string;
+  loveDetail: string;
+  careerDetail: string;
+  financeDetail: string;
+  storyQuote: string;
+}
+
+export interface TarotSpreadPosition {
+  index: number;
+  name: string;
+  desc: string;
+}
+
+export interface TarotSpread {
+  id: string;
+  name: string;
+  englishName: string;
+  cardCount: number;
+  description: string;
+  icon: string;
+  tag: string;
+  positions: TarotSpreadPosition[];
+}
+
+export interface TarotDrawnCard {
+  card: TarotCard;
+  isReversed: boolean;
+  positionIndex: number;
+  positionName: string;
+  positionDesc: string;
+}
+
+export interface TarotReadingHistoryItem {
+  id: string;
+  spreadId: string;
+  spreadName: string;
+  question: string;
+  cards: TarotDrawnCard[];
+  aiAnalysis?: string;
+  createdAt: string;
+}
+
+// Tử Vi Đẩu Số & Bát Tự Phong Thủy
+export interface TuViProfileInput {
+  fullName: string;
+  gender: 'male' | 'female';
+  solarDay: number;
+  solarMonth: number;
+  solarYear: number;
+  solarHour: number;
+  solarMinute: number;
+  isLunar?: boolean;
+}
+
+export interface TuViStar {
+  id?: string;
+  name: string;
+  type: 'chinh_tinh' | 'trung_tinh' | 'hung_tinh' | 'cat_tinh';
+  element: 'Kim' | 'Mộc' | 'Thủy' | 'Hỏa' | 'Thổ';
+  brightness: 'Miếu' | 'Vượng' | 'Đắc' | 'Bình' | 'Hãm' | 'Miếu địa' | 'Vượng địa' | 'Đắc địa' | 'Hãm địa';
+  meaning: string;
+}
+
+export interface TuViPalace {
+  id: string;
+  name: string; // Mệnh, Thân, Phụ Mẫu, Phúc Đức, Điền Trạch, Quan Lộc, Nô Bộc, Thiên Di, Tật Ách, Tài Bạch, Tử Tức, Phu Thê, Huynh Đệ
+  earthlyBranch: string; // Tý, Sửu, Dần, Mão, Thìn, Tỵ, Ngọ, Mùi, Thân, Dậu, Tuất, Hợi
+  heavenlyStem: string;  // Giáp, Ất, Bính, Đinh, Mậu, Kỷ, Canh, Tân, Nhâm, Quý
+  stars: TuViStar[];
+  score: number; // 0 - 100
+  generalVerdict: string;
+  advice: string;
+  isThan?: boolean;
+}
+
+export interface TuViFullChart {
+  profile: TuViProfileInput;
+  lunarDateStr: string;
+  canChiYear: string;
+  canChiMonth: string;
+  canChiDay: string;
+  canChiHour: string;
+  menhNguHanh: string; // e.g. Hải Trung Kim
+  cuc: string;         // e.g. Thủy Nhị Cục
+  cungMenhAt: string;  // e.g. Thìn
+  cungThanAt: string;  // e.g. Thân
+  chuMenh: string;     // e.g. Liêm Trinh
+  chuThan: string;     // e.g. Linh Tinh
+  palaces: TuViPalace[];
+  yearFortune2026: {
+    saoChieuMenh: string;
+    hanTamTai: boolean;
+    hanKimLau: boolean;
+    hanHoangOc: boolean;
+    hanThaiTue: boolean;
+    overallScore: number;
+    overview: string;
+    careerAdvice: string;
+    loveAdvice: string;
+    healthAdvice: string;
+    wealthAdvice: string;
+  };
+  fengShuiGuidance: {
+    nguHanhTuongSinh: string[];
+    nguHanhTuongKhac: string[];
+    luckyColors: string[];
+    luckyNumbers: number[];
+    luckyDirections: string[];
+    auspiciousStones: string[];
+  };
+  aiMasterInterpretation?: string;
+}
+
+export interface SpiritualShareAttachment {
+  type: 'tarot' | 'tuvi' | 'astrology' | 'astrology_natal' | 'astrology_compatibility' | 'couple_synastry' | 'cosmic_affirmation' | 'solfeggio_healing' | string;
+  title: string;
+  subtitle?: string;
+  questionOrTheme?: string;
+  compatibilityScore?: number;
+  tarotCards?: {
+    nameVi: string;
+    nameEn: string;
+    imageUrl?: string;
+    imageSymbol?: string;
+    isReversed: boolean;
+    positionName: string;
+    keywords: string[];
+    meaning?: string;
+  }[];
+  tuviSummary?: {
+    fullName: string;
+    menhNguHanh: string;
+    year2026Score: number;
+    saoChieuMenh: string;
+    generalAdvice: string;
+    cungMenhAt?: string;
+  };
+  tuViData?: any;
+  astrologySummary?: {
+    sign1: string;
+    sign2?: string;
+    score?: number;
+    sunSign?: string;
+    risingSign?: string;
+    compatibilityVerdict?: string;
+  };
+  astrologyData?: any;
+  coupleSynastrySummary?: {
+    partner1Name: string;
+    partner2Name: string;
+    loveScore: number;
+    relationshipType: string;
+    synastryVerdict: string;
+    loveAdvice: string;
+  };
+  affirmationText?: string;
+  aiVerdictExcerpt?: string;
+  inviteRoomId?: string;
+  inviteType?: 'tarot_duel' | 'love_synastry' | 'co_reading' | string;
+  createdAt: string;
+}
+
+// Chiêm Tinh Học (Western Astrology) & Cung Hoàng Đạo
+export type ZodiacElement = 'Lửa' | 'Đất' | 'Khí' | 'Nước';
+export type ZodiacModality = 'Tiên Phong (Cardinal)' | 'Kiên Định (Fixed)' | 'Linh Hoạt (Mutable)';
+
+export interface ZodiacSignData {
+  id: string;
+  nameVi: string;
+  nameEn: string;
+  symbol: string;
+  dateRange: string;
+  dateRangeVi?: string;
+  houseNumber?: number;
+  personalityTraits?: string[];
+  loveStyle?: string;
+  careerStyle?: string;
+  luckyGems?: string[];
+  startMonth: number;
+  startDay: number;
+  endMonth: number;
+  endDay: number;
+  element: ZodiacElement;
+  modality: ZodiacModality;
+  rulingPlanet: string;
+  rulingHouse: string;
+  tarotCard: string;
+  strengths: string[];
+  weaknesses: string[];
+  traits: string[];
+  luckyColors: string[];
+  luckyNumbers: number[];
+  compatibleSigns: string[];
+  dailyHoroscope: {
+    overview: string;
+    mood: string;
+    luckyScore: number;
+    loveScore: number;
+    careerScore: number;
+    wealthScore: number;
+    loveInsight: string;
+    careerInsight: string;
+    wealthInsight: string;
+    cosmicAdvice: string;
+  };
+}
+
+export interface NatalPlanetPlacement {
+  planet: string;
+  planetVi: string;
+  symbol: string;
+  zodiacSign: string;
+  degree: number;
+  house: number;
+  isRetrograde?: boolean;
+  interpretation: string;
+}
+
+export interface NatalChartResult {
+  birthDateStr: string;
+  birthTimeStr: string;
+  birthPlace: string;
+  sunSign: string;
+  moonSign: string;
+  risingSign: string; // Ascendant
+  planets: NatalPlanetPlacement[];
+  elementDistribution: { fire: number; earth: number; air: number; water: number };
+  aiAstrologyReading?: string;
+}
+
+export interface ZodiacCompatibilityResult {
+  sign1: string;
+  sign2: string;
+  overallScore: number;
+  emotionalScore: number;
+  communicationScore: number;
+  romanceScore: number;
+  longTermScore: number;
+  strengths: string[];
+  challenges: string[];
+  cosmicVerdict: string;
+  advice: string;
+}
+
+// Tần Số Chữa Lành & Âm Thanh Tâm Linh
+export interface SpiritualSoundscapeItem {
+  id: string;
+  title: string;
+  frequency?: number;
+  frequencyHz: number;
+  frequencyLabel: string;
+  chakra?: string;
+  chakraName: string;
+  colorGradient: string;
+  accentColor: string;
+  icon: string;
+  benefit: string;
+  description: string;
+  durationMin?: number;
+}
+
+export type SpiritualSoundscape = SpiritualSoundscapeItem;
+
+// ==========================================
+// PALMISTRY (XEM CHỈ TAY AI & TƯỚNG BÀN TAY)
+// ==========================================
+export type PalmHandSide = 'left' | 'right';
+export type HandShapeElement = 
+  | 'Kim (Thực tế)' 
+  | 'Mộc (Triết học)' 
+  | 'Thủy (Trực giác)' 
+  | 'Hỏa (Nhiệt huyết)' 
+  | 'Thổ (Vững chãi)'
+  | 'Kim (Thực tế & Quyết đoán)'
+  | 'Mộc (Triết học & Trí tuệ)'
+  | 'Thủy (Trực giác & Cảm xúc)'
+  | 'Hỏa (Nhiệt huyết & Tiên phong)'
+  | 'Thổ (Vững chãi & Chân thành)'
+  | string;
+
+export interface PalmLineFeature {
+  id: string;
+  nameVi: string;
+  nameEn: string;
+  category: 'primary' | 'secondary' | 'mount' | 'special_mark';
+  icon: string;
+  description: string;
+  options: {
+    label: string;
+    description: string;
+    score: number;
+    implication: string;
+  }[];
+}
+
+export interface PalmReadingInput {
+  handSide: PalmHandSide;
+  handShape: string;
+  lifeLineType: string;
+  headLineType: string;
+  heartLineType: string;
+  fateLineType: string;
+  sunLineType: string;
+  marriageLineType: string;
+  specialMarks: string[];
+  userQuestion?: string;
+  uploadedImageUrl?: string;
+}
+
+export interface PalmAnalysisResult {
+  handSide: PalmHandSide;
+  handShapeElement: HandShapeElement;
+  scores: {
+    vitality: number;   // Sức sống & Tuổi thọ
+    wisdom: number;     // Trí tuệ & Tư duy
+    emotion: number;    // Cảm xúc & Tình duyên
+    destiny: number;    // Cơ nghiệp & Tài vận
+    intuition: number;  // Trực giác & Tâm linh
+  };
+  overallVerdict: string;
+  keyInsights: {
+    title: string;
+    verdict: string;
+    advice: string;
+  }[];
+  specialSignsDetected: string[];
+  aiReadingMarkdown?: string;
+  createdAt: string;
+}
+
+// ==========================================
+// I CHING & KHỔNG MINH (GIEO QUẺ & XIN XĂM)
+// ==========================================
+export type YaoType = 6 | 7 | 8 | 9; // 6: Lão Âm (động), 7: Thiếu Dương (tĩnh), 8: Thiếu Âm (tĩnh), 9: Lão Dương (động)
+
+export interface IChingHexagramData {
+  number: number;
+  nameVi: string;
+  nameHán: string;
+  pinyin?: string;
+  upperTrigram: string; // Quái trên (Càn, Khôn...)
+  lowerTrigram: string; // Quái dưới
+  element: string;
+  overview: string;
+  thoanTu: string;     // Thoán Từ
+  tuongTu: string;     // Tượng Từ
+  meaning: string;
+  actionAdvice: string;
+  aspects: {
+    career: string;
+    wealth: string;
+    love: string;
+    health: string;
+    travel: string;
+    wish: string;
+  };
+}
+
+export interface KhongMinhStickData {
+  number: number;
+  tier: 'Thượng Thượng' | 'Thượng Cát' | 'Trung Bình' | 'Trung Cát' | 'Bình An' | 'Hạ Hạ';
+  poemHan: string;
+  poemVi: string;
+  overview: string;
+  verdicts: {
+    taiLoc: string;
+    congDanh: string;
+    honNhan: string;
+    giaDao: string;
+    xuatHanh: string;
+    benhTat: string;
+    cauMuon: string;
+  };
+  khuyenHoc: string;
+}
+
+// ==========================================
+// NUMEROLOGY (THẦN SỐ HỌC TOÀN DIỆN)
+// ==========================================
+export interface NumerologyProfile {
+  fullName: string;
+  birthDay: number;
+  birthMonth: number;
+  birthYear: number;
+  lifePathNumber: number; // Số Chủ Đạo (2-11, 22, 33)
+  destinyNumber: number;  // Số Sứ Mệnh
+  soulUrgeNumber: number; // Số Linh Hồn
+  personalityNumber: number; // Số Nhân Cách
+  maturityNumber: number;    // Số Trưởng Thành
+  attitudeNumber: number;    // Số Thái Độ
+  personalYear2026: number;  // Năm Cá Nhân 2026
+  birthChartGrid: Record<number, number>; // Số lượng chữ số 1..9 trong ngày sinh
+  arrowsOfStrength: string[];  // Mũi tên cá tính mạnh
+  arrowsOfWeakness: string[];  // Mũi tên trống
+  pinnacles: {
+    ageRange: string;
+    number: number;
+    meaning: string;
+  }[];
+  challenges: {
+    stage: string;
+    number: number;
+    lesson: string;
+  }[];
+  aiMasterReport?: string;
+}
+
+// ==========================================
+// CRYSTAL BALL & COSMIC ORACLE (QUẢ CẦU TIÊN TRI)
+// ==========================================
+export interface OracleAnswer {
+  category: 'love' | 'career' | 'decision' | 'wealth' | 'general';
+  sentiment: 'positive' | 'neutral' | 'caution' | 'timing';
+  shortAnswer: string;
+  cosmicMessage: string;
+  actionGuidance: string;
+  affirmation: string;
+}
+
+// ==========================================
+// HAEVY FAMILY TREE (GIA PHẢ DÒNG HỌ THÔNG MINH)
+// ==========================================
+
+export type FamilyRole = 'admin' | 'editor' | 'member';
+
+export interface FamilyTree {
+  id: string;
+  name: string;
+  ancestralHall?: string;
+  clanOrigin?: string;
+  emblemUrl?: string;
+  motto?: string;
+  creatorUid: string;
+  adminUids: string[];
+  editorUids?: string[];
+  memberUids?: string[];
+  rootMemberId?: string;
+  totalGenerations: number;
+  totalMembers: number;
+  branches: string[];
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FamilyDocument {
+  id: string;
+  title: string;
+  type: 'genealogy_record' | 'decree' | 'certificate' | 'historical_photo' | 'other';
+  url: string;
+  description?: string;
+  date?: string;
+  fileSize?: string;
+}
+
+export interface FamilyTreeMember {
+  id: string;
+  treeId: string;
+  fullName: string;
+  alternativeName?: string;
+  gender: 'male' | 'female' | 'other';
+  generation: number;
+  branch: string;
+  orderInFamily?: number;
+  isDeceased: boolean;
+  birthDate?: string;
+  lunarBirthDate?: string;
+  deathDate?: string;
+  lunarDeathDate?: string;
+  burialPlace?: string;
+  originPlace?: string; // Quê quán / Nguyên quán
+  birthPlace?: string;  // Nơi sinh
+  occupation?: string;
+  currentResidence?: string;
+  bio?: string;
+  photoUrl?: string;
+  fatherId?: string | null;
+  motherId?: string | null;
+  spouseIds?: string[];
+  childrenIds?: string[];
+  adoptionType?: 'none' | 'adopted_in' | 'adopted_out';
+  documents?: FamilyDocument[];
+  pathFromRoot?: string;
+  depth?: number;
+  // Haevy Ecosystem & Relationship fields
+  relationshipStatus?: 'single' | 'married' | 'dating' | 'widowed' | 'divorced';
+  relationshipPartnerName?: string;
+  relationshipAnniversary?: string;
+  haevyUserId?: string;
+  haevyUsername?: string;
+  haevyAudioTrackIds?: string[];
+  haevyFriendStatus?: 'none' | 'pending' | 'friend';
+  clanHonorTitle?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+export type ClanMember = FamilyTreeMember;
+
+export type FamilyRelationType = 'parent_child' | 'spouse' | 'adopted_child';
+
+export interface FamilyRelationship {
+  id: string;
+  treeId: string;
+  sourceMemberId: string;
+  targetMemberId: string;
+  relationType: FamilyRelationType;
+  notes?: string;
+  weddingDate?: string;
+  createdAt: string;
+}
+
+export type FamilyEventType = 'death_anniversary' | 'birthday' | 'clan_gathering' | 'ancestral_worship' | 'memorial';
+
+export interface FamilyEvent {
+  id: string;
+  treeId: string;
+  title: string;
+  memberId?: string;
+  memberName?: string;
+  eventType: FamilyEventType;
+  solarDate: string;
+  lunarDate?: string;
+  recurringYearly: boolean;
+  reminderDaysBefore: number;
+  location?: string;
+  description?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export type ProposalStatus = 'pending' | 'approved' | 'rejected';
+export type ProposalType = 'add_member' | 'edit_member' | 'add_event' | 'add_document';
+
+export interface FamilyProposal {
+  id: string;
+  treeId: string;
+  targetMemberId?: string;
+  targetMemberName?: string;
+  proposalType: ProposalType;
+  proposedByUid: string;
+  proposedByName: string;
+  proposedByEmail?: string;
+  proposedData: Partial<FamilyTreeMember> | Partial<FamilyEvent> | any;
+  reason?: string;
+  status: ProposalStatus;
+  reviewNote?: string;
+  reviewedBy?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  subLabel?: string;
+  gender: 'male' | 'female' | 'other';
+  generation: number;
+  branch: string;
+  isDeceased: boolean;
+  avatar?: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  from: string;
+  to: string;
+  type: FamilyRelationType;
+  label: string;
+}
+
+export interface ClosureTableEntry {
+  ancestorId: string;
+  ancestorName: string;
+  descendantId: string;
+  descendantName: string;
+  depth: number;
+}
+
+
+
 

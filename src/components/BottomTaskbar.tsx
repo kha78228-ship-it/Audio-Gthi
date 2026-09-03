@@ -44,13 +44,21 @@ import {
   Music,
   Flame,
   Dices,
-  Target
+  Target,
+  Shuffle,
+  Repeat,
+  Repeat1,
+  Sun,
+  Camera,
+  BrainCircuit,
+  GitFork
 } from 'lucide-react';
 import { Track, ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { HaevyGamesSubTab } from './HaevyGamesView';
+import { haptics } from '../utils/haptics';
 
 interface BottomTaskbarProps {
   currentMode: EcosystemMode;
@@ -64,14 +72,16 @@ interface BottomTaskbarProps {
   onSelectCoupleSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
   financeSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
   onSelectFinanceSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
-  adminSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6';
-  onSelectAdminSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => void;
+  adminSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7';
+  onSelectAdminSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7') => void;
   gamesSubTab?: HaevyGamesSubTab;
   onSelectGamesSubTab?: (subTab: HaevyGamesSubTab) => void;
   studioSubTab?: 'page1' | 'page2' | 'page3';
   onSelectStudioSubTab?: (subTab: 'page1' | 'page2' | 'page3') => void;
   vipSubTab?: 'page1' | 'page2' | 'page3' | 'page4';
   onSelectVipSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4') => void;
+  haevyAISubTab?: 'overview' | 'chat' | 'updates' | 'troubleshoot' | 'modes';
+  onSelectHaevyAISubTab?: (subTab: 'overview' | 'chat' | 'updates' | 'troubleshoot' | 'modes') => void;
   currentTrack: Track | null;
   isPlaying: boolean;
   progress: number;
@@ -91,6 +101,11 @@ interface BottomTaskbarProps {
   onOpenSleepTimer?: () => void;
   sleepTimerSecondsLeft?: number | null;
   sleepTimerActive?: boolean;
+  shuffleMode?: 'off' | 'shuffle' | 'smart_shuffle';
+  repeatMode?: 'off' | 'all' | 'one';
+  onToggleShuffle?: () => void;
+  onToggleRepeat?: () => void;
+  onOpenSmartShuffleModal?: () => void;
 }
 
 export function BottomTaskbar({
@@ -113,6 +128,8 @@ export function BottomTaskbar({
   onSelectStudioSubTab,
   vipSubTab = 'page1',
   onSelectVipSubTab,
+  haevyAISubTab = 'overview',
+  onSelectHaevyAISubTab,
   currentTrack,
   isPlaying,
   progress,
@@ -131,7 +148,12 @@ export function BottomTaskbar({
   onQuickAction,
   onOpenSleepTimer,
   sleepTimerSecondsLeft,
-  sleepTimerActive
+  sleepTimerActive,
+  shuffleMode = 'smart_shuffle',
+  repeatMode = 'off',
+  onToggleShuffle,
+  onToggleRepeat,
+  onOpenSmartShuffleModal,
 }: BottomTaskbarProps) {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -303,6 +325,7 @@ export function BottomTaskbar({
           { id: 'page4', label: 'Nuôi Admin', icon: Coins, isModeSubTab: true },
           { id: 'page5', label: 'Sửa Home', icon: Sliders, isModeSubTab: true },
           { id: 'page6', label: '×2 Đám Đông', icon: Zap, isModeSubTab: true },
+          { id: 'page7', label: 'Sự Kiện', icon: Calendar, isModeSubTab: true },
         ];
       case 'studio':
         return [
@@ -316,6 +339,27 @@ export function BottomTaskbar({
           { id: 'quests', label: 'Nhiệm Vụ 📜', icon: Flame, isModeSubTab: true },
           { id: 'leaderboard', label: 'Bảng Xếp Hạng 🏆', icon: Trophy, isModeSubTab: true },
         ];
+      case 'morning':
+      case 'space':
+        return [
+          { id: 'morning', label: 'Haevy Space 🌌', icon: Sparkles, isModeSubTab: false },
+        ];
+      case 'haevy_ai':
+        return [
+          { id: 'overview', label: 'Trợ Lý Hub 🧠', icon: BrainCircuit, isModeSubTab: true },
+          { id: 'chat', label: 'Tâm Sự 💖', icon: Heart, isModeSubTab: true },
+          { id: 'updates', label: 'Cập Nhật 🚀', icon: Sparkles, isModeSubTab: true },
+          { id: 'troubleshoot', label: 'Cứu Hộ 🛠️', icon: ShieldCheck, isModeSubTab: true },
+          { id: 'modes', label: 'Lệnh Chế Độ ⚡', icon: Zap, isModeSubTab: true },
+        ];
+      case 'spiritual':
+        return [
+          { id: 'spiritual', label: 'Tâm Linh Vũ Trụ 🔮', icon: Sparkles, isModeSubTab: false },
+        ];
+      case 'family_tree':
+        return [
+          { id: 'family_tree', label: 'Gia Phả Dòng Họ 👑', icon: GitFork, isModeSubTab: false },
+        ];
       default:
         return [
           { id: 'home', label: 'Trang Chủ', icon: Home, isModeSubTab: false },
@@ -328,6 +372,11 @@ export function BottomTaskbar({
   const navItems = getDockNavItems();
 
   const handleTabClick = (item: { id: string; isModeSubTab: boolean; isCircularPlus?: boolean }) => {
+    if (item.isCircularPlus) {
+      haptics.medium();
+    } else {
+      haptics.selection();
+    }
     if (activeTab === 'vip' || activeTab === 'topup') {
       if (item.isModeSubTab) {
         if (onSelectVipSubTab) {
@@ -367,7 +416,7 @@ export function BottomTaskbar({
       if (item.isModeSubTab) {
         onSelectTab('admin');
         if (onSelectAdminSubTab) {
-          onSelectAdminSubTab(item.id as 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6');
+          onSelectAdminSubTab(item.id as 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7');
         }
       } else {
         onSelectTab(item.id as ActiveTab);
@@ -386,6 +435,15 @@ export function BottomTaskbar({
         onSelectTab('studio');
         if (onSelectStudioSubTab) {
           onSelectStudioSubTab(item.id as 'page1' | 'page2' | 'page3');
+        }
+      } else {
+        onSelectTab(item.id as ActiveTab);
+      }
+    } else if (currentMode === 'haevy_ai') {
+      if (item.isModeSubTab) {
+        onSelectTab('haevy_ai');
+        if (onSelectHaevyAISubTab) {
+          onSelectHaevyAISubTab(item.id as any);
         }
       } else {
         onSelectTab(item.id as ActiveTab);
@@ -409,7 +467,10 @@ export function BottomTaskbar({
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-6">
             {/* Left Track Info */}
             <div 
-              onClick={onOpenFullPlayer}
+              onClick={() => {
+                haptics.medium();
+                onOpenFullPlayer();
+              }}
               className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 sm:flex-initial sm:w-1/3 cursor-pointer group"
             >
               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-zinc-800 relative shrink-0 shadow-md border border-zinc-700/50">
@@ -454,10 +515,44 @@ export function BottomTaskbar({
 
             {/* Center Controls & Progress Bar */}
             <div className="flex flex-col items-center gap-1 flex-1 max-w-md">
-              <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-4">
+                {/* Shuffle Button */}
+                {onToggleShuffle && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      onToggleShuffle();
+                    }}
+                    className={`p-1 rounded-md transition-colors cursor-pointer ${
+                      shuffleMode === 'smart_shuffle'
+                        ? 'text-purple-300 bg-purple-500/20'
+                        : shuffleMode === 'shuffle'
+                        ? 'text-amber-400 bg-amber-500/20'
+                        : 'text-zinc-500 hover:text-zinc-300'
+                    }`}
+                    title={
+                      shuffleMode === 'smart_shuffle'
+                        ? '✨ Smart Shuffle AI (Ưu tiên theo gu) - Bấm để đổi'
+                        : shuffleMode === 'shuffle'
+                        ? '🔀 Ngẫu nhiên - Bấm để đổi'
+                        : 'Phát tuần tự - Bấm để bật'
+                    }
+                  >
+                    {shuffleMode === 'smart_shuffle' ? (
+                      <Sparkles size={14} className="animate-pulse" />
+                    ) : (
+                      <Shuffle size={14} />
+                    )}
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={onPlayPrev}
+                  onClick={() => {
+                    haptics.light();
+                    onPlayPrev();
+                  }}
                   className="p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer active:scale-90"
                   title="Bài trước"
                 >
@@ -466,7 +561,10 @@ export function BottomTaskbar({
 
                 <button
                   type="button"
-                  onClick={onTogglePlay}
+                  onClick={() => {
+                    haptics.toggle();
+                    onTogglePlay();
+                  }}
                   className="p-2 sm:p-2.5 bg-gradient-to-r from-amber-400 to-yellow-300 hover:brightness-110 text-black rounded-full transition-all shadow-md active:scale-95 cursor-pointer"
                   title={isPlaying ? 'Tạm dừng' : 'Phát'}
                 >
@@ -479,12 +577,42 @@ export function BottomTaskbar({
 
                 <button
                   type="button"
-                  onClick={onPlayNext}
+                  onClick={() => {
+                    haptics.light();
+                    onPlayNext();
+                  }}
                   className="p-1 text-zinc-400 hover:text-white transition-colors cursor-pointer active:scale-90"
                   title="Bài tiếp theo"
                 >
                   <SkipForward size={16} fill="currentColor" />
                 </button>
+
+                {/* Repeat Button */}
+                {onToggleRepeat && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      onToggleRepeat();
+                    }}
+                    className={`p-1 rounded-md transition-colors cursor-pointer ${
+                      repeatMode === 'one'
+                        ? 'text-amber-300 bg-amber-500/20'
+                        : repeatMode === 'all'
+                        ? 'text-emerald-300 bg-emerald-500/20'
+                        : 'text-zinc-500 hover:text-zinc-300'
+                    }`}
+                    title={
+                      repeatMode === 'one'
+                        ? '🔂 Đang lặp 1 bài - Bấm để đổi'
+                        : repeatMode === 'all'
+                        ? '🔁 Đang lặp toàn bộ - Bấm để đổi'
+                        : 'Tắt lặp lại - Bấm để bật'
+                    }
+                  >
+                    {repeatMode === 'one' ? <Repeat1 size={14} /> : <Repeat size={14} />}
+                  </button>
+                )}
               </div>
 
               {/* Progress Slider */}
@@ -508,7 +636,10 @@ export function BottomTaskbar({
               <div className="hidden md:flex items-center gap-1.5 mr-1">
                 <button
                   type="button"
-                  onClick={onToggleMute} 
+                  onClick={() => {
+                    haptics.selection();
+                    onToggleMute();
+                  }} 
                   className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
                   title={isMuted ? 'Bật âm thanh' : 'Tắt tiếng'}
                 >
@@ -528,7 +659,10 @@ export function BottomTaskbar({
               {/* Full Player Button */}
               <button
                 type="button"
-                onClick={onOpenFullPlayer}
+                onClick={() => {
+                  haptics.medium();
+                  onOpenFullPlayer();
+                }}
                 className="p-1.5 sm:p-2 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors cursor-pointer"
                 title="Mở toàn màn hình trình phát"
               >
@@ -539,7 +673,10 @@ export function BottomTaskbar({
               {onCloseTrack && (
                 <button
                   type="button"
-                  onClick={onCloseTrack}
+                  onClick={() => {
+                    haptics.light();
+                    onCloseTrack();
+                  }}
                   className="p-1.5 sm:p-2 bg-zinc-900/90 hover:bg-rose-950/60 text-zinc-400 hover:text-rose-300 border border-zinc-800 hover:border-rose-500/40 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95 group"
                   title="Tắt / Xoá trình phát nhạc (Tránh che nội dung)"
                 >
@@ -569,6 +706,8 @@ export function BottomTaskbar({
             ? activeTab === 'games' && (gamesSubTab === item.id || (!gamesSubTab && item.id === 'home') || (item.id === 'home' && gamesSubTab !== 'leaderboard' && gamesSubTab !== 'quests'))
             : currentMode === 'studio'
             ? activeTab === 'studio' && studioSubTab === item.id
+            : currentMode === 'haevy_ai'
+            ? activeTab === 'haevy_ai' && (haevyAISubTab === item.id || (!haevyAISubTab && item.id === 'overview'))
             : activeTab === item.id;
 
           // Special Circular Plus Button for Finance "Thêm Chi Tiêu"
@@ -610,8 +749,14 @@ export function BottomTaskbar({
                     ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 font-black shadow-lg shadow-rose-500/10 scale-[1.02]'
                     : currentMode === 'studio'
                     ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50 font-black shadow-lg shadow-purple-500/10 scale-[1.02]'
+                    : currentMode === 'haevy_ai'
+                    ? 'bg-purple-500/25 text-purple-200 border border-purple-400/60 font-black shadow-lg shadow-purple-900/40 scale-[1.02]'
+                    : currentMode === 'family_tree'
+                    ? 'bg-amber-500/25 text-amber-200 border border-amber-400/60 font-black shadow-lg shadow-amber-900/40 scale-[1.02]'
                     : currentMode === 'games'
                     ? 'bg-indigo-600/25 text-indigo-300 border border-indigo-500/50 font-black shadow-lg shadow-indigo-500/10 scale-[1.02]'
+                    : (currentMode === 'morning' || currentMode === 'space')
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 font-black shadow-lg shadow-cyan-500/10 scale-[1.02]'
                     : 'bg-zinc-800/95 text-amber-300 border border-amber-500/40 font-black shadow-lg shadow-amber-500/10 scale-[1.02]'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/70'
               }`}
@@ -625,8 +770,12 @@ export function BottomTaskbar({
                     ? 'bg-rose-400 shadow-[0_0_10px_#f43f5e]'
                     : currentMode === 'studio'
                     ? 'bg-purple-400 shadow-[0_0_10px_#c084fc]'
+                    : currentMode === 'haevy_ai'
+                    ? 'bg-purple-400 shadow-[0_0_10px_#c084fc]'
                     : currentMode === 'games'
                     ? 'bg-indigo-400 shadow-[0_0_10px_#818cf8]'
+                    : (currentMode === 'morning' || currentMode === 'space')
+                    ? 'bg-cyan-400 shadow-[0_0_10px_#22d3ee]'
                     : 'bg-amber-400 shadow-[0_0_10px_#f59e0b]'
                 }`} />
               )}
@@ -642,8 +791,12 @@ export function BottomTaskbar({
                         ? 'text-rose-400' 
                         : currentMode === 'studio'
                         ? 'text-purple-400'
+                        : currentMode === 'haevy_ai'
+                        ? 'text-purple-300'
                         : currentMode === 'games'
                         ? 'text-indigo-400'
+                        : (currentMode === 'morning' || currentMode === 'space')
+                        ? 'text-cyan-400'
                         : 'text-amber-400' 
                       : 'text-zinc-400'
                   } 

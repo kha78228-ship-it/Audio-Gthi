@@ -1,0 +1,1874 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Sparkles, 
+  Gift, 
+  Crown, 
+  Coins, 
+  Flame, 
+  Headphones, 
+  Sun, 
+  Moon, 
+  BookOpen, 
+  MessageSquare, 
+  Gamepad2, 
+  Wallet, 
+  Mic, 
+  Layers, 
+  ArrowRight, 
+  CheckCircle2, 
+  Zap, 
+  Bell, 
+  Maximize, 
+  Minimize, 
+  LogIn, 
+  User as UserIcon, 
+  Clock, 
+  Star, 
+  ShieldCheck, 
+  Share2, 
+  TrendingUp, 
+  Heart, 
+  ChevronRight, 
+  Award,
+  Sparkle,
+  Smartphone,
+  Eye,
+  Camera,
+  PenTool,
+  BrainCircuit,
+  Cpu,
+  Globe,
+  HelpCircle,
+  Play,
+  RotateCw,
+  Sliders,
+  Compass,
+  Check,
+  Send,
+  X,
+  Lock,
+  Volume2,
+  LayoutGrid,
+  Boxes,
+  Shapes,
+  Search,
+  LifeBuoy,
+  GitFork
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { HaevyAllModesInfoModal } from './HaevyAllModesInfoModal';
+import { HaevyUserDropdownMenu } from './HaevyUserDropdownMenu';
+import { haptics } from '../utils/haptics';
+
+// Simple web audio celebratory chime
+function playCelebrationChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    notes.forEach((freq, index) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.08);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime + index * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + index * 0.08 + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + index * 0.08);
+      osc.stop(ctx.currentTime + index * 0.08 + 0.4);
+    });
+  } catch {
+    // Ignore if audio context not allowed yet
+  }
+}
+
+interface HaevyEcosystemLandingViewProps {
+  onOpenAuth: (tab?: 'signin' | 'signup' | 'anonymous') => void;
+  onOpenNotifications: () => void;
+  unreadNotificationCount?: number;
+  onToggleFullscreen?: () => void;
+  isFullscreen?: boolean;
+  onSelectMode?: (mode: string) => void;
+  onToggleVoiceListen?: () => void;
+  isVoiceListening?: boolean;
+}
+
+export function HaevyEcosystemLandingView({
+  onOpenAuth,
+  onOpenNotifications,
+  unreadNotificationCount = 0,
+  onToggleFullscreen,
+  isFullscreen = false,
+  onSelectMode,
+  onToggleVoiceListen,
+  isVoiceListening = false
+}: HaevyEcosystemLandingViewProps) {
+  const { user, isVip, audioPoints, addAudioPoints, accountId, logout, upcomingEvents, claimEventReward } = useAuth();
+  
+  // Real-time Event Countdown Timer
+  const [timeLeft, setTimeLeft] = useState({
+    days: 3,
+    hours: 11,
+    minutes: 59,
+    seconds: 50
+  });
+
+  const [claimToast, setClaimToast] = useState<string | null>(null);
+  const [hasClaimedGift, setHasClaimedGift] = useState(false);
+  const [claimingEventId, setClaimingEventId] = useState<string | null>(null);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<'all' | 'creative' | 'audio' | 'ai' | 'community' | 'spiritual' | 'utility'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDemoModal, setSelectedDemoModal] = useState<string | null>(null);
+  const [demoAiInput, setDemoAiInput] = useState('Định luật bảo toàn năng lượng trong cơ học cổ điển');
+  const [demoAiResult, setDemoAiResult] = useState<string | null>(null);
+  const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
+  const [userProfileDropdown, setUserProfileDropdown] = useState(false);
+  const [faqOpenIndex, setFaqOpenIndex] = useState<number | null>(0);
+  const [isAllModesPanelOpen, setIsAllModesPanelOpen] = useState(false);
+  const [allModesFilter, setAllModesFilter] = useState<'all' | 'creative' | 'audio' | 'social' | 'utility'>('all');
+  const [allModesSearch, setAllModesSearch] = useState('');
+
+  // Countdown timer interval
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev.seconds > 0) {
+          return { ...prev, seconds: prev.seconds - 1 };
+        } else if (prev.minutes > 0) {
+          return { ...prev, minutes: 59, seconds: 59 };
+        } else if (prev.hours > 0) {
+          return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
+        } else if (prev.days > 0) {
+          return { ...prev, days: prev.days - 1, hours: 23, minutes: 59, seconds: 59 };
+        }
+        return prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Close profile dropdown on window click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('#user-profile-menu-container')) {
+        setUserProfileDropdown(false);
+      }
+    };
+    if (userProfileDropdown) {
+      window.addEventListener('click', handleClickOutside);
+    }
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, [userProfileDropdown]);
+
+  // Claim festival gift handler
+  const handleClaimFestivalGift = () => {
+    if (!user) {
+      haptics.light();
+      onOpenAuth('signin');
+      return;
+    }
+
+    if (hasClaimedGift) {
+      haptics.warning();
+      setClaimToast('🎁 Bạn đã nhận quà Đại Lễ hôm nay rồi! Hãy tiếp tục khám phá các phân hệ nhé.');
+      setTimeout(() => setClaimToast(null), 3000);
+      return;
+    }
+
+    const bonusAmount = 500;
+    addAudioPoints(bonusAmount, '🎁 Quà Tặng Đại Lễ Hệ Sinh Thái Haevy', 'bonus');
+    setHasClaimedGift(true);
+    haptics.rewardClaim();
+    playCelebrationChime();
+    setClaimToast(`🎉 Chúc mừng! Bạn đã nhận thành công +${bonusAmount} Xu Haevy Đại Lễ!`);
+    setTimeout(() => setClaimToast(null), 4000);
+  };
+
+  // Claim specific upcoming event reward handler
+  const handleClaimUpcomingEvent = async (event: any) => {
+    if (!user) {
+      haptics.light();
+      onOpenAuth('signin');
+      return;
+    }
+
+    const claimed = (event.claimedUserIds || []).includes(user.uid);
+    if (claimed) {
+      haptics.warning();
+      setClaimToast(`🎁 Bạn đã nhận phần thưởng cho sự kiện "${event.title}" rồi!`);
+      setTimeout(() => setClaimToast(null), 3000);
+      return;
+    }
+
+    setClaimingEventId(event.id);
+    try {
+      const res = await claimEventReward(event.id);
+      if (res.success) {
+        haptics.rewardClaim();
+        playCelebrationChime();
+        setClaimToast(`🎉 Chúc mừng! Bạn đã nhận thành công ${event.rewardCoins || 500} Xu Haevy từ sự kiện "${event.title}"!`);
+      } else {
+        haptics.warning();
+        setClaimToast(`⚠️ ${res.message}`);
+      }
+    } catch (err: any) {
+      setClaimToast(`⚠️ Lỗi khi nhận quà: ${err.message || ''}`);
+    } finally {
+      setClaimingEventId(null);
+      setTimeout(() => setClaimToast(null), 4000);
+    }
+  };
+
+  // Run AI Study Interactive Demo
+  const handleRunAiDemo = () => {
+    if (!demoAiInput.trim()) return;
+    setIsAnalyzingAi(true);
+    setDemoAiResult(null);
+
+    setTimeout(() => {
+      setIsAnalyzingAi(false);
+      setDemoAiResult(
+        `📌 [Phân Tích Bản Chất Logic - Gemini 3.5 Flash]:\n\n` +
+        `1. Nguyên Lý Gốc Rễ:\n` +
+        `Năng lượng không tự nhiên sinh ra hoặc biến mất, nó chỉ chuyển hóa từ dạng này (Động năng: mv²/2) sang dạng khác (Thế năng: mgh).\n\n` +
+        `2. Giải Mã Bản Chất:\n` +
+        `Tính bảo toàn xuất phát từ tính đối xứng tịnh tiến của thời gian (Định lý Noether). Dù vũ trụ trôi qua bao lâu, các định luật vật lý cơ bản không thay đổi theo thời gian.\n\n` +
+        `3. Ứng Dụng Thực Tiễn:\n` +
+        `Thiết kế con lắc đồng hồ, tàu lượn siêu tốc, đập thủy điện tích năng và tối ưu hóa hệ thống động cơ phản lực.`
+      );
+    }, 1200);
+  };
+
+  // Core Flagship Ecosystem Pillars Data for Home Landing Showcase
+  const ecosystemPillars = [
+    {
+      id: 'haevy_ai',
+      category: 'ai',
+      badge: 'TRÍ TUỆ TOÀN NĂNG',
+      title: 'Haevy AI Master',
+      subTitle: 'Tâm sự thấu cảm, Cập nhật hệ sinh thái & Giải quyết vướng mắc',
+      icon: BrainCircuit,
+      color: 'from-purple-500 via-indigo-500 to-pink-500',
+      borderColor: 'border-purple-500/50 hover:border-purple-400',
+      bgGlow: 'bg-purple-500/20',
+      textColor: 'text-purple-300',
+      description: 'Trí tuệ nhân tạo nắm trọn vẹn dữ liệu hệ sinh thái: Lắng nghe tâm sự xoa dịu cảm xúc, thông báo các cập nhật mới (7 phong cách thưởng sự kiện 3D, nhận Xu), tháo gỡ mọi vướng mắc bảo mật & kỹ thuật.',
+      highlights: [
+        'Lắng nghe tâm sự sâu sắc & Gợi ý nhạc theo cảm xúc',
+        'Nắm rõ điểm mới bản cập nhật: Sự kiện 3D, Space AR',
+        'Thấu hiểu dữ liệu người dùng & Giải quyết vướng mắc 24/7'
+      ],
+      stats: 'Gemini 3.7 Pro Powered',
+      demoType: 'ai_demo'
+    },
+    {
+      id: 'audio',
+      category: 'audio',
+      badge: 'AUDIO & HI-FI',
+      title: 'Haevy Audio',
+      subTitle: 'Kho truyện audio, Sóng não Delta & Thư viện âm thanh',
+      icon: Moon,
+      color: 'from-indigo-500 to-purple-600',
+      borderColor: 'border-indigo-500/40 hover:border-indigo-400',
+      bgGlow: 'bg-indigo-500/10',
+      textColor: 'text-indigo-300',
+      description: 'Hàng ngàn giờ truyện audio Tiên hiệp, Kiếm hiệp, Trinh thám, Ngôn tình chất lượng cao, kết hợp âm thanh sóng não Delta ru ngủ êm dịu và bộ hẹn giờ tắt tự động.',
+      highlights: [
+        'Kho truyện phong phú & Diễn đọc truyền cảm',
+        'Sóng não Delta 0.5-4Hz ru ngủ sâu tự nhiên',
+        'Hẹn giờ thông minh tự động tắt nhạc khi ngủ say'
+      ],
+      stats: '50,000+ Giờ nghe',
+      demoType: 'audio_demo'
+    },
+    {
+      id: 'space',
+      category: 'creative',
+      badge: 'ĐỘC BẢN 3D AR',
+      title: 'Haevy Space',
+      subTitle: 'Phòng tranh không gian 360°, Bảng vẽ 3D & Linh vật AR',
+      icon: Sparkles,
+      color: 'from-cyan-500 to-blue-600',
+      borderColor: 'border-cyan-500/40 hover:border-cyan-400',
+      bgGlow: 'bg-cyan-500/10',
+      textColor: 'text-cyan-300',
+      description: 'Trải nghiệm bảng vẽ trong không gian 3D tách nét độc lập, tự do xoay 360 độ, điều khiển cử chỉ Pinch tay không chạm và tương tác cùng linh vật Haevy Son 3D sống động.',
+      highlights: [
+        'Vẽ nét 3D tách rời & Tự do xoay 360°',
+        'Tái tạo nét bằng phương trình động lực học vật lý',
+        'Linh vật Haevy Son 3D biến hình & Cử chỉ AR'
+      ],
+      stats: '1,200+ Tác phẩm 3D',
+      demoType: 'space_demo'
+    },
+    {
+      id: 'messages',
+      category: 'community',
+      badge: 'KẾT NỐI & TÂM SỰ',
+      title: 'Haevy Message',
+      subTitle: 'Trò chuyện thời gian thực, Gọi thoại trực tiếp & Bạn bè',
+      icon: MessageSquare,
+      color: 'from-sky-500 to-cyan-600',
+      borderColor: 'border-sky-500/40 hover:border-sky-400',
+      bgGlow: 'bg-sky-500/10',
+      textColor: 'text-sky-300',
+      description: 'Không gian kết nối an toàn, bảo mật: Hộp thư tin nhắn bạn bè, gọi thoại voice/video chất lượng cao và AI trợ lý đọc ngữ cảnh.',
+      highlights: [
+        'Nhắn tin tức thời & Chia sẻ âm thanh yêu thích',
+        'Gọi thoại trực tiếp không giới hạn thời lượng',
+        'Trợ lý Haevy AI đọc hiểu và hỗ trợ cuộc trò chuyện'
+      ],
+      stats: '15,000+ Cuộc trò chuyện',
+      demoType: 'messages_demo'
+    },
+    {
+      id: 'studio',
+      category: 'creative',
+      badge: 'SÁNG TÁC AUDIO',
+      title: 'Haevy Studio',
+      subTitle: 'Chuyển văn bản thành giọng nói cảm xúc & Phát hành có bản quyền',
+      icon: Mic,
+      color: 'from-rose-500 to-pink-600',
+      borderColor: 'border-rose-500/40 hover:border-rose-400',
+      bgGlow: 'bg-rose-500/10',
+      textColor: 'text-rose-300',
+      description: 'Studio chuyên nghiệp dành cho tác giả: Công nghệ AI TTS chuyển sách thành audio đa ngôn ngữ, hệ thống định danh eKYC bảo vệ quyền tác giả và nhận nhuận bút.',
+      highlights: [
+        'AI Voice chuyển văn bản thành giọng đọc sống động',
+        'Xác thực eKYC CCCD bảo hộ bản quyền chính thức',
+        'Kênh tác giả riêng & Nhận quà tặng xu từ thính giả'
+      ],
+      stats: '300+ Tác giả tham gia',
+      demoType: 'studio_demo'
+    },
+    {
+      id: 'finance',
+      category: 'utility',
+      badge: 'QUẢN LÝ TÀI CHÍNH',
+      title: 'Haevy Finance',
+      subTitle: 'Quản lý ngân sách 6 hũ tài chính thông minh, Thống kê trực quan',
+      icon: Wallet,
+      color: 'from-emerald-500 to-green-600',
+      borderColor: 'border-emerald-500/40 hover:border-emerald-400',
+      bgGlow: 'bg-emerald-500/10',
+      textColor: 'text-emerald-300',
+      description: 'Công cụ tài chính đắc lực: Ghi chép chi tiêu nhanh chóng, phân loại 6 hũ ngân sách khoa học, biểu đồ dòng tiền trực quan giúp bạn làm chủ tài chính cá nhân.',
+      highlights: [
+        'Ghi chép thu chi 1 chạm cực nhanh',
+        'Báo cáo trực quan theo ngày/tháng/danh mục',
+        'Bảo mật tuyệt đối dữ liệu tài chính'
+      ],
+      stats: 'Chính xác & Tiện lợi',
+      demoType: 'finance_demo'
+    },
+    {
+      id: 'admin',
+      category: 'utility',
+      badge: 'QUẢN TRỊ HỆ THỐNG',
+      title: 'Haevy Admin',
+      subTitle: 'Bảng điều khiển quản trị, Duyệt audio & Quản lý người dùng',
+      icon: ShieldCheck,
+      color: 'from-red-500 to-rose-600',
+      borderColor: 'border-red-500/40 hover:border-red-400',
+      bgGlow: 'bg-red-500/10',
+      textColor: 'text-red-300',
+      description: 'Trung tâm quản trị toàn diện hệ thống Haevy: Phân quyền tài khoản, kiểm duyệt nội dung audio, thống kê dòng tiền xu và theo dõi chỉ số nền tảng.',
+      highlights: [
+        'Phê duyệt nội dung âm thanh và sách nói nhanh chóng',
+        'Quản lý người dùng, phân quyền Admin & Super Admin',
+        'Thống kê doanh thu xu và hiệu suất nền tảng'
+      ],
+      stats: 'Bảo Mật Cao Cấp',
+      demoType: 'admin_demo'
+    },
+    {
+      id: 'spiritual',
+      category: 'spiritual',
+      badge: 'TÂM LINH VŨ TRỤ 🔮',
+      title: 'Haevy Spiritual',
+      subTitle: 'Xem Chỉ Tay, Quẻ Kinh Dịch, Xăm Khổng Minh, Thần Số Học, Quả Cầu Pha Lê & Tarot 3D',
+      icon: Sparkles,
+      color: 'from-purple-600 via-indigo-600 to-pink-600',
+      borderColor: 'border-purple-500/50 hover:border-purple-400',
+      bgGlow: 'bg-purple-500/20',
+      textColor: 'text-purple-300',
+      description: 'Không gian huyền học toàn năng: Xem tướng bàn tay & chỉ tay ngũ hành, gieo quẻ Kinh Dịch 64 quẻ, xin xăm Khổng Minh 100 quẻ, thần số học Pythagoras 4 đỉnh cao, quả cầu pha lê trực giác, 78 lá bài Tarot 3D và lá số Tử Vi 2026.',
+      highlights: [
+        'Xem tướng bàn tay ngũ hành & quét chỉ tay AR tương tác',
+        'Gieo quẻ Kinh Dịch 6 hào & Xin xăm Khổng Minh Thần Toán',
+        'Thần Số Học Pythagoras & Quả Cầu Pha Lê tiên tri AI'
+      ],
+      stats: '7 Bộ Môn Huyền Học AI',
+      demoType: 'spiritual_demo'
+    },
+    {
+      id: 'couple',
+      category: 'community',
+      badge: 'LÃNG MẠN ĐÔI LỨA',
+      title: 'I Love Haevy',
+      subTitle: 'Nhật ký tình yêu, Theo dõi chu kỳ & Đố ngày kỷ niệm',
+      icon: Heart,
+      color: 'from-rose-500 to-red-600',
+      borderColor: 'border-rose-500/40 hover:border-rose-400',
+      bgGlow: 'bg-rose-500/10',
+      textColor: 'text-rose-300',
+      description: 'Góc ngọt ngào dành riêng cho hai người: Mã ghép cặp độc quyền, nhật ký chung, chăm sóc bạn gái theo dõi chu kỳ và đố vui ngày kỷ niệm.',
+      highlights: [
+        'Nhật ký tình yêu có mật khẩu bảo vệ riêng',
+        'Theo dõi chu kỳ & Lời nhắn ngọt ngào cho bạn gái',
+        'Đố ngày kỷ niệm & Hộp thư thoại yêu thương'
+      ],
+      stats: 'Gắn kết bền chặt',
+      demoType: 'couple_demo'
+    },
+    {
+      id: 'family_tree',
+      category: 'community',
+      badge: 'GIA PHẢ DÒNG TỘC 👑',
+      title: 'Haevy Family Tree',
+      subTitle: 'Sơ đồ cây tương tác O(1), Lịch giỗ Âm-Dương & Hòm thư con cháu',
+      icon: GitFork,
+      color: 'from-amber-500 via-yellow-600 to-amber-700',
+      borderColor: 'border-amber-500/50 hover:border-amber-400',
+      bgGlow: 'bg-amber-500/20',
+      textColor: 'text-amber-300',
+      description: 'Quản lý phả hệ dòng họ số hóa thông minh: Sơ đồ tương tác zoom & pan mượt mà, hồ sơ thành viên lưu trữ sắc phong & mộ phần, thiết lập liên kết cha-con, phu thê, con nuôi, lịch giỗ chạp Âm-Dương tự động nhắc nhở và phân quyền Trưởng tộc bảo mật.',
+      highlights: [
+        'Sơ đồ cây phả hệ tương tác trực quan & Tìm kiếm lọc thế hệ',
+        'Lịch giỗ chạp Âm-Dương tự động tính toán & Đếm ngược ngày giỗ',
+        'Phân quyền Trưởng tộc (Admin) & Hòm thư con cháu đóng góp'
+      ],
+      stats: 'Graph & Closure Table O(1)',
+      demoType: 'family_tree_demo'
+    }
+  ];
+
+  // FAQs list
+  const faqs = [
+    {
+      q: 'Hệ sinh thái Haevy gồm những phân hệ cốt lõi nào?',
+      a: 'Hệ sinh thái Haevy gồm các phân hệ toàn diện: Haevy Spiritual (Tarot 3D, Tử Vi 2026 & Chiêm Tinh), Haevy Audio (Kho truyện & âm thanh Hi-Fi), Haevy Space (Bảng vẽ 3D & AR), Haevy AI Master (Trợ lý thông minh), Haevy Message (Nhắn tin & bạn bè), Haevy Studio (AI Voice sáng tác), Haevy Finance (Sổ thu chi 6 hũ), Haevy Admin (Quản trị hệ thống) và I Love Haevy (Không gian cặp đôi).'
+    },
+    {
+      q: 'Làm thế nào để truy cập Haevy VIP và Haevy Support?',
+      a: 'Bạn chỉ cần bấm vào hình đại diện (Avatar) ở góc trên bên phải màn hình để mở menu tài khoản có sẵn Haevy VIP và Haevy Support, hoặc bấm vào nút 4 hình vuông để xem toàn bộ danh mục chế độ hệ sinh thái.'
+    },
+    {
+      q: 'Làm thế nào để nhận quà tặng 500 Xu Đại Lễ?',
+      a: 'Bạn chỉ cần đăng nhập tài khoản Haevy (hoặc tạo tài khoản mới miễn phí trong 10 giây). Sau đó bấm vào nút "Nhận Quà 500 Xu Ngay" trên banner Đại Lễ. Xu sẽ được cộng tức thì vào ví tài khoản của bạn.'
+    },
+    {
+      q: 'Không gian vẽ 3D Haevy Space có yêu cầu kính VR không?',
+      a: 'Không cần! Haevy Space hoạt động mượt mà trên mọi trình duyệt WebGL máy tính, điện thoại cảm ứng (với chế độ xoay 360° tự do) và hỗ trợ nhận diện cử chỉ bàn tay Pinch AR trực tiếp qua camera máy ảnh.'
+    },
+    {
+      q: 'Xu Haevy được sử dụng cho những mục đích gì?',
+      a: 'Xu Haevy có thể được dùng để mở khóa các mẫu vẽ 3D cao cấp, nâng cấp âm thanh Hi-Fi Lossless trong Haevy VIP, và tặng quà tri ân cho các tác giả audio bạn yêu thích.'
+    }
+  ];
+
+  // Filtered pillars based on search & category
+  const filteredPillars = ecosystemPillars.filter(p => {
+    const matchCategory = activeCategoryFilter === 'all' || p.category === activeCategoryFilter;
+    const matchSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        p.subTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        p.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchCategory && matchSearch;
+  });
+
+  return (
+    <div className="min-h-screen w-full bg-black text-zinc-100 flex flex-col items-center selection:bg-amber-500/30 selection:text-amber-200">
+      
+      {/* ========================================================================= */}
+      {/* TOP HEADER: BRAND, NAV ANCHORS, AUTH (LOGIN / AVATAR + XU), NOTIFICATIONS & FULLSCREEN */}
+      {/* ========================================================================= */}
+      <header className="w-full max-w-7xl px-2.5 sm:px-6 py-2.5 sm:py-3.5 mt-1 sm:mt-4 mb-3 sm:mb-4 flex items-center justify-between gap-1.5 sm:gap-3 bg-zinc-950/90 backdrop-blur-2xl border border-zinc-800/80 rounded-2xl sm:rounded-3xl shadow-2xl sticky top-1 sm:top-2 z-40">
+        
+        {/* Left: Ecosystem Logo */}
+        <div 
+          className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer select-none min-w-0 shrink"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-br from-red-600 via-rose-600 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-red-600/30 ring-1 ring-white/20 shrink-0">
+            <Sparkles size={18} className="animate-pulse text-amber-200" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <span className="font-black text-xs sm:text-base tracking-tight bg-gradient-to-r from-white via-amber-200 to-amber-400 bg-clip-text text-transparent truncate">
+                HAEVY
+              </span>
+              <span className="hidden xs:inline-block font-black text-xs sm:text-base tracking-tight text-white truncate">
+                ECOSYSTEM
+              </span>
+              <span className="px-1.5 py-0.2 rounded-full bg-red-600 text-[8px] sm:text-[9px] font-black text-white tracking-widest uppercase shrink-0">
+                HUB
+              </span>
+            </div>
+            <p className="text-[10px] text-zinc-400 hidden sm:block truncate">
+              Hệ Sinh Thái Đa Chiều & Sáng Tạo
+            </p>
+          </div>
+        </div>
+
+        {/* Center: Desktop Nav Quick Links */}
+        <nav className="hidden lg:flex items-center gap-6 text-xs font-bold text-zinc-300">
+          <button 
+            onClick={() => {
+              const el = document.getElementById('festival-banner-section');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="hover:text-amber-400 transition-colors flex items-center gap-1"
+          >
+            <Gift size={13} className="text-amber-400" />
+            <span>Đại Lễ Ưu Đãi</span>
+          </button>
+          <button 
+            onClick={() => {
+              const el = document.getElementById('ecosystem-pillars-section');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="hover:text-amber-400 transition-colors flex items-center gap-1"
+          >
+            <Layers size={13} className="text-cyan-400" />
+            <span>7 Phân Hệ</span>
+          </button>
+          <button 
+            onClick={() => {
+              const el = document.getElementById('tech-stack-section');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="hover:text-amber-400 transition-colors flex items-center gap-1"
+          >
+            <Cpu size={13} className="text-emerald-400" />
+            <span>Công Nghệ AI & 3D</span>
+          </button>
+          <button 
+            onClick={() => {
+              const el = document.getElementById('faq-section');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="hover:text-amber-400 transition-colors flex items-center gap-1"
+          >
+            <HelpCircle size={13} className="text-purple-400" />
+            <span>Hỏi Đáp</span>
+          </button>
+        </nav>
+
+        {/* Right: Notification, Fullscreen & User Account (Login / Avatar + Xu) */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+
+          {/* Voice Navigation 'Listen' Button */}
+          {onToggleVoiceListen && (
+            <button
+              id="landing-voice-listen-btn"
+              onClick={() => {
+                haptics.selection();
+                onToggleVoiceListen();
+              }}
+              className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl border transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 relative group ${
+                isVoiceListening
+                  ? 'bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 text-white border-amber-300 font-bold shadow-lg shadow-rose-500/30 ring-2 ring-amber-400/50 animate-pulse'
+                  : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 hover:border-amber-500/50 text-amber-400 hover:text-amber-300'
+              }`}
+              title={
+                isVoiceListening 
+                  ? 'Đang lắng nghe giọng nói... Bấm để dừng' 
+                  : 'Điều khiển bằng giọng nói: "Đi đến Haevy Finance", "Mở phòng thu", "Mở Tử Vi"...'
+              }
+              aria-label="Lắng nghe giọng nói"
+            >
+              {isVoiceListening ? (
+                <>
+                  <div className="relative flex items-center justify-center">
+                    <Mic size={13} className="text-white animate-bounce" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs font-black tracking-tight hidden xs:inline text-white">
+                    Đang nghe...
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Mic size={13} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] sm:text-xs font-bold hidden md:inline text-zinc-300 group-hover:text-amber-300">
+                    Lắng nghe
+                  </span>
+                </>
+              )}
+            </button>
+          )}
+          
+          {/* Notification Button - Miniaturized */}
+          <button
+            onClick={() => {
+              haptics.light();
+              onOpenNotifications();
+            }}
+            className="relative w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg sm:rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-500/40 text-zinc-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+            title="Xem thông báo hệ thống & tin nhắn"
+            aria-label="Thông báo"
+          >
+            <Bell size={13} className="text-zinc-400 group-hover:text-amber-400" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center shadow-md shadow-rose-500/40 animate-pulse border border-zinc-950">
+                {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+              </span>
+            )}
+          </button>
+
+          {/* Fullscreen Mode Button - Miniaturized */}
+          {onToggleFullscreen && (
+            <button
+              onClick={() => {
+                haptics.selection();
+                onToggleFullscreen();
+              }}
+              className={`w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg sm:rounded-xl border transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 ${
+                isFullscreen
+                  ? 'bg-amber-400 text-black border-amber-300 font-bold shadow-amber-400/20'
+                  : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white'
+              }`}
+              title={isFullscreen ? 'Thoát toàn màn hình' : 'Bật chế độ toàn màn hình'}
+              aria-label="Toàn màn hình"
+            >
+              {isFullscreen ? <Minimize size={13} className="text-black" /> : <Maximize size={13} />}
+            </button>
+          )}
+
+          {/* 4-Blocks Icon: All Haevy Modes Quick Hub - Miniaturized */}
+          <button
+            id="all-modes-trigger-button"
+            onClick={() => {
+              haptics.medium();
+              setIsAllModesPanelOpen(true);
+            }}
+            className="relative w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg sm:rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-950 hover:from-amber-950/40 hover:to-zinc-900 border border-zinc-800 hover:border-amber-500/60 text-zinc-300 hover:text-amber-300 transition-all cursor-pointer shadow-md active:scale-95 group shrink-0"
+            title="Bảng thông tin tất cả các chế độ của Haevy (4 Khối)"
+            aria-label="Tất cả các chế độ Haevy"
+          >
+            <div className="relative flex items-center justify-center">
+              <LayoutGrid size={13} className="text-amber-400 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping opacity-75" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
+            </div>
+          </button>
+
+          {/* User Account Controls: If Logged In -> Avatar + Coins; If Not -> Login Button */}
+          {user ? (
+            <div id="user-profile-menu-container" className="relative shrink-0">
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  haptics.light();
+                  setUserProfileDropdown(!userProfileDropdown);
+                }}
+                className={`flex items-center gap-1 sm:gap-1.5 p-0.5 sm:p-1 pl-1 sm:pl-1.5 pr-1.5 sm:pr-2 rounded-full border transition-all cursor-pointer active:scale-95 shadow-md ${
+                  isVip
+                    ? 'bg-gradient-to-r from-amber-950/60 via-zinc-900 to-zinc-900 border-amber-500/50 hover:border-amber-400'
+                    : 'bg-zinc-900 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700'
+                }`}
+                title="Xem thông tin tài khoản & Ví xu"
+              >
+                {/* User Avatar */}
+                <div className="relative shrink-0 w-5 h-5 sm:w-6 sm:h-6">
+                  {user.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user.displayName || 'Avatar'}
+                      className="w-full h-full rounded-full object-cover ring-1 ring-zinc-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-600 via-rose-600 to-amber-600 flex items-center justify-center text-white font-black text-[9px] sm:text-xs ring-1 ring-zinc-700">
+                      {user.displayName?.charAt(0) || 'H'}
+                    </div>
+                  )}
+                  {isVip && (
+                    <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-black shadow-sm ring-1 ring-black">
+                      <Crown size={6} fill="currentColor" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Haevy Coins Display */}
+                <div className="flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs font-mono font-black shrink-0">
+                  <Coins size={11} className="text-amber-400 shrink-0" />
+                  <span className={`whitespace-nowrap ${isVip ? 'text-amber-300' : 'text-zinc-100'}`}>
+                    {(audioPoints ?? 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Reusable Profile Dropdown */}
+              <HaevyUserDropdownMenu
+                isOpen={userProfileDropdown}
+                onClose={() => setUserProfileDropdown(false)}
+                onSelectMode={(mode) => {
+                  haptics.modeSwitch();
+                  setUserProfileDropdown(false);
+                  onSelectMode?.(mode);
+                }}
+                onClaimGift={handleClaimFestivalGift}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                haptics.light();
+                onOpenAuth('signin');
+              }}
+              className="flex items-center gap-1 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-400 text-zinc-950 font-black text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl transition-all shadow-lg shadow-amber-400/20 active:scale-95 cursor-pointer shrink-0"
+            >
+              <LogIn size={12} className="stroke-[2.5]" />
+              <span className="text-[10px] sm:text-xs font-black">Đăng nhập</span>
+            </button>
+          )}
+
+        </div>
+      </header>
+
+      {/* Toast Notification */}
+      {claimToast && (
+        <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-gradient-to-r from-amber-500 to-rose-600 text-white font-extrabold px-4 sm:px-5 py-2 sm:py-2.5 rounded-2xl shadow-2xl border border-amber-300 animate-in fade-in slide-in-from-top-4 text-xs sm:text-sm flex items-center gap-2 max-w-[92vw] text-center">
+          <Sparkles size={16} className="text-yellow-200 animate-spin shrink-0" />
+          <span className="break-word-safe">{claimToast}</span>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 🇻🇳 HERO GRAND FESTIVAL BANNER (THEME ĐẠI LỄ RỘN RÀNG - NGÀN QUÀ TẶNG BẠN) */}
+      {/* ========================================================================= */}
+      <section id="festival-banner-section" className="w-full max-w-7xl px-2.5 sm:px-6 mb-6 sm:mb-12">
+        <div className="relative w-full rounded-2xl sm:rounded-[36px] overflow-hidden bg-gradient-to-br from-[#800707] via-[#a81010] to-[#450202] border-2 border-amber-500/50 shadow-2xl p-4 sm:p-8 md:p-12 text-white">
+          
+          {/* Decorative Gold & Silk Ambient Wave Effects */}
+          <div className="absolute top-0 right-0 w-64 sm:w-[600px] h-64 sm:h-[600px] bg-gradient-to-bl from-yellow-500/25 via-amber-500/15 to-transparent rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-48 sm:w-[400px] h-48 sm:h-[400px] bg-red-950/80 rounded-full blur-2xl pointer-events-none" />
+
+          {/* Top Mini Tagline */}
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4 relative z-10 w-full">
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border border-amber-400/40 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-wider max-w-full">
+              <Sparkles size={12} className="text-yellow-400 shrink-0" />
+              <span className="break-word-safe">Đại Lễ Hệ Sinh Thái Haevy – Tặng Đến 50% Xu VIP</span>
+            </div>
+
+            <button
+              onClick={() => {
+                const el = document.getElementById('ecosystem-pillars-section');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-zinc-950 text-[11px] sm:text-xs font-black hover:opacity-90 transition-all shadow-md flex items-center gap-1 active:scale-95 shrink-0"
+            >
+              <Flame size={12} className="fill-zinc-950" />
+              <span>SĂN DEAL NGAY</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center relative z-10">
+            
+            {/* Left Col: Main Typography & Event Offer (7 cols) */}
+            <div className="lg:col-span-7 space-y-3.5 sm:space-y-6 text-left">
+              
+              <div className="space-y-1">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight uppercase leading-tight font-serif text-white break-word-safe">
+                  ĐẠI LỄ <span className="font-sans italic font-normal text-amber-300">rộn ràng</span>
+                  <br />
+                  <span className="bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent drop-shadow-md">
+                    NGÀN QUÀ
+                  </span> tặng bạn
+                </h1>
+                <p className="text-xs sm:text-base md:text-lg text-amber-100/90 font-medium break-word-safe">
+                  Lễ lớn – Giá nhỏ – Hốt ngay kẻo lỡ! Trải nghiệm trọn bộ 7 phân hệ Haevy đỉnh cao.
+                </p>
+              </div>
+
+              {/* Event Discount Badge Card */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-black/45 backdrop-blur-md border border-amber-400/50 shadow-xl w-full max-w-full">
+                <div className="sm:border-r border-amber-400/30 sm:pr-4 pb-2 sm:pb-0 border-b sm:border-b-0">
+                  <span className="text-[9px] sm:text-[10px] font-black text-amber-300 uppercase tracking-wider block">
+                    SỐ LƯỢNG CÓ HẠN
+                  </span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-[11px] sm:text-xs text-zinc-300">GIẢM ĐẾN</span>
+                    <span className="text-xl sm:text-3xl font-black text-amber-400">50%</span>
+                  </div>
+                </div>
+
+                {/* Countdown timer */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-200">
+                    <Clock size={11} className="shrink-0" />
+                    <span>Thời gian diễn ra sự kiện:</span>
+                  </div>
+                  <div className="flex items-center gap-1 sm:gap-1.5 font-mono text-[11px] sm:text-sm font-black">
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg bg-red-950/90 border border-amber-500/40 text-amber-300">
+                      {String(timeLeft.days).padStart(2, '0')}N
+                    </span>
+                    <span>:</span>
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg bg-red-950/90 border border-amber-500/40 text-amber-300">
+                      {String(timeLeft.hours).padStart(2, '0')}H
+                    </span>
+                    <span>:</span>
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg bg-red-950/90 border border-amber-500/40 text-amber-300">
+                      {String(timeLeft.minutes).padStart(2, '0')}P
+                    </span>
+                    <span>:</span>
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg bg-red-950/90 border border-amber-500/40 text-amber-300">
+                      {String(timeLeft.seconds).padStart(2, '0')}S
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-1 sm:pt-2 w-full">
+                <button
+                  onClick={handleClaimFestivalGift}
+                  className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-zinc-950 font-black text-xs sm:text-base shadow-xl shadow-amber-400/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer text-center"
+                >
+                  <Gift size={16} className="fill-zinc-950 shrink-0" />
+                  <span className="truncate">{hasClaimedGift ? 'ĐÃ NHẬN 500 XU ĐẠI LỄ' : 'NHẬN QUÀ 500 XU NGAY'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('ecosystem-pillars-section');
+                    el?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-black/40 hover:bg-black/60 text-white font-bold text-xs sm:text-sm border border-amber-400/40 hover:border-amber-300 transition-all flex items-center justify-center gap-1.5 active:scale-95 text-center"
+                >
+                  <span>Khám phá 7 Phân Hệ</span>
+                  <ChevronRight size={15} className="shrink-0" />
+                </button>
+              </div>
+
+            </div>
+
+            {/* Right Col: Festive 3D Golden Star & Gift Box Graphic (5 cols) */}
+            <div className="lg:col-span-5 flex flex-col items-center justify-center relative w-full">
+              <div className="relative w-full max-w-[340px] aspect-auto sm:aspect-square flex items-center justify-center">
+                
+                {/* Glowing Vietnamese Star Symbol */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-30 animate-pulse pointer-events-none">
+                  <Star size={200} className="text-yellow-400 fill-yellow-400" />
+                </div>
+
+                {/* Main 3D Gift Box Card */}
+                <div className="relative z-10 w-full p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-b from-amber-950/80 via-red-950/90 to-black border-2 border-amber-400/60 shadow-2xl text-center space-y-3 sm:space-y-4 backdrop-blur-xl">
+                  <div className="w-14 h-14 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center text-white shadow-2xl shadow-red-500/50 ring-2 sm:ring-4 ring-amber-400/40 animate-bounce">
+                    <Gift size={28} className="text-amber-200 sm:w-10 sm:h-10" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[9px] sm:text-[10px] font-black uppercase tracking-wider border border-amber-400/40">
+                      GÓI QUÀ ĐẠI LỄ TÂN THỦ
+                    </span>
+                    <h3 className="text-base sm:text-xl font-black text-amber-200 break-word-safe">
+                      TẶNG 500 XU & TRẢI NGHIỆM 3D
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-zinc-300 break-word-safe">
+                      Đăng ký tài khoản miễn phí để nhận ngay xu thưởng, mở khóa toàn bộ không gian 3D và kho audio.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={user ? handleClaimFestivalGift : () => onOpenAuth('signup')}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-zinc-950 font-black text-xs uppercase tracking-wider shadow-lg hover:opacity-90 active:scale-95 transition-all"
+                  >
+                    {user ? 'Bấm Nhận Quà Ngay' : 'Đăng Ký Nhận Quà Ngay'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 📜 VINTAGE PARCHMENT SUB-BANNER: GIỚI THIỆU TỔNG QUAN HỆ SINH THÁI */}
+      {/* ========================================================================= */}
+      <section className="w-full max-w-7xl px-2.5 sm:px-6 mb-6 sm:mb-10">
+        <div className="w-full rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#d8c39e] via-[#ebd9b8] to-[#d8c39e] text-zinc-950 p-3.5 sm:p-6 shadow-xl border border-amber-700/30 flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4 text-center md:text-left">
+          
+          <div className="space-y-1">
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-amber-900/80 flex items-center justify-center md:justify-start gap-1">
+              <Award size={13} className="text-amber-800" />
+              ĐẶC QUYỀN HỆ SINH THÁI
+            </span>
+            <h2 className="text-lg sm:text-2xl font-black text-zinc-900 font-serif tracking-tight break-word-safe">
+              Nhận Ưu Đãi Đặc Biệt Trong Đại Lễ
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-700 max-w-2xl font-medium break-word-safe">
+              Không cần cài đặt nhiều ứng dụng phức tạp. Một tài khoản Haevy duy nhất đưa bạn qua 7 phân hệ sáng tạo, học tập, thư giãn và giải trí hoàn hảo.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+            <button
+              onClick={() => setSelectedDemoModal('space_demo')}
+              className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-amber-300 font-black text-xs shadow-lg transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer text-center"
+            >
+              <Sparkles size={14} className="text-amber-400 shrink-0" />
+              <span>Xem Thử Phòng Vẽ 3D</span>
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 🎪 DYNAMIC ECOSYSTEM EVENTS SHOWCASE (REWARD STYLES & HOSTING MODES) */}
+      {/* ========================================================================= */}
+      {upcomingEvents && upcomingEvents.filter(e => e.status !== 'ended' && e.status !== 'draft').length > 0 && (
+        <section id="ecosystem-live-events-showcase" className="w-full max-w-7xl px-2.5 sm:px-6 mb-6 sm:mb-10">
+          <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-900/90 via-zinc-950/95 to-black border-2 border-amber-500/40 shadow-2xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Sparkles size={16} />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                    <span>Sự Kiện & Đại Lễ Đang Diễn Ra</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                      {upcomingEvents.filter(e => e.status !== 'ended' && e.status !== 'draft').length} Sự Kiện
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    Tham gia các sự kiện hệ sinh thái, khám phá phân hệ và nhận Xu Haevy miễn phí
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+              {upcomingEvents
+                .filter(e => e.status !== 'ended' && e.status !== 'draft')
+                .slice(0, 3)
+                .map((event) => {
+                  const isClaimed = user && (event.claimedUserIds || []).includes(user.uid);
+                  const isLive = event.status === 'live';
+                  
+                  // Reward Style Icon
+                  let rewardIcon = '👑';
+                  let rewardStyleBadge = 'Rương Vàng';
+                  let rewardGradient = 'from-amber-500/20 via-yellow-500/10 to-amber-600/20 border-amber-400/40';
+                  
+                  if (event.rewardDisplayStyle === 'neon_crystal') {
+                    rewardIcon = '💎';
+                    rewardStyleBadge = 'Pha Lê 3D';
+                    rewardGradient = 'from-purple-500/20 via-indigo-500/10 to-cyan-600/20 border-purple-400/40';
+                  } else if (event.rewardDisplayStyle === 'gift_box') {
+                    rewardIcon = '🎁';
+                    rewardStyleBadge = 'Hộp Quà';
+                    rewardGradient = 'from-rose-500/20 via-red-500/10 to-orange-600/20 border-rose-400/40';
+                  } else if (event.rewardDisplayStyle === 'lucky_wheel') {
+                    rewardIcon = '🎡';
+                    rewardStyleBadge = 'Vòng Quay';
+                    rewardGradient = 'from-emerald-500/20 via-teal-500/10 to-cyan-600/20 border-emerald-400/40';
+                  } else if (event.rewardDisplayStyle === 'coin_fountain') {
+                    rewardIcon = '🪙';
+                    rewardStyleBadge = 'Mưa Xu 3D';
+                    rewardGradient = 'from-yellow-500/25 via-amber-500/10 to-orange-500/20 border-yellow-400/40';
+                  } else if (event.rewardDisplayStyle === 'royal_card') {
+                    rewardIcon = '🎴';
+                    rewardStyleBadge = 'Thẻ VIP';
+                    rewardGradient = 'from-indigo-600/20 via-violet-600/10 to-amber-500/20 border-indigo-400/40';
+                  }
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="group relative rounded-2xl bg-zinc-950/90 border border-zinc-800 hover:border-amber-400/50 p-3.5 sm:p-4 flex flex-col justify-between transition-all overflow-hidden shadow-xl"
+                    >
+                      {/* Banner Image or Ambient */}
+                      {event.bannerImageUrl && (
+                        <div className="relative h-28 -mx-3.5 -mt-3.5 sm:-mx-4 sm:-mt-4 mb-3 overflow-hidden rounded-t-2xl">
+                          <img
+                            src={event.bannerImageUrl}
+                            alt={event.title}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
+                          <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-amber-300 border border-amber-400/40 text-[9px] font-black uppercase">
+                              {event.badge || 'SỰ KIỆN'}
+                            </span>
+                            {isLive && (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-400/40 text-[9px] font-bold flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                                LIVE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5 flex-1">
+                        <h4 className="text-sm font-black text-white group-hover:text-amber-300 transition-colors line-clamp-1">
+                          {event.title}
+                        </h4>
+                        <p className="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed">
+                          {event.description || event.subtitle || 'Khám phá sự kiện và tham gia nhận thưởng ngay.'}
+                        </p>
+
+                        {/* Reward Visual Pill */}
+                        <div className={`mt-2 p-2 rounded-xl bg-gradient-to-r ${rewardGradient} border flex items-center justify-between gap-2`}>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-lg">{rewardIcon}</span>
+                            <div>
+                              <span className="text-[9px] font-black text-amber-300 uppercase block">{rewardStyleBadge}</span>
+                              <span className="text-[11px] font-bold text-white">
+                                {event.rewardBadgeText || `+${event.rewardCoins || 0} Xu`}
+                              </span>
+                            </div>
+                          </div>
+
+                          {event.rewardCoins && event.rewardCoins > 0 && (
+                            <button
+                              onClick={() => handleClaimUpcomingEvent(event)}
+                              disabled={isClaimed || claimingEventId === event.id}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer ${
+                                isClaimed
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-default'
+                                  : 'bg-gradient-to-r from-amber-400 to-yellow-400 text-zinc-950 shadow-md active:scale-95'
+                              }`}
+                            >
+                              {claimingEventId === event.id ? '...' : isClaimed ? 'Đã Nhận ✓' : `Nhận ${event.rewardCoins} Xu`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Event Footer CTA */}
+                      <div className="pt-3 mt-3 border-t border-zinc-800/80 flex items-center justify-between">
+                        <span className="text-[10px] text-zinc-400 font-medium">
+                          {event.hostingMode ? `Phân hệ: ${event.hostingMode.replace('mode_', '').toUpperCase()}` : 'Hệ Sinh Thái'}
+                        </span>
+
+                        <button
+                          onClick={() => {
+                            haptics.selection();
+                            if (event.hostingMode === 'mode_audio' || event.ctaAction === 'mode_audio') {
+                              onSelectMode?.('audio');
+                            } else if (event.hostingMode === 'mode_games' || event.ctaAction === 'mode_games') {
+                              onSelectMode?.('games');
+                            } else if (event.hostingMode === 'mode_space' || event.ctaAction === 'mode_space') {
+                              setSelectedDemoModal('space_demo');
+                            } else if (event.hostingMode === 'mode_finance' || event.ctaAction === 'mode_finance') {
+                              onSelectMode?.('finance');
+                            } else if (event.hostingMode === 'mode_couple' || event.ctaAction === 'mode_couple') {
+                              onSelectMode?.('couple');
+                            } else {
+                              const el = document.getElementById('ecosystem-pillars-section');
+                              el?.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }}
+                          className="text-[11px] font-black text-amber-400 hover:text-amber-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all"
+                        >
+                          <span>{event.ctaText || 'Tham Gia Ngay'}</span>
+                          <ChevronRight size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 🧭 FILTER TABS & SEARCH SECTION */}
+      {/* ========================================================================= */}
+      <section id="ecosystem-pillars-section" className="w-full max-w-7xl px-2.5 sm:px-6 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+          
+          <div>
+            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2 break-word-safe">
+              <Layers size={20} className="text-amber-400 shrink-0" />
+              <span>Các Phân Hệ Cốt Lõi Trong Hệ Sinh Thái Haevy</span>
+            </h2>
+            <p className="text-xs text-zinc-400 break-word-safe">
+              Khám phá các phân hệ trụ cột hoặc bấm nút 4 ô vuông góc trên để xem toàn bộ danh mục chế độ.
+            </p>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-1.5 bg-zinc-950/80 p-1 rounded-2xl border border-zinc-800 overflow-x-auto no-scrollbar w-full sm:w-auto max-w-full touch-pan-x">
+            {[
+              { id: 'all', label: 'Tất Cả Phân Hệ' },
+              { id: 'spiritual', label: '🔮 Tâm Linh & Tử Vi' },
+              { id: 'audio', label: '🎧 Audio Sách Nói' },
+              { id: 'creative', label: '🎨 Sáng Tạo & 3D AR' },
+              { id: 'community', label: '👥 Kết Nối & Cặp Đôi' },
+              { id: 'utility', label: '⚙️ Quản Trị & Tài Chính' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  haptics.selection();
+                  setActiveCategoryFilter(cat.id as any);
+                }}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
+                  activeCategoryFilter === cat.id
+                    ? 'bg-amber-400 text-zinc-950 font-black shadow-md'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 🌌 BENTO GRID: 7 FLAGSHIP ECOSYSTEM PILLARS CARDS */}
+      {/* ========================================================================= */}
+      <section className="w-full max-w-7xl px-2.5 sm:px-6 mb-8 sm:mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {filteredPillars.map((pillar) => {
+            const Icon = pillar.icon;
+            return (
+              <div
+                key={pillar.id}
+                onClick={() => {
+                  haptics.medium();
+                  setSelectedDemoModal(pillar.demoType);
+                }}
+                className={`group relative rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-900/90 via-zinc-950/90 to-black border-2 ${pillar.borderColor} p-4 sm:p-6 shadow-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer active:scale-[0.99] overflow-hidden hover:shadow-xl`}
+              >
+                {/* Ambient glow */}
+                <div className={`absolute top-0 right-0 w-48 h-48 ${pillar.bgGlow} rounded-full blur-3xl group-hover:scale-125 transition-all pointer-events-none`} />
+
+                <div>
+                  {/* Top Card Bar */}
+                  <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${pillar.color} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform p-2 sm:p-2.5 shrink-0`}>
+                      <Icon size={20} className="sm:w-6 sm:h-6" />
+                    </div>
+                    <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 text-[9px] sm:text-[10px] font-black tracking-wider uppercase shrink-0">
+                      {pillar.badge}
+                    </span>
+                  </div>
+
+                  {/* Title & SubTitle */}
+                  <h3 className="text-base sm:text-xl font-black text-white group-hover:text-amber-300 transition-colors mb-1 break-word-safe">
+                    {pillar.title}
+                  </h3>
+                  <p className={`text-xs font-bold ${pillar.textColor} mb-2.5 leading-snug break-word-safe`}>
+                    {pillar.subTitle}
+                  </p>
+
+                  <p className="text-xs text-zinc-300 leading-relaxed mb-3 sm:mb-4 break-word-safe">
+                    {pillar.description}
+                  </p>
+
+                  {/* Key Highlights */}
+                  <div className="space-y-1.5 mb-4 sm:mb-5">
+                    {pillar.highlights.map((h, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs text-zinc-300 break-word-safe">
+                        <CheckCircle2 size={13} className="text-amber-400 shrink-0 mt-0.5" />
+                        <span>{h}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bottom Action Footer */}
+                <div className="pt-3 border-t border-zinc-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                  <span className="text-[11px] font-mono text-zinc-500 font-bold hidden sm:block">
+                    {pillar.stats}
+                  </span>
+
+                  <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        haptics.medium();
+                        setSelectedDemoModal(pillar.demoType);
+                      }}
+                      className="flex-1 sm:flex-initial px-2.5 py-1.5 rounded-xl bg-zinc-800/90 hover:bg-zinc-700 text-zinc-300 text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      title="Xem giới thiệu & demo tương tác"
+                    >
+                      <Eye size={12} className="text-amber-400 shrink-0" />
+                      <span>Xem Demo</span>
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        haptics.modeSwitch();
+                        if (onSelectMode) {
+                          onSelectMode(pillar.id);
+                        } else {
+                          setSelectedDemoModal(pillar.demoType);
+                        }
+                      }}
+                      className="flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-zinc-950 text-xs font-black shadow-md shadow-amber-400/20 transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      <span>Vào Sử Dụng</span>
+                      <ArrowRight size={13} className="shrink-0" />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* ⚡ TECH STACK & ARCHITECTURE SHOWCASE */}
+      {/* ========================================================================= */}
+      <section id="tech-stack-section" className="w-full max-w-7xl px-2.5 sm:px-6 mb-8 sm:mb-12">
+        <div className="w-full rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-900 to-zinc-950 border border-zinc-800 p-4 sm:p-10 shadow-2xl">
+          
+          <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8 space-y-2">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] sm:text-xs font-black uppercase tracking-wider border border-emerald-500/40">
+              CÔNG NGHỆ TIÊN PHONG
+            </span>
+            <h2 className="text-xl sm:text-3xl font-black text-white break-word-safe">
+              Nền Tảng Công Nghệ Đa Chiều Của Haevy
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-400 break-word-safe">
+              Kết hợp sức mạnh tính toán vật lý thời gian thực, trí tuệ nhân tạo học sâu và điện toán đám mây tốc độ cao.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            
+            <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-2">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <PenTool size={18} />
+              </div>
+              <h4 className="font-bold text-sm text-white break-word-safe">3D Dynamic Equations</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed break-word-safe">
+                Phương trình lực đè độ cong (Curvature Force) và mô hình lò xo giảm chấn tái tạo chiều sâu nét vẽ 3D tự nhiên.
+              </p>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-2">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <BrainCircuit size={18} />
+              </div>
+              <h4 className="font-bold text-sm text-white break-word-safe">Gemini 3.5 AI Processor</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed break-word-safe">
+                Mô hình xử lý tài liệu tối ưu về tốc độ và chi phí, mổ xẻ nguyên lý logic sâu sắc và chống thói quen học vẹt.
+              </p>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-2">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <Volume2 size={18} />
+              </div>
+              <h4 className="font-bold text-sm text-white break-word-safe">Web Audio Spatial DSP</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed break-word-safe">
+                Bộ xử lý tín hiệu số tổng hợp sóng não Alpha (432Hz) và Delta (0.5-4Hz) chuẩn Hi-Fi trực tiếp trên trình duyệt.
+              </p>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-2">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+                <ShieldCheck size={18} />
+              </div>
+              <h4 className="font-bold text-sm text-white break-word-safe">Cloud Firestore & eKYC</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed break-word-safe">
+                Bảo vệ dữ liệu người dùng đa thiết bị, đồng bộ tức thời thời gian thực và xác thực bản quyền tác giả chính thức.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 📊 LIVE STATS & COMMUNITY TRUST */}
+      {/* ========================================================================= */}
+      <section className="w-full max-w-7xl px-2.5 sm:px-6 mb-8 sm:mb-12">
+        <div className="w-full rounded-2xl sm:rounded-3xl bg-zinc-950 border border-zinc-800/80 p-4 sm:p-8 shadow-2xl grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 text-center">
+          
+          <div className="space-y-1 p-2">
+            <span className="text-xl sm:text-3xl lg:text-4xl font-black text-amber-400 font-mono break-all sm:break-normal">
+              25,000+
+            </span>
+            <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">Thành Viên Tích Cực</p>
+          </div>
+
+          <div className="space-y-1 p-2">
+            <span className="text-xl sm:text-3xl lg:text-4xl font-black text-cyan-400 font-mono break-all sm:break-normal">
+              1,200+
+            </span>
+            <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">Tác Phẩm Vẽ 3D AR</p>
+          </div>
+
+          <div className="space-y-1 p-2">
+            <span className="text-xl sm:text-3xl lg:text-4xl font-black text-rose-400 font-mono break-all sm:break-normal">
+              50,000+
+            </span>
+            <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">Giờ Trải Nghiệm & Nghe</p>
+          </div>
+
+          <div className="space-y-1 p-2">
+            <span className="text-xl sm:text-3xl lg:text-4xl font-black text-emerald-400 font-mono break-all sm:break-normal">
+              10,000,000+
+            </span>
+            <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">Xu Haevy Đã Trao Thưởng</p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* ❓ FREQUENTLY ASKED QUESTIONS (FAQ) */}
+      {/* ========================================================================= */}
+      <section id="faq-section" className="w-full max-w-4xl px-2.5 sm:px-6 mb-12 sm:mb-16">
+        <div className="text-center mb-6 sm:mb-8 space-y-2">
+          <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-black uppercase tracking-wider border border-purple-500/40">
+            HỎI ĐÁP & HƯỚNG DẪN
+          </span>
+          <h2 className="text-xl sm:text-3xl font-black text-white break-word-safe">
+            Câu Hỏi Thường Gặp Về Hệ Sinh Thái Haevy
+          </h2>
+        </div>
+
+        <div className="space-y-2.5 sm:space-y-3">
+          {faqs.map((faq, idx) => (
+            <div 
+              key={idx}
+              className="rounded-xl sm:rounded-2xl bg-zinc-950 border border-zinc-800/90 overflow-hidden"
+            >
+              <button
+                onClick={() => {
+                  haptics.selection();
+                  setFaqOpenIndex(faqOpenIndex === idx ? null : idx);
+                }}
+                className="w-full p-3.5 sm:p-5 text-left flex items-center justify-between gap-2.5 hover:bg-zinc-900/50 transition-colors"
+              >
+                <span className="font-bold text-xs sm:text-base text-zinc-100 flex items-center gap-2 break-word-safe">
+                  <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-black flex items-center justify-center shrink-0">
+                    ?
+                  </span>
+                  {faq.q}
+                </span>
+                <span className="text-zinc-500 text-base sm:text-lg font-bold shrink-0">
+                  {faqOpenIndex === idx ? '−' : '+'}
+                </span>
+              </button>
+
+              {faqOpenIndex === idx && (
+                <div className="p-3.5 sm:p-5 pt-0 text-xs sm:text-sm text-zinc-400 leading-relaxed border-t border-zinc-800/50 break-word-safe">
+                  {faq.a}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 🚀 QUICK JUMP FOOTER */}
+      {/* ========================================================================= */}
+      <footer className="w-full max-w-7xl px-2.5 sm:px-6 pb-12 text-center text-xs text-zinc-500 space-y-3 border-t border-zinc-800 pt-8">
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-zinc-400 font-bold text-xs">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-amber-400">Trang Đầu</button>
+          <button onClick={() => setSelectedDemoModal('space_demo')} className="hover:text-amber-400">Thử Vẽ 3D AR</button>
+          <button onClick={() => setSelectedDemoModal('ai_demo')} className="hover:text-amber-400">Thử Trợ Lý Học Sâu AI</button>
+          <button onClick={handleClaimFestivalGift} className="hover:text-amber-400">Nhận 500 Xu Đại Lễ</button>
+        </div>
+        <p className="font-bold text-zinc-400 break-word-safe">
+          © {new Date().getFullYear()} Haevy Ecosystem • Nền Tảng Đa Trải Nghiệm Sáng Tạo & Thư Giãn Toàn Diện
+        </p>
+        <p className="text-[10px] sm:text-[11px] text-zinc-600 break-word-safe">
+          Được tối ưu cho mọi thiết bị: Máy tính cá nhân, Bảng vẽ, Điện thoại cảm ứng & Kính thực tế ảo AR.
+        </p>
+      </footer>
+
+      {/* ========================================================================= */}
+      {/* 🎬 INTERACTIVE DEMO MODAL (POPUP PREVIEW RIGHT ON LANDING PAGE) */}
+      {/* ========================================================================= */}
+      {selectedDemoModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-2.5 sm:p-6 animate-in fade-in">
+          <div className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-2xl relative max-h-[88dvh] overflow-y-auto">
+            
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedDemoModal(null)}
+              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            {/* AI STUDY DEMO */}
+            {selectedDemoModal === 'ai_demo' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <BrainCircuit size={22} />
+                  <h3 className="text-lg font-black text-white">Dùng Thử Trợ Lý Học Sâu Haevy AI (Gemini 3.5 Flash)</h3>
+                </div>
+                <p className="text-xs text-zinc-400">
+                  Nhập chủ đề hoặc tài liệu cần phân tích bản chất logic (không học vẹt):
+                </p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={demoAiInput}
+                    onChange={(e) => setDemoAiInput(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                    placeholder="Nhập nội dung cần giải mã bản chất..."
+                  />
+                  <button
+                    onClick={handleRunAiDemo}
+                    disabled={isAnalyzingAi}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-xs hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isAnalyzingAi ? <RotateCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                    <span>{isAnalyzingAi ? 'AI Đang Mổ Xẻ Bản Chất Logic...' : 'Phân Tích Nguyên Lý Gốc Rễ'}</span>
+                  </button>
+                </div>
+
+                {demoAiResult && (
+                  <div className="p-4 rounded-xl bg-zinc-900/80 border border-emerald-500/30 text-xs text-zinc-300 whitespace-pre-line leading-relaxed">
+                    {demoAiResult}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SPIRITUAL DEMO */}
+            {selectedDemoModal === 'spiritual_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                  <Sparkles size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy Spiritual & Tâm Linh Vũ Trụ</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Trải nghiệm huyền học đỉnh cao: Bói 78 lá bài Tarot 3D Rider-Waite chân thực, lập lá số Tử Vi trọn đời và vận hạn 2026 Bính Ngọ, bản đồ sao Chiêm Tinh Natal Chart và sóng âm Solfeggio 528Hz chữa lành.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-purple-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-purple-300 font-bold">
+                    <Check size={14} className="text-purple-400 shrink-0" /> 
+                    <span>Xào bài & rút 78 lá Tarot 3D kèm âm thanh chuông xoay Tây Tạng</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-purple-300 font-bold">
+                    <Check size={14} className="text-purple-400 shrink-0" /> 
+                    <span>Lập lá số Tử Vi 12 cung & Sao chiếu mệnh năm 2026 Bính Ngọ</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-purple-300 font-bold">
+                    <Check size={14} className="text-purple-400 shrink-0" /> 
+                    <span>Khám phá 12 Cung Hoàng Đạo & Sóng âm Solfeggio 528Hz chuyển hóa năng lượng</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    if (onSelectMode) {
+                      onSelectMode('spiritual');
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-purple-500/20"
+                >
+                  Vào Trải Nghiệm Haevy Spiritual Ngay
+                </button>
+              </div>
+            )}
+
+            {/* 3D SPACE DEMO */}
+            {selectedDemoModal === 'space_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                  <Sparkles size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Không Gian Vẽ 3D & Metaverse Tách Nét 100%</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Công nghệ không gian 3D của Haevy cho phép từng nét vẽ và chữ viết tồn tại độc lập trong không gian ba chiều, tự do xoay 360°, hỗ trợ cử chỉ nhận diện tay Pinch AR qua camera.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-cyan-500/30 text-left space-y-2.5 text-xs">
+                  <div className="flex items-center gap-2 text-cyan-300 font-bold">
+                    <Check size={14} className="text-cyan-400 shrink-0" /> 
+                    <span>Tái tạo chiều sâu Z bằng thuật toán biến thiên lực đè quang học</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-cyan-300 font-bold">
+                    <Check size={14} className="text-cyan-400 shrink-0" /> 
+                    <span>Điều khiển Pinch hai ngón tay không chạm qua Camera</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-cyan-300 font-bold">
+                    <Check size={14} className="text-cyan-400 shrink-0" /> 
+                    <span>Tương tác cùng linh vật Haevy Son 3D sống động với biểu cảm thực tế</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    handleClaimFestivalGift();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-cyan-500/20"
+                >
+                  Nhận 500 Xu & Bắt Đầu Trải Nghiệm
+                </button>
+              </div>
+            )}
+
+            {/* AUDIO DEMO */}
+            {selectedDemoModal === 'audio_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Moon size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy Audio & Kho Truyện Thư Giãn</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Kho truyện audio bất tận kết hợp sóng não Delta ru ngủ êm ái, âm thanh chuẩn phòng thu và chế độ hẹn giờ tắt thông minh.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-indigo-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-indigo-300 font-bold">
+                    <Check size={14} className="text-indigo-400 shrink-0" /> 
+                    <span>Hàng ngàn giờ truyện Audio: Kiếm hiệp, Tiên hiệp, Ngôn tình, Trinh thám</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-indigo-300 font-bold">
+                    <Check size={14} className="text-indigo-400 shrink-0" /> 
+                    <span>Sóng não Delta (0.5 - 4Hz) hỗ trợ thư giãn và ngủ sâu tự nhiên</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-indigo-300 font-bold">
+                    <Check size={14} className="text-indigo-400 shrink-0" /> 
+                    <span>Bộ đếm giờ tắt thông minh tự động dừng phát nhạc sau khi ngủ</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    handleClaimFestivalGift();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
+                >
+                  Nhận 500 Xu Đại Lễ & Trải Nghiệm Haevy Audio
+                </button>
+              </div>
+            )}
+
+            {/* STUDIO DEMO */}
+            {selectedDemoModal === 'studio_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                  <Mic size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy Studio & AI Voice Tác Giả</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Chuyển văn bản thành giọng nói truyền cảm hứng, xác thực định danh tác giả eKYC bảo vệ bản quyền và nhận quà tặng thính giả.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-rose-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-rose-300 font-bold">
+                    <Check size={14} className="text-rose-400 shrink-0" /> 
+                    <span>Công nghệ AI Voice TTS đa thanh âm, biểu cảm tự nhiên</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-rose-300 font-bold">
+                    <Check size={14} className="text-rose-400 shrink-0" /> 
+                    <span>Hệ thống eKYC bảo vệ độc quyền bản quyền tác phẩm của tác giả</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-rose-300 font-bold">
+                    <Check size={14} className="text-rose-400 shrink-0" /> 
+                    <span>Nhận xu donate trực tiếp từ cộng đồng người nghe trung thành</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    handleClaimFestivalGift();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
+                >
+                  Nhận 500 Xu Đại Lễ & Bắt Đầu Sáng Tác
+                </button>
+              </div>
+            )}
+
+            {/* MESSAGES DEMO */}
+            {selectedDemoModal === 'messages_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                  <MessageSquare size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy Message & Kết Nối Bạn Bè</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Trò chuyện tức thời với bạn bè, gọi thoại voice/video chất lượng cao và chia sẻ những bản audio yêu thích trong không gian an toàn.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-sky-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-sky-300 font-bold">
+                    <Check size={14} className="text-sky-400 shrink-0" /> 
+                    <span>Nhắn tin thời gian thực với mã hóa an toàn</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sky-300 font-bold">
+                    <Check size={14} className="text-sky-400 shrink-0" /> 
+                    <span>Gọi thoại trực tiếp không giới hạn thời lượng cuộc gọi</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sky-300 font-bold">
+                    <Check size={14} className="text-sky-400 shrink-0" /> 
+                    <span>Trợ lý Haevy AI đọc hiểu và hỗ trợ cuộc trò chuyện</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    handleClaimFestivalGift();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
+                >
+                  Nhận 500 Xu Đại Lễ & Kết Nối Bạn Bè
+                </button>
+              </div>
+            )}
+
+            {/* COUPLE DEMO */}
+            {selectedDemoModal === 'couple_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                  <Heart size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">I Love Haevy & Không Gian Cặp Đôi</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Không gian riêng tư cho hai người yêu nhau: Nhật ký tình yêu chung, theo dõi chu kỳ chăm sóc bạn gái và mini game đố ngày kỷ niệm.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-rose-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-rose-300 font-bold">
+                    <Check size={14} className="text-rose-400 shrink-0" /> 
+                    <span>Mã ghép cặp độc quyền bảo mật 100% riêng tư</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-rose-300 font-bold">
+                    <Check size={14} className="text-rose-400 shrink-0" /> 
+                    <span>Theo dõi chu kỳ & Lời nhắn yêu thương gửi bạn gái</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-rose-300 font-bold">
+                    <Check size={14} className="text-rose-400 shrink-0" /> 
+                    <span>Hộp thư thoại & Đố vui ngày kỷ niệm tình yêu</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    handleClaimFestivalGift();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
+                >
+                  Nhận 500 Xu Đại Lễ & Ghép Cặp Tình Yêu
+                </button>
+              </div>
+            )}
+
+            {/* FINANCE DEMO */}
+            {selectedDemoModal === 'finance_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Wallet size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy Finance & Sổ Thu Chi 6 Hũ</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Quản lý ngân sách cá nhân thông minh, ghi chép thu chi 1 chạm cực nhanh và báo cáo dòng tiền trực quan.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-emerald-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <Check size={14} className="text-emerald-400 shrink-0" /> 
+                    <span>Ghi chép thu chi nhanh chóng chỉ trong 3 giây</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <Check size={14} className="text-emerald-400 shrink-0" /> 
+                    <span>Phân bổ ngân sách khoa học (Hũ chi tiêu thiết yếu, đầu tư, tiết kiệm)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <Check size={14} className="text-emerald-400 shrink-0" /> 
+                    <span>Biểu đồ trực quan và bảo mật dữ liệu tuyệt đối</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    handleClaimFestivalGift();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
+                >
+                  Nhận 500 Xu Đại Lễ & Quản Lý Tài Chính
+                </button>
+              </div>
+            )}
+
+            {/* ADMIN DEMO */}
+            {selectedDemoModal === 'admin_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center">
+                  <ShieldCheck size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy Admin & Quản Trị Hệ Thống</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Bảng điều khiển toàn diện: Phê duyệt audio, kiểm duyệt nội dung, quản lý người dùng và theo dõi doanh thu xu.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-red-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-red-300 font-bold">
+                    <Check size={14} className="text-red-400 shrink-0" /> 
+                    <span>Phê duyệt và kiểm duyệt nội dung audio, sách nói</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-red-300 font-bold">
+                    <Check size={14} className="text-red-400 shrink-0" /> 
+                    <span>Quản lý phân quyền tài khoản Admin và Super Admin</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-red-300 font-bold">
+                    <Check size={14} className="text-red-400 shrink-0" /> 
+                    <span>Thống kê phân tích hiệu suất và dòng tiền xu toàn sàn</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    handleClaimFestivalGift();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
+                >
+                  Nhận 500 Xu Đại Lễ & Xem Quản Trị
+                </button>
+              </div>
+            )}
+
+            {/* VIP CLUB DEMO */}
+            {selectedDemoModal === 'vip_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-300 flex items-center justify-center">
+                  <Crown size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy VIP Club & Đặc Quyền Hoàng Gia</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Đặc quyền âm thanh Spatial Lossless Hi-Fi, huy hiệu Vương Miện vàng phát sáng và ưu đãi tặng quà độc quyền cho tác giả.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-amber-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <Check size={14} className="text-amber-400 shrink-0" /> 
+                    <span>Âm thanh Spatial Hi-Fi Lossless chuẩn phòng thu quốc tế</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <Check size={14} className="text-amber-400 shrink-0" /> 
+                    <span>Huy hiệu Vương Miện VIP vàng rực rỡ bên cạnh tên người dùng</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <Check size={14} className="text-amber-400 shrink-0" /> 
+                    <span>Quyền truy cập sớm các tính năng và kho quà độc quyền</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    handleClaimFestivalGift();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-zinc-950 font-black text-xs hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-amber-400/20"
+                >
+                  Nhận 500 Xu Đại Lễ & Trải Nghiệm VIP
+                </button>
+              </div>
+            )}
+
+            {/* SUPPORT DEMO */}
+            {selectedDemoModal === 'support_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
+                  <LifeBuoy size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy Support & Trung Tâm Hỗ Trợ 24/7</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Đội ngũ chăm sóc khách hàng chuyên nghiệp sẵn sàng trợ giúp: Gửi ticket nhanh, tra cứu FAQ và hỗ trợ trực tuyến.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-emerald-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <Check size={14} className="text-emerald-400 shrink-0" /> 
+                    <span>Gửi yêu cầu hỗ trợ (Ticket) và nhận phản hồi nhanh chóng</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <Check size={14} className="text-emerald-400 shrink-0" /> 
+                    <span>Kho câu hỏi thường gặp FAQ giải đáp mọi thắc mắc</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <Check size={14} className="text-emerald-400 shrink-0" /> 
+                    <span>Hỗ trợ trực tiếp qua kênh Zalo, Telegram và Hotline</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedDemoModal(null);
+                    handleClaimFestivalGift();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 text-zinc-950 font-black text-xs hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-emerald-400/20"
+                >
+                  Nhận 500 Xu Đại Lễ & Đến Trung Tâm Hỗ Trợ
+                </button>
+              </div>
+            )}
+
+            {/* FAMILY TREE DEMO */}
+            {selectedDemoModal === 'family_tree_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-300 flex items-center justify-center">
+                  <GitFork size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy Family Tree & Phả Hệ Gia Tộc Thông Minh</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Sơ đồ cây phả hệ tương tác thu phóng mượt mà, lưu trữ sắc phong, thiết lập mối quan hệ gia tộc, tự động tính ngày giỗ Âm-Dương và hòm thư phê duyệt đề xuất.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-amber-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <Check size={14} className="text-amber-400 shrink-0" /> 
+                    <span>Sơ đồ cây gia phả tương tác mượt mà, tìm kiếm và lọc thế hệ</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <Check size={14} className="text-amber-400 shrink-0" /> 
+                    <span>Lịch giỗ chạp Âm-Dương tự động nhắc nhở & đếm ngược ngày giỗ</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-amber-300 font-bold">
+                    <Check size={14} className="text-amber-400 shrink-0" /> 
+                    <span>Phân quyền Trưởng tộc (Admin) & Hòm thư con cháu đề xuất cập nhật</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedDemoModal(null);
+                      if (onSelectMode) {
+                        onSelectMode('family_tree');
+                      }
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-zinc-950 font-black text-xs hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-amber-400/20"
+                  >
+                    Vào Xem Cây Phả Hệ Ngay 👑
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* ALL MODES COMPREHENSIVE INFORMATION MODAL (Opened via 4-Blocks Icon) */}
+      <HaevyAllModesInfoModal
+        isOpen={isAllModesPanelOpen}
+        onClose={() => setIsAllModesPanelOpen(false)}
+        onSelectMode={(modeId) => {
+          setIsAllModesPanelOpen(false);
+          if (onSelectMode) {
+            onSelectMode(modeId);
+          } else {
+            setSelectedDemoModal(`${modeId}_demo`);
+          }
+        }}
+        onSelectDemoModal={(demoKey) => {
+          setIsAllModesPanelOpen(false);
+          setSelectedDemoModal(demoKey);
+        }}
+        onClaimGift={handleClaimFestivalGift}
+      />
+
+    </div>
+  );
+}

@@ -37,6 +37,7 @@ import { db } from '../lib/firebase';
 import { AdminChainLockOverlay } from './admin/AdminChainLockOverlay';
 import { SixLayerSecurityShield } from './account/SixLayerSecurityShield';
 import { HaevySupportAiView } from './account/HaevySupportAiView';
+import { SkeletonTransactionRow } from './common/Skeleton';
 
 interface UserProfileViewProps {
   onOpenAuth: () => void;
@@ -856,9 +857,10 @@ export function UserProfileView({
           </div>
 
           {loadingHistory ? (
-            <div className="py-8 flex items-center justify-center gap-2 text-zinc-400 text-xs">
-              <Loader2 size={16} className="animate-spin" />
-              <span>Đang tải lịch sử...</span>
+            <div className="divide-y divide-zinc-800/60">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <SkeletonTransactionRow key={i} />
+              ))}
             </div>
           ) : transactions.length === 0 ? (
             <div className="py-8 text-center text-xs text-zinc-500">

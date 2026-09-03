@@ -27,6 +27,13 @@ import {
 import { Track, ActiveTab } from '../types';
 import { FEATURED_PLAYLISTS, GENRE_LIST } from '../data';
 import { useAuth } from '../context/AuthContext';
+import { 
+  Skeleton, 
+  SkeletonHero, 
+  SkeletonTrackCard, 
+  SkeletonGrid, 
+  SkeletonText 
+} from './common/Skeleton';
 
 interface HomeViewProps {
   tracks: Track[];
@@ -39,6 +46,75 @@ interface HomeViewProps {
   onOpenAuth: () => void;
   onOpenPublishAudio?: () => void;
   onViewAuthorChannel?: (authorUid: string, authorName?: string) => void;
+  isLoading?: boolean;
+}
+
+export function HomeViewSkeleton() {
+  return (
+    <div className="w-full max-w-6xl mx-auto space-y-8 sm:space-y-12 animate-in fade-in duration-300">
+      {/* Top Banner Skeleton */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-zinc-950/80 border border-zinc-800/80">
+        <div className="flex items-center gap-3">
+          <Skeleton variant="circle" className="w-6 h-6" />
+          <Skeleton variant="text" className="w-48 sm:w-80 h-4" />
+        </div>
+        <Skeleton variant="pill" className="w-24 h-6 hidden sm:block" />
+      </div>
+
+      {/* Hero Spotlight Skeleton */}
+      <SkeletonHero />
+
+      {/* Genre Pills Row Skeleton */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton variant="text" className="w-32 h-5" />
+          <Skeleton variant="text" className="w-16 h-3" />
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} variant="pill" className="w-24 sm:w-28 h-9 shrink-0 rounded-2xl" />
+          ))}
+        </div>
+      </div>
+
+      {/* Trending Tracks Section Skeleton */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Skeleton variant="circle" className="w-7 h-7" />
+            <Skeleton variant="text" className="w-40 sm:w-56 h-6" />
+          </div>
+          <Skeleton variant="pill" className="w-20 h-7" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonTrackCard key={i} />
+          ))}
+        </div>
+      </div>
+
+      {/* Playlists & Collections Skeleton */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Skeleton variant="circle" className="w-7 h-7" />
+            <Skeleton variant="text" className="w-44 sm:w-60 h-6" />
+          </div>
+          <Skeleton variant="pill" className="w-20 h-7" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="p-4 rounded-3xl bg-zinc-950/80 border border-zinc-800/80 space-y-3">
+              <Skeleton variant="rounded" className="w-full h-40 rounded-2xl" />
+              <Skeleton variant="text" className="w-3/4 h-5" />
+              <Skeleton variant="text" className="w-full h-3.5" />
+              <Skeleton variant="text" className="w-1/2 h-3" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function HomeView({
@@ -52,8 +128,14 @@ export function HomeView({
   onOpenAuth,
   onOpenPublishAudio,
   onViewAuthorChannel,
+  isLoading = false,
 }: HomeViewProps) {
   const { user, isAdmin, isSuperAdmin, homeCustomConfig } = useAuth();
+
+  // If initial load or explicit isLoading state with no cached tracks
+  if (isLoading && tracks.length === 0) {
+    return <HomeViewSkeleton />;
+  }
 
   // Determine if current user qualifies for the custom admin configuration target audience
   const isAudienceMatched = useMemo(() => {
@@ -63,7 +145,7 @@ export function HomeView({
     if (isAdmin || isSuperAdmin) return true; // Admins always see changes
     if (audience === 'guests') return !user || user.isAnonymous;
     if (audience === 'users') return !!user && !user.isAnonymous;
-    if (audience === 'vips') return !!user && (user.isVip || user.vipTier === 'vip');
+    if (audience === 'vips' || audience === 'vip') return !!user && (user as any).isVip;
     if (audience === 'admins') return isAdmin || isSuperAdmin;
     return true;
   }, [homeCustomConfig, user, isAdmin, isSuperAdmin]);

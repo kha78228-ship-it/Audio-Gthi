@@ -7,12 +7,18 @@ import {
   Volume2, 
   VolumeX, 
   Heart, 
-  Maximize2,
-  Music2,
-  Moon
+  Maximize2, 
+  Music2, 
+  Moon,
+  Sparkles,
+  Shuffle,
+  Repeat,
+  Repeat1
 } from 'lucide-react';
 import { Track } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { ShuffleMode, RepeatMode } from '../services/smartShuffleService';
+import { haptics } from '../utils/haptics';
 
 interface BottomPlayerBarProps {
   currentTrack: Track | null;
@@ -21,6 +27,11 @@ interface BottomPlayerBarProps {
   duration: number;
   volume: number;
   isMuted: boolean;
+  shuffleMode?: ShuffleMode;
+  repeatMode?: RepeatMode;
+  onToggleShuffle?: () => void;
+  onToggleRepeat?: () => void;
+  onOpenSmartShuffleModal?: () => void;
   onTogglePlay: () => void;
   onPlayNext: () => void;
   onPlayPrev: () => void;
@@ -41,6 +52,11 @@ export function BottomPlayerBar({
   duration,
   volume,
   isMuted,
+  shuffleMode = 'smart_shuffle',
+  repeatMode = 'off',
+  onToggleShuffle,
+  onToggleRepeat,
+  onOpenSmartShuffleModal,
   onTogglePlay,
   onPlayNext,
   onPlayPrev,
@@ -74,6 +90,7 @@ export function BottomPlayerBar({
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    haptics.light();
     if (!user) {
       onOpenAuth();
       return;
@@ -84,15 +101,18 @@ export function BottomPlayerBar({
   return (
     <div 
       id="persistent-bottom-player"
-      className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800/90 shadow-2xl px-4 sm:px-6 py-2.5 transition-all"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800/90 shadow-2xl px-3 sm:px-6 py-2.5 transition-all"
     >
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
         {/* Left Track Info */}
         <div 
-          onClick={onOpenFullPlayer}
-          className="flex items-center gap-3.5 min-w-0 w-1/4 sm:w-1/3 cursor-pointer group"
+          onClick={() => {
+            haptics.medium();
+            onOpenFullPlayer();
+          }}
+          className="flex items-center gap-3 min-w-0 w-1/3 sm:w-1/4 cursor-pointer group"
         >
-          <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-800 relative shrink-0 shadow-md">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-zinc-800 relative shrink-0 shadow-md">
             {currentTrack.coverUrl ? (
               <img
                 src={currentTrack.coverUrl}
@@ -136,10 +156,44 @@ export function BottomPlayerBar({
         </div>
 
         {/* Center Controls & Progress Bar */}
-        <div className="flex-1 max-w-xl flex flex-col items-center gap-1.5">
-          <div className="flex items-center gap-4">
+        <div className="flex-1 max-w-xl flex flex-col items-center gap-1">
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Shuffle Mode Toggle */}
+            {onToggleShuffle && (
+              <button
+                id="bottom-shuffle-mode-btn"
+                onClick={() => {
+                  haptics.selection();
+                  onToggleShuffle();
+                }}
+                className={`p-1.5 rounded-lg transition-all flex items-center justify-center cursor-pointer ${
+                  shuffleMode === 'smart_shuffle'
+                    ? 'text-purple-300 bg-purple-500/20'
+                    : shuffleMode === 'shuffle'
+                    ? 'text-amber-400 bg-amber-500/20'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title={
+                  shuffleMode === 'smart_shuffle'
+                    ? '✨ Smart Shuffle AI (Ưu tiên theo gu) - Bấm để đổi'
+                    : shuffleMode === 'shuffle'
+                    ? '🔀 Ngẫu nhiên - Bấm để đổi'
+                    : 'Phát tuần tự - Bấm để bật xáo trộn'
+                }
+              >
+                {shuffleMode === 'smart_shuffle' ? (
+                  <Sparkles size={15} className="animate-pulse" />
+                ) : (
+                  <Shuffle size={15} />
+                )}
+              </button>
+            )}
+
             <button
-              onClick={onPlayPrev}
+              onClick={() => {
+                haptics.light();
+                onPlayPrev();
+              }}
               className="p-1.5 text-zinc-400 hover:text-white transition-colors"
               title="Bài trước"
             >
@@ -147,7 +201,10 @@ export function BottomPlayerBar({
             </button>
 
             <button
-              onClick={onTogglePlay}
+              onClick={() => {
+                haptics.toggle();
+                onTogglePlay();
+              }}
               className="p-2.5 bg-white hover:bg-zinc-200 text-black rounded-full transition-all shadow-md active:scale-95"
               title={isPlaying ? 'Tạm dừng' : 'Phát'}
             >
@@ -159,15 +216,45 @@ export function BottomPlayerBar({
             </button>
 
             <button
-              onClick={onPlayNext}
+              onClick={() => {
+                haptics.light();
+                onPlayNext();
+              }}
               className="p-1.5 text-zinc-400 hover:text-white transition-colors"
               title="Bài tiếp theo"
             >
               <SkipForward size={18} fill="currentColor" />
             </button>
+
+            {/* Repeat Mode Toggle */}
+            {onToggleRepeat && (
+              <button
+                id="bottom-repeat-mode-btn"
+                onClick={() => {
+                  haptics.selection();
+                  onToggleRepeat();
+                }}
+                className={`p-1.5 rounded-lg transition-all flex items-center justify-center cursor-pointer ${
+                  repeatMode === 'one'
+                    ? 'text-amber-300 bg-amber-500/20'
+                    : repeatMode === 'all'
+                    ? 'text-emerald-300 bg-emerald-500/20'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title={
+                  repeatMode === 'one'
+                    ? '🔂 Đang lặp 1 bài - Bấm để đổi'
+                    : repeatMode === 'all'
+                    ? '🔁 Đang lặp toàn bộ - Bấm để đổi'
+                    : 'Tắt lặp lại - Bấm để bật'
+                }
+              >
+                {repeatMode === 'one' ? <Repeat1 size={15} /> : <Repeat size={15} />}
+              </button>
+            )}
           </div>
 
-          <div className="w-full flex items-center gap-2.5 text-[11px] text-zinc-500 font-mono">
+          <div className="w-full flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
             <span>{formatTime(progress)}</span>
             <input
               type="range"
@@ -181,13 +268,37 @@ export function BottomPlayerBar({
           </div>
         </div>
 
-        {/* Right Volume & Expand */}
-        <div className="flex items-center justify-end gap-2 sm:gap-3 w-1/4 sm:w-1/3">
+        {/* Right Volume & Expand & Smart Shuffle Hub */}
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 w-1/3 sm:w-1/4">
+          {/* Smart Shuffle insights quick modal button */}
+          {onOpenSmartShuffleModal && (
+            <button
+              id="bottom-smart-insights-btn"
+              type="button"
+              onClick={() => {
+                haptics.light();
+                onOpenSmartShuffleModal();
+              }}
+              className={`p-1.5 sm:px-2.5 sm:py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1 cursor-pointer ${
+                shuffleMode === 'smart_shuffle'
+                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-sm shadow-purple-500/20'
+                  : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
+              }`}
+              title="Xem phân tích gu âm nhạc & Hàng đợi Smart Shuffle"
+            >
+              <Sparkles size={14} className="text-purple-400" />
+              <span className="hidden lg:inline text-[11px]">Gu AI</span>
+            </button>
+          )}
+
           {/* Sleep Timer button */}
           {onOpenSleepTimer && (
             <button
               type="button"
-              onClick={onOpenSleepTimer}
+              onClick={() => {
+                haptics.light();
+                onOpenSleepTimer();
+              }}
               className={`p-1.5 sm:p-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border cursor-pointer ${
                 sleepTimerActive
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm shadow-amber-500/20'
@@ -206,7 +317,10 @@ export function BottomPlayerBar({
 
           <div className="hidden md:flex items-center gap-2">
             <button 
-              onClick={onToggleMute} 
+              onClick={() => {
+                haptics.selection();
+                onToggleMute();
+              }} 
               className="text-zinc-400 hover:text-white transition-colors"
             >
               {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
@@ -218,12 +332,15 @@ export function BottomPlayerBar({
               step={0.01}
               value={isMuted ? 0 : volume}
               onChange={(e) => onVolumeChange(Number(e.target.value))}
-              className="w-20 h-1 bg-zinc-800 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+              className="w-16 sm:w-20 h-1 bg-zinc-800 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
             />
           </div>
 
           <button
-            onClick={onOpenFullPlayer}
+            onClick={() => {
+              haptics.medium();
+              onOpenFullPlayer();
+            }}
             className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors"
             title="Mở toàn màn hình trình phát"
           >
