@@ -14,9 +14,16 @@ import {
   Clock,
   UserPlus,
   ShieldCheck,
-  Lock
+  Lock,
+  Orbit,
+  Coins
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { CosmicAvatarFX } from '../haevyLite/CosmicAvatarFX';
+import { HaevyLiteHubModal } from '../haevyLite/HaevyLiteHubModal';
+import { getNameBorder, getNameFont } from '../haevyLite/themeBundles';
+import { CosmicAccountBannerRow } from '../haevyLite/CosmicAccountBannerRow';
+import { CosmicProfileCardModal, CosmicProfileUserData } from '../haevyLite/CosmicProfileCardModal';
 import { Conversation, ThoughtBubble, ConversationParticipant, Friendship, Track } from '../../types';
 import { 
   getOrCreateConversation 
@@ -25,6 +32,7 @@ import { isEncryptedMessage, isSessionUnlocked } from '../../services/e2eeServic
 import { useBatchUserPresence } from '../../services/presenceService';
 import { 
   collection, 
+  doc,
   query, 
   where, 
   orderBy, 
@@ -52,7 +60,7 @@ export function ChatTab({
   onPlayTrack,
   onNavigateToMode
 }: ChatTabProps) {
-  const { user, accountId, isVip, isAuthorVerified, authorStageName } = useAuth();
+  const { user, accountId, isVip, isAuthorVerified, authorStageName, haevyLiteCoins = 0, activeThemeBundle, activeAvatarFrame } = useAuth();
 
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -62,6 +70,8 @@ export function ChatTab({
   const [friendUserIds, setFriendUserIds] = useState<Set<string>>(new Set());
   const [isThoughtModalOpen, setIsThoughtModalOpen] = useState(false);
   const [selectedThoughtFriend, setSelectedThoughtFriend] = useState<ThoughtBubble | null>(null);
+  const [isLiteHubOpen, setIsLiteHubOpen] = useState(false);
+  const [profileModalUser, setProfileModalUser] = useState<CosmicProfileUserData | null>(null);
 
   // 1. Subscribe to Accepted Friendships (to verify friend status for Thought Bubbles)
   useEffect(() => {
@@ -254,6 +264,39 @@ export function ChatTab({
 
   const { getUserStatus, isUserOnline } = useBatchUserPresence(allTargetUids);
 
+  // Real-time synchronization of partner user profiles (so purchased/equipped cosmetic frames update immediately)
+  const [partnerProfiles, setPartnerProfiles] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (allTargetUids.length === 0) return;
+
+    const unsubs: (() => void)[] = [];
+    allTargetUids.forEach((uid) => {
+      if (!uid || uid === user?.uid) return;
+      try {
+        const uRef = doc(db, 'users', uid);
+        const unsub = onSnapshot(uRef, (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setPartnerProfiles((prev) => ({
+              ...prev,
+              [uid]: data
+            }));
+          }
+        }, (err) => {
+          console.warn('Partner profile sync notice:', uid, err);
+        });
+        unsubs.push(unsub);
+      } catch (e) {
+        // ignore
+      }
+    });
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [allTargetUids, user?.uid]);
+
   // Calculate remaining hours for a bubble
   const getBubbleRemainingHours = (expiresAt: any) => {
     if (!expiresAt) return null;
@@ -284,69 +327,116 @@ export function ChatTab({
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full overflow-hidden">
       {/* 1. Friends Thought Bubbles Header (Chỉ hiện bạn bè & tự động hết hạn 3h/6h/12h/24h) */}
-      <div className="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-4 sm:p-5 shadow-2xl backdrop-blur-md space-y-3 w-full max-w-full overflow-hidden">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-              <Sparkles size={16} />
+      <div className="relative bg-gradient-to-b from-zinc-900/95 via-zinc-900/90 to-zinc-950/95 border border-zinc-800/90 rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-xl space-y-4 w-full max-w-full overflow-hidden">
+        {/* Ambient Top Light Line & Subtle Corner Glows */}
+        <div className="absolute top-0 inset-x-8 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent pointer-events-none" />
+        <div className="absolute -top-14 -left-14 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -top-14 -right-14 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        {/* Section Header & Actions */}
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800/80">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.2)] shrink-0">
+              <Sparkles size={18} />
             </div>
-            <div>
-              <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider truncate">
-                Bong Bóng Suy Nghĩ Bạn Bè
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-black text-white tracking-wide flex items-center gap-2">
+                <span>Bong Bóng Suy Nghĩ</span>
+                <span className="text-[10px] font-bold text-amber-400/90 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                  Bạn Bè
+                </span>
               </h3>
-              <p className="text-[10px] text-zinc-400">Chỉ hiển thị với bạn bè • Tự hủy trong 3h, 6h, 12h, 24h</p>
+              <p className="text-xs text-zinc-400 flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                <span className="truncate">Chỉ hiển thị với bạn bè • Tự hủy sau 3h, 6h, 12h, 24h</span>
+              </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (!user) {
-                onOpenAuth();
-                return;
-              }
-              setIsThoughtModalOpen(true);
-            }}
-            className="text-xs font-bold text-black bg-gradient-to-r from-amber-400 to-yellow-400 hover:brightness-110 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 shadow-md shadow-amber-400/20 flex items-center gap-1"
-          >
-            <Plus size={14} />
-            <span>{myThoughtBubble ? 'Sửa bong bóng' : 'Đăng suy nghĩ'}</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsLiteHubOpen(true)}
+              className="text-xs font-semibold text-purple-200 bg-purple-950/70 hover:bg-purple-900/80 border border-purple-500/40 px-3 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-sm active:scale-95"
+              title="Mở Cửa Hàng Combo Vũ Trụ & Xu Haevy Lite"
+            >
+              <Orbit size={14} className="animate-spin text-purple-300" />
+              <span>Combo Vũ Trụ ({haevyLiteCoins} Xu)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!user) {
+                  onOpenAuth();
+                  return;
+                }
+                setIsThoughtModalOpen(true);
+              }}
+              className="text-xs font-bold text-zinc-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer shrink-0 shadow-md shadow-amber-500/20 flex items-center gap-1 active:scale-95"
+            >
+              <Plus size={14} />
+              <span>{myThoughtBubble ? 'Sửa suy nghĩ' : 'Đăng suy nghĩ'}</span>
+            </button>
+          </div>
         </div>
 
-        {/* Horizontal Avatars with Thought Bubbles */}
-        <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-2 pt-7 sm:pt-8 px-1 no-scrollbar scroll-smooth w-full">
+        {/* Horizontal Avatars with Thought Bubbles: Không bị cắt viền hoặc lệch lề */}
+        <div className="relative z-10 flex items-center gap-6 sm:gap-8 overflow-x-auto pb-4 pt-12 sm:pt-14 px-6 sm:px-8 no-scrollbar scroll-smooth w-full">
           {/* User's Own Avatar & Thought Bubble */}
           <div className="flex flex-col items-center shrink-0 relative group">
-            {myThoughtBubble && (
+            {myThoughtBubble ? (
               <div 
                 style={{ backgroundColor: myThoughtBubble.bgColor || '#18181b' }}
                 onClick={() => setIsThoughtModalOpen(true)}
-                className="absolute -top-7 sm:-top-8 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border border-zinc-700 text-[10px] text-white font-semibold shadow-xl max-w-[110px] sm:max-w-[140px] truncate whitespace-nowrap cursor-pointer hover:scale-105 transition-transform"
+                className="absolute -top-10 sm:-top-11 left-1/2 -translate-x-1/2 px-3 py-1 rounded-2xl border border-white/20 text-[11px] text-white font-medium shadow-[0_8px_24px_rgba(0,0,0,0.6)] max-w-[130px] sm:max-w-[160px] truncate whitespace-nowrap cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200 z-30 flex items-center gap-1.5 backdrop-blur-md group-hover:border-amber-400/60"
                 title={`${myThoughtBubble.text} (${getBubbleRemainingHours(myThoughtBubble.expiresAt)})`}
               >
-                <span>{myThoughtBubble.emoji || '💭'}</span> {myThoughtBubble.text}
+                <span className="text-xs shrink-0">{myThoughtBubble.emoji || '💭'}</span>
+                <span className="truncate">{myThoughtBubble.text}</span>
+                {/* Pointer Tail */}
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-r border-b border-white/20 bg-inherit pointer-events-none" />
+              </div>
+            ) : (
+              <div
+                onClick={() => {
+                  if (!user) onOpenAuth();
+                  else setIsThoughtModalOpen(true);
+                }}
+                className="absolute -top-9 sm:-top-10 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border border-dashed border-amber-400/50 bg-amber-950/40 hover:bg-amber-900/60 hover:border-amber-300 text-[10px] text-amber-300 font-medium whitespace-nowrap cursor-pointer transition-all flex items-center gap-1 shadow-sm active:scale-95 z-30"
+                title="Bấm để chia sẻ suy nghĩ mới"
+              >
+                <Plus size={11} className="text-amber-400 shrink-0" />
+                <span>Chia sẻ</span>
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rotate-45 border-r border-b border-amber-400/50 bg-amber-950 pointer-events-none" />
               </div>
             )}
+
             <div 
               onClick={() => {
                 if (!user) onOpenAuth();
                 else setIsThoughtModalOpen(true);
               }}
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden bg-zinc-800 border-2 border-dashed border-amber-400 p-0.5 flex items-center justify-center cursor-pointer hover:border-solid transition-all shadow-md relative"
+              className="cursor-pointer transition-transform hover:scale-105 active:scale-95 flex flex-col items-center relative mt-1"
             >
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover rounded-[14px]" />
-              ) : (
-                <div className="w-full h-full rounded-[14px] bg-zinc-900 flex items-center justify-center text-amber-400 font-bold text-xs">
-                  {user ? user.displayName?.charAt(0) || 'Tôi' : <Plus size={18} />}
-                </div>
-              )}
+              <div className="relative">
+                <CosmicAvatarFX
+                  photoURL={user?.photoURL}
+                  displayName={user?.displayName || 'Tôi'}
+                  avatarFrameId={activeAvatarFrame}
+                  isCurrentUser={true}
+                  isVip={isVip}
+                  size="md"
+                  showBadge={false}
+                />
+                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-zinc-950 font-black text-xs flex items-center justify-center border-2 border-zinc-900 shadow-md z-20 hover:scale-110 transition-transform" title="Viết suy nghĩ">
+                  +
+                </span>
+              </div>
             </div>
-            <span className="text-[10px] font-bold text-amber-300 mt-1 truncate max-w-[70px]">
+            <span className="text-[11px] font-bold text-amber-300 mt-2 truncate max-w-[80px] text-center">
               {user ? 'Bạn' : 'Đăng nhập'}
             </span>
             {myThoughtBubble?.expiresAt && (
-              <span className="text-[9px] text-zinc-500 font-mono">
+              <span className="text-[9px] text-zinc-400 font-mono mt-0.5">
                 {getBubbleRemainingHours(myThoughtBubble.expiresAt)}
               </span>
             )}
@@ -363,43 +453,42 @@ export function ChatTab({
                   onClick={() => setSelectedThoughtFriend(bubble)}
                   className="flex flex-col items-center shrink-0 relative group cursor-pointer"
                 >
-                  {/* Floating Thought Bubble */}
+                  {/* Floating Thought Bubble with Frosted Glass and Tail */}
                   <div 
                     style={{ backgroundColor: bubble.bgColor || '#18181b' }}
-                    className="absolute -top-7 sm:-top-8 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full border border-zinc-700 text-[10px] text-white font-semibold shadow-xl max-w-[110px] sm:max-w-[140px] truncate whitespace-nowrap group-hover:scale-105 transition-transform animate-in fade-in"
+                    className="absolute -top-10 sm:-top-11 left-1/2 -translate-x-1/2 px-3 py-1 rounded-2xl border border-white/20 text-[11px] text-white font-medium shadow-[0_8px_24px_rgba(0,0,0,0.6)] max-w-[130px] sm:max-w-[160px] truncate whitespace-nowrap group-hover:scale-105 active:scale-95 transition-all duration-200 z-30 flex items-center gap-1.5 backdrop-blur-md animate-in fade-in"
                     title={`${bubble.text} (${getBubbleRemainingHours(bubble.expiresAt)})`}
                   >
-                    <span className="mr-1">{bubble.emoji || '💭'}</span>
-                    <span>{bubble.text}</span>
+                    <span className="text-xs shrink-0">{bubble.emoji || '💭'}</span>
+                    <span className="truncate">{bubble.text}</span>
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-r border-b border-white/20 bg-inherit pointer-events-none" />
                   </div>
 
-                  {/* Avatar with Presence Indicator */}
-                  <div className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl p-0.5 border-2 shadow-md ${
-                    bubble.isUserVip ? 'border-amber-400 bg-amber-500/20' : isOnline ? 'border-emerald-500/80 bg-zinc-800' : 'border-zinc-700 bg-zinc-800'
-                  }`}>
-                    <div className="w-full h-full rounded-[14px] overflow-hidden">
-                      {bubble.userPhoto ? (
-                        <img src={bubble.userPhoto} alt={bubble.userName} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                          {bubble.userName?.charAt(0) || 'U'}
-                        </div>
-                      )}
-                    </div>
+                  {/* Avatar with Presence Indicator and Friend's OWN Frame */}
+                  <div className="relative mt-1">
+                    <CosmicAvatarFX
+                      photoURL={bubble.userPhoto}
+                      displayName={bubble.userName}
+                      avatarFrameId={bubble.activeAvatarFrame}
+                      isCurrentUser={false}
+                      isVip={bubble.isUserVip}
+                      size="md"
+                      showBadge={false}
+                    />
                     {/* Presence Dot */}
                     {isOnline ? (
-                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center" title="Đang trực tuyến">
+                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center z-20" title="Đang trực tuyến">
                         <span className="w-1.5 h-1.5 rounded-full bg-white" />
                       </span>
                     ) : (
-                      <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-950" title="Ngoại tuyến" />
+                      <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-950 z-20" title="Ngoại tuyến" />
                     )}
                   </div>
-                  <span className="text-[10px] font-semibold text-zinc-300 mt-1 truncate max-w-[75px]">
+                  <span className="text-[11px] font-semibold text-zinc-300 mt-2 truncate max-w-[80px] text-center group-hover:text-white transition-colors">
                     {bubble.userName}
                   </span>
                   {bubble.expiresAt && (
-                    <span className="text-[9px] text-amber-400/80 font-mono">
+                    <span className="text-[9px] text-amber-400/90 font-mono mt-0.5">
                       {getBubbleRemainingHours(bubble.expiresAt)}
                     </span>
                   )}
@@ -407,10 +496,15 @@ export function ChatTab({
               );
             })}
 
-          {visibleThoughtBubbles.length <= 1 && (
-            <div className="text-zinc-500 text-xs py-3 italic whitespace-nowrap pl-2 flex items-center gap-1.5">
-              <Clock size={14} className="text-zinc-600" />
-              <span>Chỉ bạn bè của bạn mới thấy suy nghĩ này. Hãy kết nối thêm bạn bè!</span>
+          {visibleThoughtBubbles.filter(b => b.userId !== user?.uid).length === 0 && (
+            <div className="flex items-center gap-3 pl-3 pr-5 py-2.5 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 text-zinc-400 text-xs shrink-0 select-none backdrop-blur-sm">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                <Clock size={15} />
+              </div>
+              <div className="space-y-0.5">
+                <p className="font-bold text-zinc-300 text-xs">Chưa có suy nghĩ từ bạn bè</p>
+                <p className="text-[10px] text-zinc-500">Bong bóng của bạn bè sẽ tự động xuất hiện tại đây khi họ đăng</p>
+              </div>
             </div>
           )}
         </div>
@@ -452,59 +546,149 @@ export function ChatTab({
           </div>
         </div>
 
-        {/* Conversations Grid / List */}
-        <div className="divide-y divide-zinc-800/60">
+        {/* Conversations Grid / List: Toàn bộ thẻ trò chuyện đều được đóng khung viền ngăn nắp, sang trọng */}
+        <div className="space-y-2.5 sm:space-y-3">
           {filteredConversations.length > 0 ? (
             filteredConversations.map((conv) => {
-              const info = getRecipientInfo(conv);
+              const rawInfo = getRecipientInfo(conv);
               const unread = user && conv.unreadCounts ? conv.unreadCounts[user.uid] || 0 : 0;
               const otherUid = conv.participants.find(p => p !== user?.uid) || '';
               const isPartnerOnline = isUserOnline(otherUid);
               const partnerStatus = getUserStatus(otherUid);
 
+              // Lấy thông tin thời gian thực của người nhận từ partnerProfiles (Đảm bảo người nào mua người đó mới được trang bị)
+              const livePartner = partnerProfiles[otherUid] || {};
+              const partnerAvatarFrame = livePartner.activeAvatarFrame !== undefined 
+                ? livePartner.activeAvatarFrame 
+                : (rawInfo as any)?.activeAvatarFrame;
+              const partnerNameBorderId = livePartner.activeNameBorder !== undefined 
+                ? livePartner.activeNameBorder 
+                : (rawInfo as any)?.activeNameBorder;
+              const partnerNameFontId = livePartner.activeNameFont !== undefined 
+                ? livePartner.activeNameFont 
+                : (rawInfo as any)?.activeNameFont;
+
+              const partnerNameBorder = getNameBorder(partnerNameBorderId);
+              const partnerNameFont = getNameFont(partnerNameFontId);
+              const isTrooper = partnerAvatarFrame === 'frame_holo_trooper';
+
+              const recipientDisplayName = livePartner.displayName || rawInfo.displayName || 'Người Dùng';
+              const recipientPhotoURL = livePartner.photoURL !== undefined ? livePartner.photoURL : rawInfo.photoURL;
+              const recipientIsVip = livePartner.isVip !== undefined ? Boolean(livePartner.isVip) : Boolean(rawInfo.isVip);
+              const recipientIsAuthorVerified = livePartner.isAuthorVerified !== undefined ? Boolean(livePartner.isAuthorVerified) : Boolean(rawInfo.isAuthorVerified);
+
+              // Khung viền toàn bộ theo vật phẩm người đó trang bị
+              let cardBorderClasses = 'border-zinc-800/90 bg-zinc-950/70 hover:border-zinc-700/90 hover:bg-zinc-900/80 shadow-md';
+              let cardTopGlow = null;
+
+              if (partnerNameBorderId === 'name_royal_gold') {
+                cardBorderClasses = 'border-amber-400/60 shadow-[0_4px_22px_rgba(245,158,11,0.22)] bg-gradient-to-r from-amber-950/40 via-yellow-950/20 to-zinc-950 hover:border-amber-300 hover:shadow-[0_6px_30px_rgba(245,158,11,0.35)]';
+                cardTopGlow = 'from-amber-400/30 via-yellow-400/20 to-transparent';
+              } else if (partnerNameBorderId === 'name_cyber_cyan') {
+                cardBorderClasses = 'border-cyan-400/60 shadow-[0_4px_22px_rgba(6,182,212,0.22)] bg-gradient-to-r from-cyan-950/40 via-blue-950/20 to-zinc-950 hover:border-cyan-300 hover:shadow-[0_6px_30px_rgba(6,182,212,0.35)]';
+                cardTopGlow = 'from-cyan-400/30 via-blue-400/20 to-transparent';
+              } else if (partnerNameBorderId === 'name_galactic_stars') {
+                cardBorderClasses = 'border-purple-400/60 shadow-[0_4px_22px_rgba(168,85,247,0.22)] bg-gradient-to-r from-purple-950/40 via-pink-950/20 to-zinc-950 hover:border-purple-300 hover:shadow-[0_6px_30px_rgba(168,85,247,0.35)]';
+                cardTopGlow = 'from-purple-400/30 via-pink-400/20 to-transparent';
+              } else if (partnerNameBorderId === 'name_frosted_crystal') {
+                cardBorderClasses = 'border-sky-400/60 shadow-[0_4px_22px_rgba(56,189,248,0.22)] bg-gradient-to-r from-sky-950/40 via-teal-950/20 to-zinc-950 hover:border-sky-300 hover:shadow-[0_6px_30px_rgba(56,189,248,0.35)]';
+                cardTopGlow = 'from-sky-400/30 via-teal-400/20 to-transparent';
+              } else if (partnerNameBorderId === 'name_blazing_flame') {
+                cardBorderClasses = 'border-orange-500/60 shadow-[0_4px_22px_rgba(249,115,22,0.22)] bg-gradient-to-r from-orange-950/40 via-red-950/20 to-zinc-950 hover:border-orange-400 hover:shadow-[0_6px_30px_rgba(249,115,22,0.35)]';
+                cardTopGlow = 'from-orange-500/30 via-red-500/20 to-transparent';
+              } else if (isTrooper) {
+                cardBorderClasses = 'border-sky-400/50 shadow-[0_4px_22px_rgba(56,189,248,0.22)] bg-gradient-to-r from-blue-950/40 via-zinc-900/90 to-zinc-950 hover:border-cyan-300';
+                cardTopGlow = 'from-cyan-400/30 via-blue-400/20 to-transparent';
+              }
+
               return (
                 <div
                   key={conv.id}
                   onClick={() => setSelectedConversation(conv)}
-                  className="p-3 sm:p-4 rounded-2xl flex items-center gap-3.5 hover:bg-zinc-800/60 cursor-pointer transition-all active:scale-99 group"
+                  className={`p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border flex items-center gap-3.5 cursor-pointer transition-all duration-200 active:scale-[0.99] relative overflow-hidden group backdrop-blur-sm ${cardBorderClasses}`}
                 >
-                  {/* Recipient Avatar */}
-                  <div className="relative shrink-0">
-                    <div className="w-12 h-12 rounded-2xl overflow-hidden bg-zinc-800 border-2 border-zinc-700/80 shadow-md">
-                      {info.photoURL ? (
-                        <img src={info.photoURL} alt={info.displayName} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-black text-sm">
-                          {info.displayName.charAt(0)}
-                        </div>
-                      )}
-                    </div>
-                    {info.isVip && (
-                      <Crown size={13} className="absolute -top-1 -right-1 text-amber-400 fill-amber-400 drop-shadow" />
-                    )}
+                  {/* Subtle top ambient glow for equipped custom cards */}
+                  {cardTopGlow && (
+                    <div className={`absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r ${cardTopGlow} pointer-events-none`} />
+                  )}
+
+                  {/* Recipient Avatar with Cosmic / Theme FX (Click to open Cosmic Profile Card) */}
+                  <div 
+                    className="relative shrink-0 cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProfileModalUser({
+                        displayName: recipientDisplayName,
+                        photoURL: recipientPhotoURL,
+                        isVip: recipientIsVip,
+                        isAuthorVerified: recipientIsAuthorVerified,
+                        statusText: partnerStatus.statusText,
+                        activeAvatarFrame: partnerAvatarFrame,
+                        activeNameBorder: partnerNameBorderId,
+                        activeNameFont: partnerNameFontId,
+                        uid: otherUid
+                      });
+                    }}
+                    title="Bấm để xem Hồ Sơ Vũ Trụ và trang sức"
+                  >
+                    <CosmicAvatarFX
+                      photoURL={recipientPhotoURL}
+                      displayName={recipientDisplayName}
+                      avatarFrameId={partnerAvatarFrame}
+                      isCurrentUser={false}
+                      isVip={recipientIsVip}
+                      size="md"
+                      showBadge={false}
+                    />
                     {/* Presence Dot */}
                     {isPartnerOnline ? (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center" title="Đang trực tuyến">
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center z-20" title="Đang trực tuyến">
                         <span className="w-1.5 h-1.5 rounded-full bg-white" />
                       </span>
                     ) : (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-900" title={partnerStatus.statusText} />
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-zinc-600 border-2 border-zinc-900 z-20" title={partnerStatus.statusText} />
                     )}
                   </div>
 
                   {/* Content Preview */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <h4 className="text-sm font-bold text-white truncate group-hover:text-sky-300 transition-colors">
-                          {info.displayName}
-                        </h4>
-                        {info.isVip && (
+                      <div className="flex items-center gap-1.5 truncate flex-wrap">
+                        {partnerNameBorder ? (
+                          <div className={`px-2.5 py-0.5 rounded-xl border flex items-center gap-1.5 shadow-sm transition-transform duration-200 group-hover:scale-[1.02] ${partnerNameBorder.nameplateBorderClass} ${partnerNameBorder.nameplateBgClass}`}>
+                            <span className="text-xs">{partnerNameBorder.nameplateIcon}</span>
+                            <h4 
+                              className={`text-sm font-black truncate ${partnerNameFont?.fontGlowClass || partnerNameBorder.nameplateTextClass}`}
+                              style={partnerNameFont ? { fontFamily: partnerNameFont.fontFamilyName } : undefined}
+                            >
+                              {recipientDisplayName}
+                            </h4>
+                          </div>
+                        ) : partnerNameFont ? (
+                          <h4 
+                            className={`text-sm font-black truncate transition-colors ${partnerNameFont.fontGlowClass || 'text-white'}`}
+                            style={{ fontFamily: partnerNameFont.fontFamilyName }}
+                          >
+                            {recipientDisplayName}
+                          </h4>
+                        ) : (
+                          <h4 className="text-sm font-bold truncate text-white group-hover:text-sky-300 transition-colors">
+                            {recipientDisplayName}
+                          </h4>
+                        )}
+
+                        {isTrooper && (
+                          <span className="text-[9px] bg-sky-500/20 text-sky-300 font-black px-1.5 py-0.5 rounded-md border border-sky-400/40 shrink-0 flex items-center gap-0.5">
+                            <span>🪖 Trooper</span>
+                          </span>
+                        )}
+
+                        {recipientIsVip && (
                           <span className="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded-full border border-amber-500/40 shrink-0">
                             VIP
                           </span>
                         )}
-                        {info.isAuthorVerified && (
+                        {recipientIsAuthorVerified && (
                           <CheckCircle2 size={13} className="text-sky-400 shrink-0" />
                         )}
                         {conv.isE2EEEnabled && (
@@ -520,7 +704,7 @@ export function ChatTab({
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-zinc-500 font-mono shrink-0">
+                      <span className="text-[10px] text-zinc-400 font-mono shrink-0">
                         {formatTileTime(conv.lastMessageAt)}
                       </span>
                     </div>
@@ -675,6 +859,29 @@ export function ChatTab({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Haevy Lite Hub Modal for Themes, Watching 30s Ads, and Top-Up */}
+      <HaevyLiteHubModal
+        isOpen={isLiteHubOpen}
+        onClose={() => setIsLiteHubOpen(false)}
+        initialTab="shop"
+      />
+
+      {/* Cosmic Profile Card Modal when clicking conversation user avatar */}
+      {profileModalUser && (
+        <CosmicProfileCardModal
+          isOpen={true}
+          onClose={() => setProfileModalUser(null)}
+          userData={profileModalUser}
+          onStartChat={() => {
+            const conv = conversations.find(c => c.participants.includes(profileModalUser.uid || ''));
+            if (conv) {
+              setSelectedConversation(conv);
+            }
+            setProfileModalUser(null);
+          }}
+        />
       )}
     </div>
   );

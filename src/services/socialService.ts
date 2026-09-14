@@ -41,7 +41,11 @@ export async function getOrCreateConversation(user1: any, user2: any): Promise<s
           photoURL: user1.photoURL || '',
           isVip: Boolean(user1.isVip),
           isAuthorVerified: Boolean(user1.isAuthorVerified),
-          stageName: user1.stageName || user1.authorStageName || ''
+          stageName: user1.stageName || user1.authorStageName || '',
+          activeAvatarFrame: user1.activeAvatarFrame || '',
+          activeNameBorder: user1.activeNameBorder || '',
+          activeNameFont: user1.activeNameFont || '',
+          activeChatBorder: user1.activeChatBorder || ''
         },
         [user2.uid]: {
           uid: user2.uid,
@@ -50,7 +54,11 @@ export async function getOrCreateConversation(user1: any, user2: any): Promise<s
           photoURL: user2.photoURL || '',
           isVip: Boolean(user2.isVip),
           isAuthorVerified: Boolean(user2.isAuthorVerified),
-          stageName: user2.stageName || user2.authorStageName || ''
+          stageName: user2.stageName || user2.authorStageName || '',
+          activeAvatarFrame: user2.activeAvatarFrame || '',
+          activeNameBorder: user2.activeNameBorder || '',
+          activeNameFont: user2.activeNameFont || '',
+          activeChatBorder: user2.activeChatBorder || ''
         }
       },
       lastMessageText: '',
@@ -582,6 +590,7 @@ export async function setThoughtBubble(params: {
       isUserVip: Boolean(params.user.isVip),
       isAuthorVerified: Boolean(params.user.isAuthorVerified),
       authorStageName: params.user.stageName || params.user.authorStageName || '',
+      activeAvatarFrame: params.user.activeAvatarFrame || '',
       text: params.text.trim(),
       emoji: params.emoji || '💭',
       bgColor: params.bgColor || '#18181b',
@@ -750,4 +759,73 @@ export async function deletePhotoPostComment(
     return { success: false, message: err.message || 'Lỗi khi xóa bình luận.' };
   }
 }
+
+export type PostReactionType = 'like' | 'love' | 'care' | 'haha' | 'wow' | 'sad' | 'angry';
+
+/**
+ * Set or change Facebook-style multi-emotion reaction on a Friend Photo Post
+ */
+export async function toggleReactionPhotoPost(
+  postId: string,
+  userUid: string,
+  reactionType: PostReactionType
+): Promise<void> {
+  try {
+    const postRef = doc(db, 'friendPhotoPosts', postId);
+    const snap = await getDoc(postRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const reactions: Record<string, PostReactionType> = data.reactions || {};
+    const currentReaction = reactions[userUid];
+    const likes: string[] = data.likes || [];
+
+    const updatedReactions = { ...reactions };
+    let updatedLikes = [...likes];
+
+    if (currentReaction === reactionType) {
+      // Toggle off
+      delete updatedReactions[userUid];
+      updatedLikes = updatedLikes.filter(id => id !== userUid);
+    } else {
+      // Set or update reaction
+      updatedReactions[userUid] = reactionType;
+      if (!updatedLikes.includes(userUid)) {
+        updatedLikes.push(userUid);
+      }
+    }
+
+    await updateDoc(postRef, {
+      reactions: updatedReactions,
+      likes: updatedLikes
+    });
+  } catch (err) {
+    console.error('Error toggling reaction on post:', err);
+  }
+}
+
+/**
+ * Increment repost counter for Threads-style sharing
+ */
+export async function repostPhotoPost(postId: string, userUid: string): Promise<void> {
+  try {
+    const postRef = doc(db, 'friendPhotoPosts', postId);
+    const snap = await getDoc(postRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    const reposts: string[] = data.reposts || [];
+    const count = data.repostsCount || 0;
+
+    if (!reposts.includes(userUid)) {
+      await updateDoc(postRef, {
+        reposts: [...reposts, userUid],
+        repostsCount: count + 1
+      });
+    }
+  } catch (err) {
+    console.error('Error reposting post:', err);
+  }
+}
+
 

@@ -135,7 +135,7 @@ export const ClanDirectChatModal: React.FC<ClanDirectChatModalProps> = ({
         <div className="p-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center font-bold text-slate-950">
-              {member.fullName.charAt(0)}
+              {member?.fullName?.charAt(0) || 'U'}
             </div>
             <div>
               <div className="font-bold text-sm text-amber-200 flex items-center gap-2">

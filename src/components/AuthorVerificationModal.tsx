@@ -75,6 +75,7 @@ export function AuthorVerificationModal({ isOpen, onClose, onOpenPublish }: Auth
   const [phoneOtpSent, setPhoneOtpSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [phoneOtpInput, setPhoneOtpInput] = useState('');
+  const [expectedPhoneOtp, setExpectedPhoneOtp] = useState('');
 
   const [stageName, setStageName] = useState('');
   const [musicGenre, setMusicGenre] = useState('Lo-Fi Chill');
@@ -237,8 +238,8 @@ export function AuthorVerificationModal({ isOpen, onClose, onOpenPublish }: Auth
 
   const handleVerifyEmailOtp = async () => {
     const code = emailOtpInput.trim();
-    if (!code) {
-      alert('Vui lòng nhập mã OTP gửi về email.');
+    if (!code || code.length !== 6) {
+      alert('Vui lòng nhập đầy đủ 6 chữ số mã OTP gửi về email.');
       return;
     }
 
@@ -257,14 +258,10 @@ export function AuthorVerificationModal({ isOpen, onClose, onOpenPublish }: Auth
         setEmailVerified(true);
         return;
       }
+      alert(data.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
     } catch (e) {
-      console.warn('Verify OTP fallback:', e);
-    }
-
-    if (code.length >= 4 || code === '8888' || code === '888888' || code === '123456') {
-      setEmailVerified(true);
-    } else {
-      alert('Mã OTP không chính xác hoặc đã hết hạn. Vui lòng kiểm tra lại hộp thư.');
+      console.warn('Verify OTP error:', e);
+      alert('Không thể kết nối máy chủ để xác minh mã OTP.');
     }
   };
 
@@ -274,14 +271,18 @@ export function AuthorVerificationModal({ isOpen, onClose, onOpenPublish }: Auth
       alert('Vui lòng nhập số điện thoại Việt Nam gồm 10 chữ số (VD: 0912345678).');
       return;
     }
+    const simulatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setExpectedPhoneOtp(simulatedOtp);
     setPhoneOtpSent(true);
+    alert(`[SMS Security Gateway] Mã xác thực OTP gửi đến ${cleaned} là: ${simulatedOtp}`);
   };
 
   const handleVerifyPhoneOtp = () => {
-    if (phoneOtpInput.trim().length >= 4 || phoneOtpInput === '8888' || phoneOtpInput === '123456') {
+    const trimmed = phoneOtpInput.trim();
+    if (expectedPhoneOtp && trimmed === expectedPhoneOtp) {
       setPhoneVerified(true);
     } else {
-      alert('Mã OTP SMS không chính xác. Thử nhập 8888 hoặc mã xác thực của bạn.');
+      alert('Mã OTP SMS không chính xác. Vui lòng kiểm tra lại tin nhắn.');
     }
   };
 

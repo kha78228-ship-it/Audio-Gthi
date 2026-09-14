@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   User, 
   onAuthStateChanged, 
+  onIdTokenChanged,
   signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -33,6 +34,8 @@ import {
   VipOrder,
   PointTopupPackage,
   PointTopupOrder,
+  HaevyLiteTopupPackage,
+  HaevyLiteItemCategory,
   ReferralCode,
   AnonymousPass,
   AnonymousVipSession,
@@ -51,6 +54,7 @@ import {
   ShortcutItemConfig,
   ShortcutsConfig
 } from '../types';
+import { UserProfileData } from '../components/profile/types';
 import { INITIAL_TRACKS } from '../data';
 import { DEFAULT_SHORTCUTS_CONFIG } from '../data/defaultShortcuts';
 import { useGlobalPresenceHeartbeat } from '../services/presenceService';
@@ -67,6 +71,11 @@ interface CustomAuthUser {
 interface AuthContextType {
   user: User | CustomAuthUser | null;
   loading: boolean;
+  authStatus: 'loading' | 'authenticated' | 'unauthenticated' | 'anonymous';
+  isAuthenticated: boolean;
+  displayName: string;
+  photoURL: string | null;
+  userProfile: UserProfileData | null;
   accountId: string;
   role: AdminRole;
   adminRole: AdminRole;
@@ -103,6 +112,31 @@ interface AuthContextType {
     severity?: SystemAuditLog['severity'];
   }) => Promise<void>;
   toggleFavorite: (trackId: string) => Promise<void>;
+  // Haevy Lite Coins & Theme Bundle System
+  haevyLiteCoins: number;
+  activeThemeBundle: string;
+  unlockedThemeBundles: string[];
+  activeAvatarFrame: string;
+  activeEntranceAnimation: string;
+  activeChatBorder: string;
+  activeNameBorder: string;
+  activeNameFont: string;
+  activePlayerWave: string;
+  activeTitleBadge: string;
+  activeCursorAura: string;
+  unlockedHaevyLiteItems: string[];
+  earnHaevyLiteCoins: (amount: number, reason: string) => Promise<{ success: boolean; newBalance: number }>;
+  spendHaevyLiteCoins: (amount: number, reason: string) => Promise<{ success: boolean; message: string; newBalance: number }>;
+  unlockThemeBundle: (themeId: string, costCoins: number) => Promise<{ success: boolean; message: string }>;
+  setActiveThemeBundle: (themeId: string) => Promise<void>;
+  unlockHaevyLiteItem: (itemId: string, costCoins: number) => Promise<{ success: boolean; message: string }>;
+  equipHaevyLiteItem: (category: HaevyLiteItemCategory, itemId: string) => Promise<void>;
+  unequipHaevyLiteItem: (category: HaevyLiteItemCategory) => Promise<void>;
+  purchaseHaevyLitePackage: (params: {
+    pkg: HaevyLiteTopupPackage;
+    finalAmount: number;
+    paymentMethod: 'vietqr' | 'momo' | 'zalopay';
+  }) => Promise<{ success: boolean; message: string }>;
   addAudioPoints: (amount: number, title: string, type: PointTransaction['type']) => Promise<void>;
   deductAudioPoints: (amount: number, title: string, type?: PointTransaction['type']) => Promise<{ success: boolean; message: string }>;
   incrementListenTime: (minutes: number) => Promise<void>;
@@ -255,6 +289,8 @@ interface AuthContextType {
   signInWithGoogle: (referralCode?: string) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string, name?: string, referralCode?: string) => Promise<void>;
+  updateUserProfile: (updates: Partial<UserProfileData> & { displayName?: string; photoURL?: string }) => Promise<{ success: boolean; message: string }>;
+  reloadUserProfile: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -328,24 +364,24 @@ export const DEFAULT_HOME_CUSTOM_CONFIG: AdminHomeCustomConfig = {
 export const DEFAULT_UPCOMING_EVENTS: HaevyUpcomingEvent[] = [
   {
     id: 'event-grand-ecosystem-2026',
-    title: 'Đại Lễ Hệ Sinh Thái Haevy 2026',
-    subtitle: 'Đêm Hội Âm Nhạc & Khai Mở Không Gian Vũ Trụ 3D',
-    description: 'Sự kiện lớn nhất năm: Khai mạc chuỗi đại tiệc âm thanh Lossless Hi-Fi, tặng thưởng 500 Xu Haevy cho toàn bộ thành viên check-in và ra mắt phòng trà 3D Space AR trực tiếp.',
-    badge: '👑 ĐẠI LỄ HỆ SINH THÁI',
-    category: 'holiday',
-    theme: 'gold_luxury',
-    customGradientFrom: '#fbbf24',
-    customGradientTo: '#f59e0b',
+    title: 'Hội Tụ Hệ Sinh Thái Số Haevy 2026',
+    subtitle: 'Đêm Hội Âm Nhạc Hi-Fi & Khai Mở Không Gian Vũ Trụ 3D',
+    description: 'Sự kiện đặc sắc: Khai mạc chuỗi thưởng thức âm thanh Lossless Hi-Fi, tặng thưởng 500 Xu Haevy cho thành viên check-in và trải nghiệm phòng trà 3D Space AR trực tiếp.',
+    badge: '⭐ SỰ KIỆN NỔI BẬT',
+    category: 'music',
+    theme: 'neon_galaxy',
+    customGradientFrom: '#8b5cf6',
+    customGradientTo: '#6366f1',
     bannerImageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop',
     iconName: 'crown',
     startAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(),
     endAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     countdownEnabled: true,
     status: 'upcoming',
-    ctaText: 'Đăng Ký Nhận 500 Xu',
+    ctaText: 'Nhận Thưởng 500 Xu',
     ctaAction: 'mode_portal',
     rewardCoins: 500,
-    rewardBadgeText: '+500 Xu & Huy Hiệu',
+    rewardBadgeText: '+500 Xu & Quà Tặng',
     targetAudience: 'all',
     displayLocations: ['portal', 'audio_home', 'top_ribbon'],
     isPinned: true,
@@ -483,6 +519,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   });
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
   const [accountId, setAccountId] = useState<string>('GUEST-000000');
   const [role, setRole] = useState<AdminRole>('user');
   const [subAdminPermissions, setSubAdminPermissions] = useState<SubAdminPermissions>(DEFAULT_SUB_ADMIN_PERMISSIONS);
@@ -512,6 +549,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [vipTier, setVipTier] = useState<VipTier>('free');
   const [vipExpiresAt, setVipExpiresAt] = useState<string | null>(null);
   const [vipSettings, setVipSettings] = useState<VipSettings>(DEFAULT_VIP_SETTINGS);
+
+  // Haevy Lite Coins & Theme Bundles System
+  const [haevyLiteCoins, setHaevyLiteCoins] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('haevy_lite_coins');
+      if (saved) return Math.max(Number(saved) || 0, 500);
+    } catch (e) {}
+    return 500; // Welcome 500 Haevy Lite coins for all members
+  });
+  const [activeThemeBundle, setActiveThemeBundleState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('haevy_active_theme') || 'none';
+    } catch (e) {}
+    return 'none';
+  });
+  const [unlockedThemeBundles, setUnlockedThemeBundles] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('haevy_unlocked_themes');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+  const [activeAvatarFrame, setActiveAvatarFrameState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('haevy_active_avatar_frame') || 'frame_holo_trooper';
+    } catch (e) {}
+    return 'frame_holo_trooper';
+  });
+  const [activeEntranceAnimation, setActiveEntranceAnimationState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('haevy_active_entrance_anim') || 'none';
+    } catch (e) {}
+    return 'none';
+  });
+  const [activeChatBorder, setActiveChatBorderState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('haevy_active_chat_border') || 'none';
+    } catch (e) {}
+    return 'none';
+  });
+  const [activeNameBorder, setActiveNameBorderState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('haevy_active_name_border') || 'name_cosmic_nebula';
+    } catch (e) {}
+    return 'name_cosmic_nebula';
+  });
+  const [activeNameFont, setActiveNameFontState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('haevy_active_name_font') || 'font_gothic_fraktur';
+    } catch (e) {}
+    return 'font_gothic_fraktur';
+  });
+  const [activePlayerWave, setActivePlayerWaveState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('haevy_active_player_wave') || 'wave_cyber_cyan';
+    } catch (e) {}
+    return 'wave_cyber_cyan';
+  });
+  const [activeTitleBadge, setActiveTitleBadgeState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('haevy_active_title_badge') || 'title_cosmic_master';
+    } catch (e) {}
+    return 'title_cosmic_master';
+  });
+  const [activeCursorAura, setActiveCursorAuraState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('haevy_active_cursor_aura') || 'none';
+    } catch (e) {}
+    return 'none';
+  });
+  const [unlockedHaevyLiteItems, setUnlockedHaevyLiteItems] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('haevy_unlocked_lite_items');
+      if (saved) {
+        const list = JSON.parse(saved);
+        if (!list.includes('frame_holo_trooper')) list.push('frame_holo_trooper');
+        if (!list.includes('name_cosmic_nebula')) list.push('name_cosmic_nebula');
+        if (!list.includes('font_gothic_fraktur')) list.push('font_gothic_fraktur');
+        if (!list.includes('wave_cyber_cyan')) list.push('wave_cyber_cyan');
+        if (!list.includes('title_cosmic_master')) list.push('title_cosmic_master');
+        return list;
+      }
+    } catch (e) {}
+    return ['frame_holo_trooper', 'name_cosmic_nebula', 'font_gothic_fraktur', 'wave_cyber_cyan', 'title_cosmic_master'];
+  });
 
   // Author & Verification State
   const [authorStatus, setAuthorStatus] = useState<AuthorVerificationStatus>('none');
@@ -608,6 +730,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ? anonymousVipSession.guestId 
     : 'GUEST-CHUA-DANG-NHAP';
 
+  // Synchronized Profile, Display Name & Authentication Status across all Ecosystem Modes
+  const effectiveDisplayName = userProfile?.displayName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'Thành viên Haevy');
+  const effectivePhotoURL = userProfile?.photoURL || user?.photoURL || null;
+  const isUserAnonymous = Boolean(
+    (user && ('isAnonymous' in user ? user.isAnonymous : (user as any).isAnonymous)) ||
+    (anonymousVipSession?.isActive && !user)
+  );
+  const authStatus: 'loading' | 'authenticated' | 'unauthenticated' | 'anonymous' = loading
+    ? 'loading'
+    : user
+    ? (isUserAnonymous ? 'anonymous' : 'authenticated')
+    : anonymousVipSession?.isActive
+    ? 'anonymous'
+    : 'unauthenticated';
+  const isAuthenticated = Boolean(user && !isUserAnonymous);
+
   // Global Real-Time Presence Heartbeat (Sends ping every 4s, marks offline if no signal for > 10s)
   useGlobalPresenceHeartbeat(user, {
     accountId: effectiveAccountId,
@@ -616,8 +754,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authorStageName
   });
 
+  // Firebase Auth Listeners (onAuthStateChanged + onIdTokenChanged)
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+    const handleAuthUserChange = async (currentUser: User | null) => {
       if (currentUser) {
         setUser(currentUser);
         localStorage.removeItem(LOCAL_USER_KEY);
@@ -634,12 +773,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const snap = await getDoc(userRef);
           if (!snap.exists()) {
+            const initialProfile: UserProfileData = {
+              displayName: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Người dùng'),
+              nickname: currentUser.email ? currentUser.email.split('@')[0] : 'haevy_member',
+              bio: 'Đam mê khám phá các giai điệu âm nhạc Hi-Fi Lossless và truyện audio tại Haevy Hub.',
+              quote: 'Âm nhạc là sự tĩnh lặng trong tâm hồn giữa thế giới ồn ã.',
+              birthday: '15/08',
+              zodiac: 'Sư Tử ♌',
+              gender: 'Không công khai',
+              location: 'Hà Nội, Việt Nam',
+              hometown: 'Đà Nẵng',
+              occupation: 'Người sáng tạo nội dung & Yêu âm nhạc',
+              hobbies: ['Nghe nhạc Hi-Fi', 'Đọc sách nói', 'Thiền định 528Hz'],
+              favoriteGenres: ['Lo-Fi Chill', 'Acoustic & Guitar'],
+              socialLinks: { facebook: 'https://facebook.com', tiktok: 'https://tiktok.com' },
+              joinedDate: new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric' }).format(new Date()),
+              photoURL: currentUser.photoURL || '',
+              email: currentUser.email || ''
+            };
+            setUserProfile(initialProfile);
+
             // New user registration bonus: 100 free Audio Points!
             await setDoc(userRef, {
               accountId: generatedId,
               email: currentUser.email || '',
-              displayName: currentUser.displayName || 'Người dùng',
+              displayName: initialProfile.displayName,
               photoURL: currentUser.photoURL || '',
+              bio: initialProfile.bio,
+              nickname: initialProfile.nickname,
+              quote: initialProfile.quote,
+              birthday: initialProfile.birthday,
+              zodiac: initialProfile.zodiac,
+              gender: initialProfile.gender,
+              location: initialProfile.location,
+              hometown: initialProfile.hometown,
+              occupation: initialProfile.occupation,
+              hobbies: initialProfile.hobbies,
+              favoriteGenres: initialProfile.favoriteGenres,
+              socialLinks: initialProfile.socialLinks,
+              joinedDate: initialProfile.joinedDate,
               role: isDefaultAdmin ? 'admin' : 'user',
               audioPoints: 100,
               totalEarnedPoints: 100,
@@ -672,6 +844,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const currentAccountId = data.accountId || generatedId;
             const currentRole = isDefaultAdmin ? 'admin' : (data.role || 'user');
             
+            const currentEmail = currentUser.email || data.email || '';
+            const syncedProfile: UserProfileData = {
+              displayName: data.displayName || currentUser.displayName || (currentEmail ? currentEmail.split('@')[0] : 'Người dùng'),
+              nickname: data.nickname || (currentEmail ? currentEmail.split('@')[0] : 'haevy_member'),
+              bio: data.bio || 'Đam mê khám phá các giai điệu âm nhạc Hi-Fi Lossless và truyện audio tại Haevy Hub.',
+              quote: data.quote || 'Âm nhạc là sự tĩnh lặng trong tâm hồn giữa thế giới ồn ã.',
+              birthday: data.birthday || '15/08',
+              zodiac: data.zodiac || 'Sư Tử ♌',
+              gender: data.gender || 'Không công khai',
+              location: data.location || 'Hà Nội, Việt Nam',
+              hometown: data.hometown || 'Đà Nẵng',
+              occupation: data.occupation || 'Người sáng tạo nội dung & Yêu âm nhạc',
+              hobbies: Array.isArray(data.hobbies) ? data.hobbies : ['Nghe nhạc Hi-Fi', 'Đọc sách nói', 'Thiền định 528Hz'],
+              favoriteGenres: Array.isArray(data.favoriteGenres) ? data.favoriteGenres : ['Lo-Fi Chill', 'Acoustic & Guitar'],
+              socialLinks: data.socialLinks || { facebook: 'https://facebook.com', tiktok: 'https://tiktok.com' },
+              joinedDate: data.joinedDate || 'Tháng 1, 2024',
+              coverUrl: data.coverUrl || '',
+              avatarFrameId: data.avatarFrameId || 'dragon_gold',
+              photoURL: data.photoURL || currentUser.photoURL || '',
+              email: currentEmail
+            };
+            setUserProfile(syncedProfile);
+
             // Ensure accountId and admin role are persisted
             if (!data.accountId || (isDefaultAdmin && data.role !== 'admin')) {
               await setDoc(userRef, { accountId: currentAccountId, role: currentRole }, { merge: true });
@@ -686,6 +881,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (isDefaultAdmin) setRole('admin');
         }
       } else {
+        setUserProfile(null);
         // Check if there is a local custom user
         const savedLocal = localStorage.getItem(LOCAL_USER_KEY);
         if (savedLocal) {
@@ -696,6 +892,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const genId = generateAccountId(localUser.uid);
             setAccountId(genId);
             setRole(isDefaultAdmin ? 'admin' : 'user');
+            setUserProfile({
+              displayName: localUser.displayName || 'Khách Cục Bộ',
+              nickname: 'local_member',
+              bio: 'Tài khoản trải nghiệm chế độ âm nhạc',
+              quote: 'Haevy Audio - Âm nhạc định hình cuộc sống',
+              birthday: '01/01',
+              zodiac: 'Ma Kết ♑',
+              gender: 'Không công khai',
+              location: 'Việt Nam',
+              hometown: 'Việt Nam',
+              occupation: 'Thành viên Haevy',
+              hobbies: ['Nghe nhạc'],
+              favoriteGenres: ['Lo-Fi'],
+              socialLinks: {},
+              joinedDate: '2024',
+              photoURL: localUser.photoURL || '',
+              email: localUser.email || ''
+            });
           } catch (e) {
             setUser(null);
           }
@@ -711,9 +925,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         setLoading(false);
       }
+    };
+
+    // Listen to Firebase Auth state transitions
+    const unsubscribeAuth = onAuthStateChanged(auth, handleAuthUserChange);
+
+    // Listen to token and profile updates (instant sync when user profile is updated)
+    const unsubscribeIdToken = onIdTokenChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        if (currentUser.displayName) {
+          setUserProfile(prev => prev ? ({ ...prev, displayName: currentUser.displayName! }) : prev);
+        }
+        if (currentUser.photoURL) {
+          setUserProfile(prev => prev ? ({ ...prev, photoURL: currentUser.photoURL! }) : prev);
+        }
+      }
     });
 
-    return () => unsubscribeAuth();
+    return () => {
+      unsubscribeAuth();
+      unsubscribeIdToken();
+    };
   }, []);
 
   // Listen to user profile in Firestore
@@ -726,6 +959,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
+
+          // Sync full profile data across ecosystem
+          const currentEmail = user.email || data.email || '';
+          const syncedProfile: UserProfileData = {
+            displayName: data.displayName || user.displayName || (currentEmail ? currentEmail.split('@')[0] : 'Người dùng'),
+            nickname: data.nickname || (currentEmail ? currentEmail.split('@')[0] : 'haevy_member'),
+            bio: data.bio || 'Đam mê khám phá các giai điệu âm nhạc Hi-Fi Lossless và truyện audio tại Haevy Hub.',
+            quote: data.quote || 'Âm nhạc là sự tĩnh lặng trong tâm hồn giữa thế giới ồn ã.',
+            birthday: data.birthday || '15/08',
+            zodiac: data.zodiac || 'Sư Tử ♌',
+            gender: data.gender || 'Không công khai',
+            location: data.location || 'Hà Nội, Việt Nam',
+            hometown: data.hometown || 'Đà Nẵng',
+            occupation: data.occupation || 'Người sáng tạo nội dung & Yêu âm nhạc',
+            hobbies: Array.isArray(data.hobbies) ? data.hobbies : ['Nghe nhạc Hi-Fi', 'Đọc sách nói', 'Thiền định 528Hz'],
+            favoriteGenres: Array.isArray(data.favoriteGenres) ? data.favoriteGenres : ['Lo-Fi Chill', 'Acoustic & Guitar'],
+            socialLinks: data.socialLinks || { facebook: 'https://facebook.com', tiktok: 'https://tiktok.com' },
+            joinedDate: data.joinedDate || 'Tháng 1, 2024',
+            coverUrl: data.coverUrl || '',
+            avatarFrameId: data.avatarFrameId || 'dragon_gold',
+            photoURL: data.photoURL || user.photoURL || '',
+            email: currentEmail
+          };
+          setUserProfile(syncedProfile);
+
+          // Synchronize user displayName and photoURL if different
+          if (data.displayName && data.displayName !== user.displayName) {
+            setUser(prev => prev ? ({ ...prev, displayName: data.displayName }) as any : prev);
+          }
+          if (data.photoURL && data.photoURL !== user.photoURL) {
+            setUser(prev => prev ? ({ ...prev, photoURL: data.photoURL }) as any : prev);
+          }
           if (Array.isArray(data.favoriteTrackIds)) {
             setFavorites(data.favoriteTrackIds);
           }
@@ -748,6 +1013,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setVipExpiresAt(data.vipExpiresAt || null);
           if (data.vipSettings) {
             setVipSettings({ ...DEFAULT_VIP_SETTINGS, ...data.vipSettings });
+          }
+
+          // Haevy Lite Coins & Theme Bundles System Realtime Sync
+          if (typeof data.haevyLiteCoins === 'number') {
+            setHaevyLiteCoins(data.haevyLiteCoins);
+            try { localStorage.setItem('haevy_lite_coins', String(data.haevyLiteCoins)); } catch (e) {}
+          }
+          if (data.activeThemeBundle) {
+            setActiveThemeBundleState(data.activeThemeBundle);
+            try { localStorage.setItem('haevy_active_theme', data.activeThemeBundle); } catch (e) {}
+          }
+          if (Array.isArray(data.unlockedThemeBundles)) {
+            setUnlockedThemeBundles(data.unlockedThemeBundles);
+            try { localStorage.setItem('haevy_unlocked_themes', JSON.stringify(data.unlockedThemeBundles)); } catch (e) {}
+          }
+          if (data.activeAvatarFrame) {
+            setActiveAvatarFrameState(data.activeAvatarFrame);
+            try { localStorage.setItem('haevy_active_avatar_frame', data.activeAvatarFrame); } catch (e) {}
+          }
+          if (data.activeEntranceAnimation) {
+            setActiveEntranceAnimationState(data.activeEntranceAnimation);
+            try { localStorage.setItem('haevy_active_entrance_anim', data.activeEntranceAnimation); } catch (e) {}
+          }
+          if (data.activeChatBorder) {
+            setActiveChatBorderState(data.activeChatBorder);
+            try { localStorage.setItem('haevy_active_chat_border', data.activeChatBorder); } catch (e) {}
+          }
+          if (data.activeNameBorder) {
+            setActiveNameBorderState(data.activeNameBorder);
+            try { localStorage.setItem('haevy_active_name_border', data.activeNameBorder); } catch (e) {}
+          }
+          if (data.activeNameFont) {
+            setActiveNameFontState(data.activeNameFont);
+            try { localStorage.setItem('haevy_active_name_font', data.activeNameFont); } catch (e) {}
+          }
+          if (data.activePlayerWave) {
+            setActivePlayerWaveState(data.activePlayerWave);
+            try { localStorage.setItem('haevy_active_player_wave', data.activePlayerWave); } catch (e) {}
+          }
+          if (data.activeTitleBadge) {
+            setActiveTitleBadgeState(data.activeTitleBadge);
+            try { localStorage.setItem('haevy_active_title_badge', data.activeTitleBadge); } catch (e) {}
+          }
+          if (data.activeCursorAura) {
+            setActiveCursorAuraState(data.activeCursorAura);
+            try { localStorage.setItem('haevy_active_cursor_aura', data.activeCursorAura); } catch (e) {}
+          }
+          if (Array.isArray(data.unlockedHaevyLiteItems)) {
+            setUnlockedHaevyLiteItems(data.unlockedHaevyLiteItems);
+            try { localStorage.setItem('haevy_unlocked_lite_items', JSON.stringify(data.unlockedHaevyLiteItems)); } catch (e) {}
           }
 
           // Real-time listener for user personal shortcuts_config in Firestore
@@ -1326,6 +1641,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Reward audio points for publishing audio!
       await addAudioPoints(50, `Đăng tải tác phẩm: ${cleanTitle}`, 'upload');
 
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('haevy-invalidate-tracks'));
+      }
+
       return {
         success: true,
         message: `Đăng tác phẩm "${cleanTitle}" thành công! Bài hát đã được đưa lên Kho Audio và Trang Tác Giả.`,
@@ -1346,6 +1665,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const cleanId = trackId.replace('custom-', '');
       await deleteDoc(doc(db, 'customTracks', cleanId));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('haevy-invalidate-tracks'));
+      }
       return { success: true, message: 'Đã xóa tác phẩm Audio thành công.' };
     } catch (err: any) {
       console.error('Error deleting author track:', err);
@@ -3679,6 +4001,399 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Haevy Lite Coins & Theme Bundles System Operations
+  const earnHaevyLiteCoins = async (amount: number, reason: string): Promise<{ success: boolean; newBalance: number }> => {
+    const newBal = haevyLiteCoins + amount;
+    setHaevyLiteCoins(newBal);
+    try {
+      localStorage.setItem('haevy_lite_coins', String(newBal));
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, {
+          haevyLiteCoins: increment(amount),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+          title: `[Xu Haevy Lite] +${amount} Xu (${reason})`,
+          amount,
+          type: 'bonus',
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (e) {
+      console.warn('Sync earn haevy lite coins error:', e);
+    }
+    return { success: true, newBalance: newBal };
+  };
+
+  const spendHaevyLiteCoins = async (amount: number, reason: string): Promise<{ success: boolean; message: string; newBalance: number }> => {
+    if (haevyLiteCoins < amount) {
+      return {
+        success: false,
+        message: `Số dư Xu Haevy Lite không đủ (cần ${amount} Xu, bạn có ${haevyLiteCoins} Xu).`,
+        newBalance: haevyLiteCoins
+      };
+    }
+    const newBal = Math.max(0, haevyLiteCoins - amount);
+    setHaevyLiteCoins(newBal);
+    try {
+      localStorage.setItem('haevy_lite_coins', String(newBal));
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, {
+          haevyLiteCoins: increment(-amount),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+          title: `[Xu Haevy Lite] -${amount} Xu (${reason})`,
+          amount: -amount,
+          type: 'bonus',
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (e) {
+      console.warn('Sync deduct haevy lite coins error:', e);
+    }
+    return { success: true, message: 'Đổi thành công!', newBalance: newBal };
+  };
+
+  const unlockThemeBundle = async (themeId: string, costCoins: number): Promise<{ success: boolean; message: string }> => {
+    if (haevyLiteCoins < costCoins) {
+      return {
+        success: false,
+        message: `Bạn không đủ Xu Haevy Lite (cần ${costCoins} Xu, hiện có ${haevyLiteCoins} Xu). Hãy xem quảng cáo 30s hoặc nạp thêm!`
+      };
+    }
+
+    const newBal = Math.max(0, haevyLiteCoins - costCoins);
+    const newUnlocked = Array.from(new Set([...unlockedThemeBundles, themeId]));
+    setHaevyLiteCoins(newBal);
+    setUnlockedThemeBundles(newUnlocked);
+    setActiveThemeBundleState(themeId);
+
+    try {
+      localStorage.setItem('haevy_lite_coins', String(newBal));
+      localStorage.setItem('haevy_unlocked_themes', JSON.stringify(newUnlocked));
+      localStorage.setItem('haevy_active_theme', themeId);
+
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, {
+          haevyLiteCoins: increment(-costCoins),
+          activeThemeBundle: themeId,
+          unlockedThemeBundles: arrayUnion(themeId),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+          title: `Đổi Combo Chủ Đề [${themeId.toUpperCase()}] (-${costCoins} Xu Haevy Lite)`,
+          amount: -costCoins,
+          type: 'bonus',
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (e) {
+      console.warn('Sync unlock theme bundle notice:', e);
+    }
+
+    return { success: true, message: 'Mở khóa Combo chủ đề thành công!' };
+  };
+
+  const setActiveThemeBundle = async (themeId: string) => {
+    setActiveThemeBundleState(themeId);
+    try {
+      localStorage.setItem('haevy_active_theme', themeId);
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, {
+          activeThemeBundle: themeId,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+    } catch (e) {
+      console.warn('Sync active theme notice:', e);
+    }
+  };
+
+  const unlockHaevyLiteItem = async (itemId: string, costCoins: number): Promise<{ success: boolean; message: string }> => {
+    if (haevyLiteCoins < costCoins) {
+      return {
+        success: false,
+        message: `Bạn không đủ Xu Haevy Lite (cần ${costCoins} Xu, hiện có ${haevyLiteCoins} Xu). Hãy xem quảng cáo hoặc nạp thêm Xu!`
+      };
+    }
+
+    const newBal = Math.max(0, haevyLiteCoins - costCoins);
+    const newUnlocked = Array.from(new Set([...unlockedHaevyLiteItems, itemId]));
+    setHaevyLiteCoins(newBal);
+    setUnlockedHaevyLiteItems(newUnlocked);
+
+    try {
+      localStorage.setItem('haevy_lite_coins', String(newBal));
+      localStorage.setItem('haevy_unlocked_lite_items', JSON.stringify(newUnlocked));
+
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, {
+          haevyLiteCoins: increment(-costCoins),
+          unlockedHaevyLiteItems: arrayUnion(itemId),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+          title: `Mở khóa vật phẩm Shop Haevy Lite [${itemId}] (-${costCoins} Xu)`,
+          amount: -costCoins,
+          type: 'bonus',
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (e) {
+      console.warn('Sync unlock shop item error:', e);
+    }
+
+    return { success: true, message: 'Mở khóa vật phẩm thành công!' };
+  };
+
+  const equipHaevyLiteItem = async (category: HaevyLiteItemCategory, itemId: string) => {
+    if (category === 'avatar_frame') {
+      setActiveAvatarFrameState(itemId);
+      try { localStorage.setItem('haevy_active_avatar_frame', itemId); } catch (e) {}
+    } else if (category === 'entrance_animation') {
+      setActiveEntranceAnimationState(itemId);
+      try { localStorage.setItem('haevy_active_entrance_anim', itemId); } catch (e) {}
+    } else if (category === 'chat_border') {
+      setActiveChatBorderState(itemId);
+      try { localStorage.setItem('haevy_active_chat_border', itemId); } catch (e) {}
+    } else if (category === 'name_border') {
+      setActiveNameBorderState(itemId);
+      try { localStorage.setItem('haevy_active_name_border', itemId); } catch (e) {}
+    } else if (category === 'name_font') {
+      setActiveNameFontState(itemId);
+      try { localStorage.setItem('haevy_active_name_font', itemId); } catch (e) {}
+    } else if (category === 'player_wave') {
+      setActivePlayerWaveState(itemId);
+      try { localStorage.setItem('haevy_active_player_wave', itemId); } catch (e) {}
+    } else if (category === 'title_badge') {
+      setActiveTitleBadgeState(itemId);
+      try { localStorage.setItem('haevy_active_title_badge', itemId); } catch (e) {}
+    } else if (category === 'cursor_aura') {
+      setActiveCursorAuraState(itemId);
+      try { localStorage.setItem('haevy_active_cursor_aura', itemId); } catch (e) {}
+    }
+
+    try {
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        const updatePayload: Record<string, any> = { updatedAt: serverTimestamp() };
+        if (category === 'avatar_frame') updatePayload.activeAvatarFrame = itemId;
+        if (category === 'entrance_animation') updatePayload.activeEntranceAnimation = itemId;
+        if (category === 'chat_border') updatePayload.activeChatBorder = itemId;
+        if (category === 'name_border') updatePayload.activeNameBorder = itemId;
+        if (category === 'name_font') updatePayload.activeNameFont = itemId;
+        if (category === 'player_wave') updatePayload.activePlayerWave = itemId;
+        if (category === 'title_badge') updatePayload.activeTitleBadge = itemId;
+        if (category === 'cursor_aura') updatePayload.activeCursorAura = itemId;
+        await setDoc(userRef, updatePayload, { merge: true });
+
+        // Đồng bộ tức thời hiệu ứng vừa trang bị vào participantDetails của các hội thoại
+        try {
+          const convsQuery = query(
+            collection(db, 'conversations'),
+            where('participants', 'array-contains', user.uid)
+          );
+          const convSnaps = await getDocs(convsQuery);
+          convSnaps.forEach((cDoc) => {
+            const fieldPath = `participantDetails.${user.uid}`;
+            const detailUpdate: Record<string, any> = {};
+            if (category === 'avatar_frame') detailUpdate[`${fieldPath}.activeAvatarFrame`] = itemId;
+            if (category === 'chat_border') detailUpdate[`${fieldPath}.activeChatBorder`] = itemId;
+            if (category === 'name_border') detailUpdate[`${fieldPath}.activeNameBorder`] = itemId;
+            if (category === 'name_font') detailUpdate[`${fieldPath}.activeNameFont`] = itemId;
+            if (category === 'title_badge') detailUpdate[`${fieldPath}.activeTitleBadge`] = itemId;
+            if (Object.keys(detailUpdate).length > 0) {
+              setDoc(cDoc.ref, detailUpdate, { merge: true }).catch(() => {});
+            }
+          });
+        } catch (convSyncErr) {
+          // ignore non-critical sync
+        }
+      }
+    } catch (e) {
+      console.warn('Sync equip item error:', e);
+    }
+  };
+
+  const unequipHaevyLiteItem = async (category: HaevyLiteItemCategory) => {
+    await equipHaevyLiteItem(category, 'none');
+  };
+
+  const purchaseHaevyLitePackage = async (params: {
+    pkg: HaevyLiteTopupPackage;
+    finalAmount: number;
+    paymentMethod: 'vietqr' | 'momo' | 'zalopay';
+  }): Promise<{ success: boolean; message: string }> => {
+    const totalAwarded = params.pkg.coins + (params.pkg.bonusCoins || 0);
+    const newBal = haevyLiteCoins + totalAwarded;
+    setHaevyLiteCoins(newBal);
+
+    try {
+      localStorage.setItem('haevy_lite_coins', String(newBal));
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, {
+          haevyLiteCoins: increment(totalAwarded),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+          title: `Nạp ${params.pkg.name} (+${params.pkg.coins} Xu Lite ${params.pkg.bonusCoins > 0 ? `+${params.pkg.bonusCoins} Xu thưởng` : ''})`,
+          amount: totalAwarded,
+          type: 'topup_coins',
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (e) {
+      console.warn('Sync topup haevy lite notice:', e);
+    }
+
+    return {
+      success: true,
+      message: `Nạp thành công ${params.pkg.name}! Nhận ngay +${totalAwarded} Xu Haevy Lite.`
+    };
+  };
+
+  const updateUserProfile = async (updates: Partial<UserProfileData> & { displayName?: string; photoURL?: string }): Promise<{ success: boolean; message: string }> => {
+    if (!user) {
+      return { success: false, message: 'Bạn cần đăng nhập để cập nhật hồ sơ người dùng.' };
+    }
+
+    try {
+      const cleanDisplayName = updates.displayName !== undefined ? updates.displayName.trim() : undefined;
+      const cleanPhotoURL = updates.photoURL !== undefined ? updates.photoURL.trim() : undefined;
+
+      // 1. Update Firebase Auth user profile if currentUser is logged in
+      if (auth.currentUser && (cleanDisplayName !== undefined || cleanPhotoURL !== undefined)) {
+        await updateProfile(auth.currentUser, {
+          ...(cleanDisplayName !== undefined ? { displayName: cleanDisplayName } : {}),
+          ...(cleanPhotoURL !== undefined ? { photoURL: cleanPhotoURL } : {}),
+        });
+      }
+
+      // 2. Prepare payload for Firestore users/{uid}
+      const userRef = doc(db, 'users', user.uid);
+      const firestorePayload: Record<string, any> = {
+        updatedAt: serverTimestamp(),
+      };
+
+      if (cleanDisplayName !== undefined) firestorePayload.displayName = cleanDisplayName;
+      if (cleanPhotoURL !== undefined) firestorePayload.photoURL = cleanPhotoURL;
+      if (updates.bio !== undefined) firestorePayload.bio = updates.bio;
+      if (updates.nickname !== undefined) firestorePayload.nickname = updates.nickname;
+      if (updates.quote !== undefined) firestorePayload.quote = updates.quote;
+      if (updates.birthday !== undefined) firestorePayload.birthday = updates.birthday;
+      if (updates.zodiac !== undefined) firestorePayload.zodiac = updates.zodiac;
+      if (updates.gender !== undefined) firestorePayload.gender = updates.gender;
+      if (updates.location !== undefined) firestorePayload.location = updates.location;
+      if (updates.hometown !== undefined) firestorePayload.hometown = updates.hometown;
+      if (updates.occupation !== undefined) firestorePayload.occupation = updates.occupation;
+      if (updates.hobbies !== undefined) firestorePayload.hobbies = updates.hobbies;
+      if (updates.favoriteGenres !== undefined) firestorePayload.favoriteGenres = updates.favoriteGenres;
+      if (updates.socialLinks !== undefined) firestorePayload.socialLinks = updates.socialLinks;
+      if (updates.joinedDate !== undefined) firestorePayload.joinedDate = updates.joinedDate;
+      if (updates.coverUrl !== undefined) firestorePayload.coverUrl = updates.coverUrl;
+      if (updates.avatarFrameId !== undefined) firestorePayload.avatarFrameId = updates.avatarFrameId;
+
+      await setDoc(userRef, firestorePayload, { merge: true });
+
+      // 3. Synchronize local state immediately across all ecosystem modes
+      setUserProfile(prev => {
+        if (!prev) {
+          return {
+            displayName: cleanDisplayName || user.displayName || 'Người dùng',
+            nickname: updates.nickname || 'haevy_member',
+            bio: updates.bio || '',
+            quote: updates.quote || '',
+            birthday: updates.birthday || '',
+            zodiac: updates.zodiac || '',
+            gender: updates.gender || '',
+            location: updates.location || '',
+            hometown: updates.hometown || '',
+            occupation: updates.occupation || '',
+            hobbies: updates.hobbies || [],
+            favoriteGenres: updates.favoriteGenres || [],
+            socialLinks: updates.socialLinks || {},
+            joinedDate: updates.joinedDate || '2024',
+            photoURL: cleanPhotoURL || user.photoURL || '',
+            coverUrl: updates.coverUrl || '',
+            avatarFrameId: updates.avatarFrameId || 'dragon_gold',
+            email: user.email || ''
+          };
+        }
+        return {
+          ...prev,
+          ...updates,
+          ...(cleanDisplayName !== undefined ? { displayName: cleanDisplayName } : {}),
+          ...(cleanPhotoURL !== undefined ? { photoURL: cleanPhotoURL } : {})
+        };
+      });
+
+      setUser(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ...(cleanDisplayName !== undefined ? { displayName: cleanDisplayName } : {}),
+          ...(cleanPhotoURL !== undefined ? { photoURL: cleanPhotoURL } : {})
+        } as any;
+      });
+
+      // 4. Update localStorage as offline cache
+      try {
+        const profileStorageKey = `haevy_custom_profile_${user.uid}`;
+        localStorage.setItem(profileStorageKey, JSON.stringify({
+          ...(userProfile || {}),
+          ...updates,
+          ...(cleanDisplayName !== undefined ? { displayName: cleanDisplayName } : {}),
+          ...(cleanPhotoURL !== undefined ? { photoURL: cleanPhotoURL } : {})
+        }));
+      } catch (e) {}
+
+      // 5. Broadcast global event across all modes & tabs
+      window.dispatchEvent(new CustomEvent('haevy:user-profile-updated', {
+        detail: {
+          uid: user.uid,
+          displayName: cleanDisplayName || userProfile?.displayName || user.displayName,
+          photoURL: cleanPhotoURL || userProfile?.photoURL || user.photoURL,
+          ...updates
+        }
+      }));
+
+      return { success: true, message: 'Đã cập nhật hồ sơ và đồng bộ tên hiển thị toàn hệ sinh thái!' };
+    } catch (err: any) {
+      console.error('Error updating user profile:', err);
+      return { success: false, message: err.message || 'Lỗi cập nhật hồ sơ người dùng.' };
+    }
+  };
+
+  const reloadUserProfile = async (): Promise<void> => {
+    if (auth.currentUser) {
+      try {
+        await auth.currentUser.reload();
+        const refreshed = auth.currentUser;
+        setUser(refreshed);
+        if (refreshed.displayName) {
+          setUserProfile(prev => prev ? ({ ...prev, displayName: refreshed.displayName! }) : prev);
+        }
+        if (refreshed.photoURL) {
+          setUserProfile(prev => prev ? ({ ...prev, photoURL: refreshed.photoURL! }) : prev);
+        }
+      } catch (e) {
+        console.warn('Error reloading auth user:', e);
+      }
+    }
+  };
+
   const logout = async () => {
     localStorage.removeItem(LOCAL_USER_KEY);
     localStorage.removeItem(ANON_SESSION_KEY);
@@ -3689,6 +4404,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setVipTier('free');
     setVipExpiresAt(null);
     setAccountId('GUEST-CHUA-DANG-NHAP');
+    setUserProfile(null);
     try {
       await signOut(auth);
     } catch (e) {
@@ -3702,6 +4418,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
+        authStatus,
+        isAuthenticated,
+        displayName: effectiveDisplayName,
+        photoURL: effectivePhotoURL,
+        userProfile,
         accountId: effectiveAccountId,
         role,
         adminRole,
@@ -3728,6 +4449,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         authorVerificationData,
         logSystemActivity,
         toggleFavorite,
+        // Haevy Lite Coins & Theme Bundles System
+        haevyLiteCoins,
+        activeThemeBundle,
+        unlockedThemeBundles,
+        activeAvatarFrame,
+        activeEntranceAnimation,
+        activeChatBorder,
+        activeNameBorder,
+        activeNameFont,
+        activePlayerWave,
+        activeTitleBadge,
+        activeCursorAura,
+        unlockedHaevyLiteItems,
+        earnHaevyLiteCoins,
+        spendHaevyLiteCoins,
+        unlockThemeBundle,
+        setActiveThemeBundle,
+        unlockHaevyLiteItem,
+        equipHaevyLiteItem,
+        unequipHaevyLiteItem,
+        purchaseHaevyLitePackage,
         addAudioPoints,
         deductAudioPoints,
         incrementListenTime,
@@ -3791,6 +4533,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
+        updateUserProfile,
+        reloadUserProfile,
         logout,
       }}
     >

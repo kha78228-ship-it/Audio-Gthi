@@ -334,7 +334,7 @@ export function AuthorGiftShopModal({
               <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-600 to-indigo-600 flex items-center justify-center font-bold text-white text-sm shrink-0 shadow-md">
-                    {selectedAuthor.stageName.charAt(0).toUpperCase()}
+                    {selectedAuthor?.stageName?.charAt(0)?.toUpperCase() || 'A'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

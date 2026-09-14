@@ -85,18 +85,24 @@ const DEFAULT_CLEAN_TREE: FamilyTree = {
   updatedAt: new Date().toISOString()
 };
 
+export type FamilyTreeTab = 'tree' | 'phatue_ai' | 'members' | 'events' | 'heritage' | 'global_connect' | 'proposals';
+
 interface HaevyFamilyTreeViewProps {
   onBackToPortal?: () => void;
   tracks?: Track[];
   onPlayTrack?: (track: Track) => void;
   onNavigateToMode?: (mode: string, subTab?: string) => void;
+  activeTabControlled?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 export const HaevyFamilyTreeView: React.FC<HaevyFamilyTreeViewProps> = ({
   onBackToPortal,
   tracks = [],
   onPlayTrack,
-  onNavigateToMode
+  onNavigateToMode,
+  activeTabControlled,
+  onTabChange
 }) => {
   // Direct chat member state
   const [directChatMember, setDirectChatMember] = useState<FamilyMember | null>(null);
@@ -164,8 +170,32 @@ export const HaevyFamilyTreeView: React.FC<HaevyFamilyTreeViewProps> = ({
   const [userRole, setUserRole] = useState<FamilyRole>('admin');
 
   // Active View Tab: 7 Pillars of Gia Phả 4.0
-  type FamilyTreeTab = 'tree' | 'phatue_ai' | 'members' | 'events' | 'heritage' | 'global_connect' | 'proposals';
-  const [activeTab, setActiveTab] = useState<FamilyTreeTab>('tree');
+  const mapSubTabToFamilyTab = (subTab?: string): FamilyTreeTab => {
+    if (!subTab) return 'tree';
+    if (subTab === 'records') return 'heritage';
+    if (subTab === 'anniversaries') return 'events';
+    if (subTab === 'ancestors') return 'members';
+    if (['tree', 'phatue_ai', 'members', 'events', 'heritage', 'global_connect', 'proposals'].includes(subTab)) {
+      return subTab as FamilyTreeTab;
+    }
+    return 'tree';
+  };
+
+  const [internalActiveTab, setInternalActiveTab] = useState<FamilyTreeTab>(() => mapSubTabToFamilyTab(activeTabControlled));
+
+  useEffect(() => {
+    if (activeTabControlled) {
+      setInternalActiveTab(mapSubTabToFamilyTab(activeTabControlled));
+    }
+  }, [activeTabControlled]);
+
+  const activeTab = activeTabControlled ? mapSubTabToFamilyTab(activeTabControlled) : internalActiveTab;
+  const setActiveTab = (tab: FamilyTreeTab) => {
+    setInternalActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [phaTueSelectedMemberId, setPhaTueSelectedMemberId] = useState<string>('');
   const [showHeritageBanner, setShowHeritageBanner] = useState(false);

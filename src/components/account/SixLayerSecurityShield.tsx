@@ -7,25 +7,28 @@ import {
 import { AccountSecurityShield } from '../../types';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { maskEmail } from '../../utils/privacyMask';
 
 interface Props {
   user: any;
   accountId: string;
   isVip: boolean;
   onOpenSupport?: () => void;
+  isPrivacyMode?: boolean;
 }
 
 interface EmailModalData {
   from: string;
   to: string;
   subject: string;
-  html: string;
+  html?: string;
   timestamp: string;
   code: string;
   isRealSmtpSent?: boolean;
 }
 
-export function SixLayerSecurityShield({ user, accountId, onOpenSupport }: Props) {
+export function SixLayerSecurityShield({ user, accountId, onOpenSupport, isPrivacyMode = false }: Props) {
+  const [revealEmails, setRevealEmails] = useState(false);
   const [shieldData, setShieldData] = useState<AccountSecurityShield>({
     layer1PasswordEnabled: true,
     layer1LastVerifiedAt: new Date().toISOString(),
@@ -219,34 +222,27 @@ export function SixLayerSecurityShield({ user, accountId, onOpenSupport }: Props
         body: JSON.stringify({ email: targetEmail, purpose: 'LAYER_2_EMAIL_OTP', displayName: user?.displayName || 'Chủ tài khoản', accountId }),
       });
       const data = await resp.json();
-      const code = data.previewCode || Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedOtp(code);
+      if (!resp.ok) {
+        notify('error', data.message || 'Không thể gửi mã OTP. Vui lòng thử lại sau.');
+        return;
+      }
+      const code = data.previewCode || '';
+      if (code) setGeneratedOtp(code);
       setOtpSent(true);
       setOtpTimer(data.retryAfter || 60);
-      setOtpEmailDetails({
-        from: data.emailDetails?.from || 'Haevy Security Center <security@haevy.audio>',
-        to: data.targetEmail || targetEmail,
-        subject: data.emailDetails?.subject || `[Haevy Audio] ${code} là mã xác thực OTP Lớp 2`,
-        html: data.emailDetails?.html || '',
-        timestamp: data.emailDetails?.timestamp || new Date().toLocaleTimeString('vi-VN'),
-        code,
-        isRealSmtpSent: data.isRealSmtpSent,
-      });
+      if (data.emailDetails) {
+        setOtpEmailDetails({
+          from: data.emailDetails.from || 'Haevy Security Center <security@haevy.audio>',
+          to: data.targetEmail || targetEmail,
+          subject: data.emailDetails.subject || `[Haevy Audio] ${code} là mã xác thực OTP Lớp 2`,
+          timestamp: data.emailDetails.timestamp || new Date().toLocaleTimeString('vi-VN'),
+          code,
+          isRealSmtpSent: data.isRealSmtpSent,
+        });
+      }
       notify('success', data.message || `Đã gửi mã OTP đến ${targetEmail}.`);
-    } catch {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedOtp(code);
-      setOtpSent(true);
-      setOtpTimer(60);
-      setOtpEmailDetails({
-        from: 'Haevy Security Center <security@haevy.audio>',
-        to: targetEmail,
-        subject: `[Haevy Audio] ${code} là mã OTP Lớp 2`,
-        html: '',
-        timestamp: new Date().toLocaleTimeString('vi-VN'),
-        code,
-      });
-      notify('info', `Đã tạo mã OTP mẫu: ${code}`);
+    } catch (err: any) {
+      notify('error', 'Lỗi kết nối máy chủ khi gửi mã OTP.');
     } finally {
       setIsSendingOtp(false);
     }
@@ -263,7 +259,7 @@ export function SixLayerSecurityShield({ user, accountId, onOpenSupport }: Props
         body: JSON.stringify({ email: user?.email || '', code, purpose: 'LAYER_2_EMAIL_OTP' }),
       });
       const data = await resp.json();
-      if ((resp.ok && data.success) || code === generatedOtp || code === '888888') {
+      if (resp.ok && data.success) {
         saveShieldData({ ...shieldData, layer2EmailOtpEnabled: true, layer2LastVerifiedAt: new Date().toISOString() });
         notify('success', 'Lớp 2: Xác thực mã OTP Gmail thành công!');
         setOtpCodeInput('');
@@ -272,13 +268,7 @@ export function SixLayerSecurityShield({ user, accountId, onOpenSupport }: Props
         notify('error', data.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
       }
     } catch {
-      if (code === generatedOtp || code === '888888') {
-        saveShieldData({ ...shieldData, layer2EmailOtpEnabled: true, layer2LastVerifiedAt: new Date().toISOString() });
-        notify('success', 'Lớp 2: Xác thực OTP thành công!');
-        setOtpCodeInput('');
-      } else {
-        notify('error', 'Mã OTP không đúng.');
-      }
+      notify('error', 'Không thể kết nối đến máy chủ xác minh.');
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -317,34 +307,27 @@ export function SixLayerSecurityShield({ user, accountId, onOpenSupport }: Props
         body: JSON.stringify({ email: recoveryEmailInput.trim(), purpose: 'LAYER_4_RECOVERY_EMAIL', displayName: user?.displayName || 'Chủ tài khoản', accountId }),
       });
       const data = await resp.json();
-      const code = data.previewCode || Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedRecoveryOtp(code);
+      if (!resp.ok) {
+        notify('error', data.message || 'Không thể gửi mã xác nhận đến Gmail dự phòng.');
+        return;
+      }
+      const code = data.previewCode || '';
+      if (code) setGeneratedRecoveryOtp(code);
       setRecoveryOtpSent(true);
       setRecoveryOtpTimer(data.retryAfter || 60);
-      setRecoveryEmailDetails({
-        from: data.emailDetails?.from || 'Haevy Security Center <security@haevy.audio>',
-        to: recoveryEmailInput.trim(),
-        subject: data.emailDetails?.subject || `[Haevy Audio] ${code} là mã liên kết Gmail Dự Phòng`,
-        html: data.emailDetails?.html || '',
-        timestamp: data.emailDetails?.timestamp || new Date().toLocaleTimeString('vi-VN'),
-        code,
-        isRealSmtpSent: data.isRealSmtpSent,
-      });
+      if (data.emailDetails) {
+        setRecoveryEmailDetails({
+          from: data.emailDetails.from || 'Haevy Security Center <security@haevy.audio>',
+          to: recoveryEmailInput.trim(),
+          subject: data.emailDetails.subject || `[Haevy Audio] ${code} là mã liên kết Gmail Dự Phòng`,
+          timestamp: data.emailDetails.timestamp || new Date().toLocaleTimeString('vi-VN'),
+          code,
+          isRealSmtpSent: data.isRealSmtpSent,
+        });
+      }
       notify('success', data.message || `Đã gửi mã liên kết đến ${recoveryEmailInput}.`);
     } catch {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedRecoveryOtp(code);
-      setRecoveryOtpSent(true);
-      setRecoveryOtpTimer(60);
-      setRecoveryEmailDetails({
-        from: 'Haevy Security Center <security@haevy.audio>',
-        to: recoveryEmailInput.trim(),
-        subject: `[Haevy Audio] ${code} là mã liên kết Gmail Dự Phòng`,
-        html: '',
-        timestamp: new Date().toLocaleTimeString('vi-VN'),
-        code,
-      });
-      notify('info', `Đã tạo mã xác nhận mẫu: ${code}`);
+      notify('error', 'Lỗi kết nối máy chủ khi gửi mã xác nhận Gmail dự phòng.');
     } finally {
       setIsSendingRecoveryOtp(false);
     }
@@ -361,7 +344,7 @@ export function SixLayerSecurityShield({ user, accountId, onOpenSupport }: Props
         body: JSON.stringify({ email: recoveryEmailInput.trim(), code, purpose: 'LAYER_4_RECOVERY_EMAIL' }),
       });
       const data = await resp.json();
-      if ((resp.ok && data.success) || code === generatedRecoveryOtp || code === '888888') {
+      if (resp.ok && data.success) {
         saveShieldData({
           ...shieldData,
           layer4RecoveryEmailEnabled: true,
@@ -376,20 +359,7 @@ export function SixLayerSecurityShield({ user, accountId, onOpenSupport }: Props
         notify('error', data.message || 'Mã xác thực không đúng.');
       }
     } catch {
-      if (code === generatedRecoveryOtp || code === '888888') {
-        saveShieldData({
-          ...shieldData,
-          layer4RecoveryEmailEnabled: true,
-          layer4RecoveryEmail: recoveryEmailInput.trim(),
-          layer4RecoveryVerified: true,
-          layer4LastVerifiedAt: new Date().toISOString(),
-        });
-        setRecoveryOtpSent(false);
-        setRecoveryOtpInput('');
-        notify('success', 'Lớp 4: Đã liên kết Gmail dự phòng!');
-      } else {
-        notify('error', 'Mã xác thực không đúng.');
-      }
+      notify('error', 'Không thể kết nối đến máy chủ xác minh.');
     } finally {
       setIsVerifyingRecoveryOtp(false);
     }
@@ -730,7 +700,22 @@ Trạng thái: 6 LỚP AN NINH HAEVY SHIELD (${shieldData.securityScore}%)
                 </div>
                 <div>
                   <h3 className="font-extrabold text-white text-sm">Lớp 2: Mã Gửi Về Gmail (Email OTP 2FA)</h3>
-                  <p className="text-[11px] text-zinc-400">Hộp thư: <strong className="text-zinc-200">{user?.email || 'Gmail của bạn'}</strong></p>
+                  <div className="text-[11px] text-zinc-400 flex items-center gap-1.5 flex-wrap">
+                    <span>Hộp thư:</span>
+                    <strong className="text-zinc-200 font-mono">
+                      {isPrivacyMode && !revealEmails ? maskEmail(user?.email || 'user@example.com') : (user?.email || 'Gmail của bạn')}
+                    </strong>
+                    {isPrivacyMode && user?.email && (
+                      <button
+                        type="button"
+                        onClick={() => setRevealEmails(!revealEmails)}
+                        className="text-zinc-400 hover:text-white p-0.5 rounded cursor-pointer"
+                        title={revealEmails ? "Ẩn email" : "Hiện email"}
+                      >
+                        {revealEmails ? <EyeOff size={11} /> : <Eye size={11} />}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1233,14 +1218,21 @@ function SharedEmailViewerModal({
           <div className="text-white truncate"><strong>Tiêu đề:</strong> {data.subject}</div>
         </div>
         <div className="p-4 overflow-y-auto flex-1 bg-zinc-950/60">
-          {data.html ? (
-            <div className="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: data.html }} />
-          ) : (
-            <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 text-center space-y-2">
-              <p className="text-xs text-zinc-400">Mã xác thực có hiệu lực trong 5 phút:</p>
-              <span className={`text-2xl font-black font-mono tracking-widest ${isAmber ? 'text-amber-400' : 'text-purple-400'}`}>{data.code}</span>
+          <div className="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold">
+              <ShieldCheck size={13} />
+              Mã Bảo Mật OTP 6 Số
             </div>
-          )}
+            <p className="text-xs text-zinc-400">
+              Mã xác thực có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai:
+            </p>
+            <div className={`text-3xl font-black font-mono tracking-widest py-2 px-4 rounded-lg bg-black/40 border border-zinc-800 inline-block ${isAmber ? 'text-amber-400' : 'text-purple-400'}`}>
+              {data.code}
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Hệ thống giám sát an ninh 6 lớp tự động vô hiệu hóa nếu nhập sai quá 5 lần liên tiếp.
+            </p>
+          </div>
         </div>
         <div className="p-3 bg-zinc-950 border-t border-zinc-800 flex items-center justify-between gap-2">
           <button

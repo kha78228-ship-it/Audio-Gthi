@@ -13,7 +13,8 @@ export type HapticType =
   | 'warning' 
   | 'error' 
   | 'modeSwitch' 
-  | 'rewardClaim';
+  | 'rewardClaim'
+  | 'threshold';
 
 // Pre-defined haptic vibration patterns (in milliseconds)
 export const HAPTIC_PATTERNS: Record<HapticType, number | number[]> = {
@@ -46,6 +47,9 @@ export const HAPTIC_PATTERNS: Record<HapticType, number | number[]> = {
 
   // Rich celebration rumble for rewards & 500 Coin Airdrop
   rewardClaim: [20, 50, 30, 60, 45],
+
+  // Crisp tactile notch when swipe gesture crosses navigation threshold
+  threshold: [20, 30, 18],
 };
 
 /**
@@ -80,6 +84,7 @@ export const haptics = {
   error: () => triggerHaptic('error'),
   modeSwitch: () => triggerHaptic('modeSwitch'),
   rewardClaim: () => triggerHaptic('rewardClaim'),
+  threshold: () => triggerHaptic('threshold'),
   impact: (type: 'light' | 'medium' | 'heavy' = 'light') => triggerHaptic(type),
 };
 

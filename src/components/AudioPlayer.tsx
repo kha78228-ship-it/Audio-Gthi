@@ -33,12 +33,17 @@ import {
   TrendingUp,
   Image as ImageIcon,
   BarChart3,
-  Waves
+  Waves,
+  Bookmark,
+  BookmarkCheck,
+  BookmarkPlus
 } from 'lucide-react';
-import { Track } from '../types';
+import { Track, AudioBookmark } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { VisualEqualizer } from './VisualEqualizer';
 import { AudioDynamicVisualizer, VisualizerMode } from './AudioDynamicVisualizer';
+import { AudioBookmarksTab } from './AudioBookmarksTab';
+import { audioBookmarkService } from '../services/audioBookmarkService';
 import { 
   webAudioEqualizer, 
   EQUALIZER_PRESETS, 

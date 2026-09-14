@@ -1,6 +1,6 @@
 {
   "name": "Haevy Audio",
-  "description": "Hệ sinh thái Haevy toàn năng: Haevy Family Tree (Gia phả dòng họ thông minh, sơ đồ cây tương tác O(1), hồ sơ sắc phong & lịch giỗ Âm-Dương), Haevy Finance AI, Haevy AI Trí tuệ toàn năng, Haevy Spiritual (Tarot 3D, Tử Vi & Chiêm Tinh), Bảng vẽ AR 3D, Âm nhạc Hi-Fi Lossless.",
-  "requestFramePermissions": ["camera", "microphone"],
+  "description": "Hệ sinh thái Haevy toàn năng: Haevy Edu (STEM Virtual Labs Lý - Hóa - Sinh, Bài kiểm tra nhanh Quick Quiz sau mỗi module, Tóm gọn lộ trình với Google Drive & Video bài giảng AI), Haevy Family Tree, Haevy Finance AI & Huy hiệu thành tựu, Haevy AI Master, Haevy Spiritual, Bảng vẽ AR 3D, Âm nhạc Hi-Fi Lossless.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

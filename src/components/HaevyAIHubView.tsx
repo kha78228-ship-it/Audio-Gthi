@@ -56,11 +56,17 @@ import {
   Compass,
   X,
   Trophy,
-  Filter
+  Filter,
+  History,
+  Bookmark,
+  PanelLeft
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { HaevyAIMessage, FinanceTransaction, FinanceWallet, Track } from '../types';
+import { HaevyAIMessage, HaevyAIChatSession, FinanceTransaction, FinanceWallet, Track } from '../types';
 import { haptics } from '../utils/haptics';
+import { doc, setDoc, deleteDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { HaevyAIChatHistorySidebar } from './HaevyAIChatHistorySidebar';
 import {
   parseEcosystemNaturalCommand,
   executeAddFamilyMembers,
@@ -87,6 +93,8 @@ interface HaevyAIHubViewProps {
   onOpenAuth?: () => void;
   onPlayTrack?: (track: any) => void;
   initialTopic?: string;
+  initialPrompt?: string;
+  onClearInitialPrompt?: () => void;
   activeSubTab?: string;
   onSelectSubTab?: (tab: any) => void;
   onOpenEcosystemDrawer?: () => void;
@@ -102,6 +110,10 @@ export function HaevyAIHubView({
   onOpenAuth,
   onPlayTrack,
   initialTopic = 'all',
+  initialPrompt,
+  onClearInitialPrompt,
+  activeSubTab,
+  onSelectSubTab,
   onOpenEcosystemDrawer,
   onOpenNotifications,
   onToggleFullscreen,
@@ -122,7 +134,383 @@ export function HaevyAIHubView({
 
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<HaevyAIMessage[]>([]);
+  const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false);
+  const [sessions, setSessions] = useState<HaevyAIChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [isSavingSession, setIsSavingSession] = useState(false);
+  const storageKey = `haevy_ai_chat_sessions_${user?.uid || 'guest'}`;
+
+  const createWelcomeMessage = (displayName?: string): HaevyAIMessage => {
+    const userName = displayName || 'bạn';
+    return {
+      id: `welcome_${Date.now()}`,
+      sender: 'ai',
+      text: `Xin chào **${userName}**! ✨ Tôi là **Haevy AI Master** - Trợ Lý Thông Minh & Bạn Đồng Hành Toàn Năng của Hệ Sinh Thái Haevy.\n\nTôi có thể trò chuyện, tâm sự thấu cảm, đồng thời **trực tiếp thực hiện mọi nhiệm vụ theo lệnh của bạn**:\n- 📊 **Kiểm tra lượt nghe Audio hôm nay**: Thống kê số lượng người nghe, thời lượng và bài hát thịnh hành.\n- 💖 **Đếm ngày yêu nhau**: Tính toán chính xác số ngày bên nhau của cặp đôi và nhắc mốc kỷ niệm.\n- 💰 **Tự động thêm giao dịch nhận lương / chi tiêu**: Ghi sổ thu chi, cập nhật số dư ví và phân bổ 6 Hũ thông minh tức thì.\n- 🎵 **Gợi ý & Phát nhạc**: Bật nhạc Lo-Fi, truyện audio, không gian thư giãn.\n- 🪙 **Tặng Xu thưởng & Bảo mật**: Nhận xu tương tác, hướng dẫn 6 lớp bảo vệ tài khoản.\n\nHãy nhắn tin hoặc chọn nhanh các nhiệm vụ bên dưới để tôi hỗ trợ bạn ngay nhé! 🚀`,
+      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      category: 'general',
+      suggestedActions: [
+        { label: '📊 Kiểm Tra Lượt Nghe Hôm Nay', actionType: 'prompt_preset', target: 'Kiểm tra lượt nghe audio hôm nay có bao nhiêu người nghe và thời lượng phát sóng?', icon: 'Headphones' },
+        { label: '💖 Ngày Yêu Cặp Đôi', actionType: 'prompt_preset', target: 'Hôm nay là ngày thứ bao nhiêu hai đứa mình yêu nhau rồi?', icon: 'Heart' },
+        { label: '💰 Tự Động Thêm Nhận Lương 50Tr', actionType: 'prompt_preset', target: 'Tự động thêm giao dịch nhận lương 50 triệu vào sổ thu chi và phân bổ 6 hũ tài chính thông minh giúp mình.', icon: 'Wallet' },
+        { label: '🪙 Nhận 150 Xu Thưởng', actionType: 'prompt_preset', target: 'Cho mình xin nhận 150 Xu thưởng tương tác hàng ngày cùng Haevy AI nhé!', icon: 'Coins' }
+      ]
+    };
+  };
+
+  const [messages, setMessages] = useState<HaevyAIMessage[]>(() => [createWelcomeMessage(user?.displayName)]);
+
+  // 1. Initial load chat sessions from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessions(parsed);
+          const first = parsed[0];
+          setActiveSessionId(first.id);
+          if (first.messages && first.messages.length > 0) {
+            setMessages(first.messages);
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed reading localStorage chat sessions:', e);
+    }
+
+    // Default initial session if no saved sessions exist
+    const initialSessionId = `session_${Date.now()}`;
+    const initialMsg = createWelcomeMessage(user?.displayName);
+    const initialSession: HaevyAIChatSession = {
+      id: initialSessionId,
+      title: 'Trò chuyện cùng Haevy AI',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [initialMsg],
+      previewText: 'Chào mừng bạn đến với Haevy AI Master...',
+      isPinned: false
+    };
+    setSessions([initialSession]);
+    setActiveSessionId(initialSessionId);
+    setMessages([initialMsg]);
+  }, [user?.uid, storageKey]);
+
+  // 2. Background Firestore sync when user is authenticated
+  useEffect(() => {
+    if (!user?.uid) return;
+    let isCancelled = false;
+    const fetchCloudSessions = async () => {
+      try {
+        const sessionsRef = collection(db, 'users', user.uid, 'aiChatSessions');
+        const q = query(sessionsRef, orderBy('updatedAt', 'desc'));
+        const snapshot = await getDocs(q);
+        if (isCancelled || snapshot.empty) return;
+
+        const cloudSessions: HaevyAIChatSession[] = [];
+        snapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          cloudSessions.push({
+            id: docSnap.id,
+            title: d.title || 'Cuộc trò chuyện',
+            createdAt: d.createdAt || new Date().toISOString(),
+            updatedAt: d.updatedAt || new Date().toISOString(),
+            messages: Array.isArray(d.messages) ? d.messages : [],
+            category: d.category || 'general',
+            isPinned: !!d.isPinned,
+            previewText: d.previewText || ''
+          });
+        });
+
+        if (cloudSessions.length > 0) {
+          setSessions(prev => {
+            const map = new Map<string, HaevyAIChatSession>();
+            cloudSessions.forEach(s => map.set(s.id, s));
+            prev.forEach(s => {
+              if (!map.has(s.id)) {
+                map.set(s.id, s);
+              }
+            });
+            const merged = Array.from(map.values()).sort((a, b) => 
+              (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            );
+            try {
+              localStorage.setItem(storageKey, JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('Firestore aiChatSessions sync error (using local fallback):', err);
+      }
+    };
+    fetchCloudSessions();
+    return () => { isCancelled = true; };
+  }, [user?.uid, storageKey]);
+
+  // Helper to persist session updates to memory, storage, and cloud
+  const persistSessionUpdates = (updatedMessages: HaevyAIMessage[], promptText?: string) => {
+    setSessions(prevSessions => {
+      const currentId = activeSessionId || `session_${Date.now()}`;
+      const nowIso = new Date().toISOString();
+      const idx = prevSessions.findIndex(s => s.id === currentId);
+
+      let updatedList: HaevyAIChatSession[];
+      if (idx >= 0) {
+        const target = prevSessions[idx];
+        let title = target.title;
+        if ((title === 'Đoạn chat mới' || title === 'Trò chuyện cùng Haevy AI') && promptText) {
+          title = promptText.length > 35 ? promptText.slice(0, 35) + '...' : promptText;
+        }
+        const lastMsg = updatedMessages[updatedMessages.length - 1];
+        const preview = promptText || (lastMsg ? lastMsg.text.slice(0, 60) : target.previewText);
+
+        const updatedTarget: HaevyAIChatSession = {
+          ...target,
+          title,
+          updatedAt: nowIso,
+          messages: updatedMessages,
+          previewText: preview
+        };
+        updatedList = [...prevSessions];
+        updatedList[idx] = updatedTarget;
+
+        if (user?.uid) {
+          setDoc(doc(db, 'users', user.uid, 'aiChatSessions', updatedTarget.id), {
+            title: updatedTarget.title,
+            createdAt: updatedTarget.createdAt,
+            updatedAt: updatedTarget.updatedAt,
+            messages: updatedTarget.messages,
+            previewText: updatedTarget.previewText || '',
+            isPinned: !!updatedTarget.isPinned,
+            category: updatedTarget.category || 'general'
+          }, { merge: true }).catch(() => {});
+        }
+      } else {
+        const title = promptText ? (promptText.length > 35 ? promptText.slice(0, 35) + '...' : promptText) : 'Đoạn chat mới';
+        const newSession: HaevyAIChatSession = {
+          id: currentId,
+          title,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          messages: updatedMessages,
+          previewText: promptText || '',
+          isPinned: false
+        };
+        updatedList = [newSession, ...prevSessions];
+        if (user?.uid) {
+          setDoc(doc(db, 'users', user.uid, 'aiChatSessions', newSession.id), {
+            title: newSession.title,
+            createdAt: newSession.createdAt,
+            updatedAt: newSession.updatedAt,
+            messages: newSession.messages,
+            previewText: newSession.previewText,
+            isPinned: false,
+            category: 'general'
+          }, { merge: true }).catch(() => {});
+        }
+      }
+
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updatedList));
+      } catch {}
+      return updatedList;
+    });
+  };
+
+  // Start fresh new session
+  const handleStartNewSession = () => {
+    haptics.medium();
+    const newSessionId = `session_${Date.now()}`;
+    const initialMsg = createWelcomeMessage(user?.displayName);
+    const newSession: HaevyAIChatSession = {
+      id: newSessionId,
+      title: 'Đoạn chat mới',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [initialMsg],
+      previewText: 'Bắt đầu cuộc trò chuyện mới...',
+      isPinned: false
+    };
+
+    setSessions(prev => {
+      const updated = [newSession, ...prev];
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (user?.uid) {
+      setDoc(doc(db, 'users', user.uid, 'aiChatSessions', newSession.id), {
+        title: newSession.title,
+        createdAt: newSession.createdAt,
+        updatedAt: newSession.updatedAt,
+        messages: newSession.messages,
+        previewText: newSession.previewText,
+        isPinned: false,
+        category: 'general'
+      }, { merge: true }).catch(() => {});
+    }
+
+    setActiveSessionId(newSessionId);
+    setMessages([initialMsg]);
+    setActiveViewMode('chat');
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsHistorySidebarOpen(false);
+    }
+  };
+
+  // Switch to selected session
+  const handleSelectSession = (sessionId: string) => {
+    const target = sessions.find(s => s.id === sessionId);
+    if (!target) return;
+    setActiveSessionId(sessionId);
+    setMessages(target.messages || []);
+    setActiveViewMode('chat');
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsHistorySidebarOpen(false);
+    }
+  };
+
+  // Delete session
+  const handleDeleteSession = async (sessionId: string) => {
+    haptics.warning();
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== sessionId);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(remaining));
+      } catch {}
+
+      if (activeSessionId === sessionId) {
+        if (remaining.length > 0) {
+          const next = remaining[0];
+          setActiveSessionId(next.id);
+          setMessages(next.messages);
+        } else {
+          const freshId = `session_${Date.now()}`;
+          const initMsg = createWelcomeMessage(user?.displayName);
+          const freshSession: HaevyAIChatSession = {
+            id: freshId,
+            title: 'Trò chuyện cùng Haevy AI',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            messages: [initMsg],
+            previewText: 'Khởi đầu cuộc trò chuyện...',
+            isPinned: false
+          };
+          setActiveSessionId(freshId);
+          setMessages([initMsg]);
+          return [freshSession];
+        }
+      }
+      return remaining;
+    });
+
+    if (user?.uid) {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'aiChatSessions', sessionId));
+      } catch (e) {
+        console.warn('Error deleting cloud session:', e);
+      }
+    }
+  };
+
+  // Rename session
+  const handleRenameSession = async (sessionId: string, newTitle: string) => {
+    setSessions(prev => {
+      const updated = prev.map(s => s.id === sessionId ? { ...s, title: newTitle, updatedAt: new Date().toISOString() } : s);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (user?.uid) {
+      try {
+        await setDoc(doc(db, 'users', user.uid, 'aiChatSessions', sessionId), {
+          title: newTitle,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) {
+        console.warn('Error renaming cloud session:', e);
+      }
+    }
+  };
+
+  // Toggle pin
+  const handleTogglePinSession = async (sessionId: string) => {
+    setSessions(prev => {
+      const target = prev.find(s => s.id === sessionId);
+      if (!target) return prev;
+      const nextPin = !target.isPinned;
+      const updated = prev.map(s => s.id === sessionId ? { ...s, isPinned: nextPin } : s);
+      updated.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (user?.uid) {
+      const target = sessions.find(s => s.id === sessionId);
+      if (target) {
+        try {
+          await setDoc(doc(db, 'users', user.uid, 'aiChatSessions', sessionId), {
+            isPinned: !target.isPinned
+          }, { merge: true });
+        } catch (e) {
+          console.warn('Error toggling pin in cloud:', e);
+        }
+      }
+    }
+  };
+
+  // Clear all sessions
+  const handleClearAllSessions = async () => {
+    haptics.warning();
+    const freshId = `session_${Date.now()}`;
+    const initMsg = createWelcomeMessage(user?.displayName);
+    const freshSession: HaevyAIChatSession = {
+      id: freshId,
+      title: 'Trò chuyện cùng Haevy AI',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [initMsg],
+      previewText: 'Chào mừng bạn đến với Haevy AI Master...',
+      isPinned: false
+    };
+
+    setSessions([freshSession]);
+    setActiveSessionId(freshId);
+    setMessages([initMsg]);
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify([freshSession]));
+    } catch {}
+
+    if (user?.uid) {
+      try {
+        const q = query(collection(db, 'users', user.uid, 'aiChatSessions'));
+        const snapshot = await getDocs(q);
+        snapshot.forEach(d => deleteDoc(d.ref).catch(() => {}));
+      } catch (e) {
+        console.warn('Error clearing cloud sessions:', e);
+      }
+    }
+  };
+
+  // Explicit save current session
+  const handleSaveCurrentSession = async () => {
+    setIsSavingSession(true);
+    try {
+      persistSessionUpdates(messages);
+      setUndoNotification('Đã lưu cuộc trò chuyện vào Lịch Sử Chat thành công!');
+      setTimeout(() => setUndoNotification(null), 3000);
+    } finally {
+      setIsSavingSession(false);
+    }
+  };
   const [selectedMood, setSelectedMood] = useState<string>('😊 Vui vẻ & Tích cực');
   const [isMoodPickerOpen, setIsMoodPickerOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -133,6 +521,15 @@ export function HaevyAIHubView({
   
   // Ecosystem state
   const [activeViewMode, setActiveViewMode] = useState<'chat' | 'ecosystem'>('chat');
+
+  // Synchronize view mode with activeSubTab
+  useEffect(() => {
+    if (activeSubTab === 'chat' || activeSubTab === 'overview') {
+      setActiveViewMode('chat');
+    } else if (activeSubTab === 'modes' || activeSubTab === 'ecosystem') {
+      setActiveViewMode('ecosystem');
+    }
+  }, [activeSubTab]);
   const [ecosystemSnapshot, setEcosystemSnapshot] = useState(() => getEcosystemLiveSnapshot());
   const [undoNotification, setUndoNotification] = useState<string | null>(null);
   const [selectedModeDetail, setSelectedModeDetail] = useState<any | null>(null);
@@ -611,7 +1008,11 @@ export function HaevyAIHubView({
       timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => {
+      const updated = [...prev, userMsg];
+      persistSessionUpdates(updated, textToSend);
+      return updated;
+    });
     setIsLoading(true);
 
     try {
@@ -663,7 +1064,11 @@ export function HaevyAIHubView({
         actionData: data.actionData
       };
 
-      setMessages(prev => [...prev, aiMsg]);
+      setMessages(prev => {
+        const updated = [...prev, aiMsg];
+        persistSessionUpdates(updated, textToSend);
+        return updated;
+      });
     } catch (err: any) {
       console.warn('AI Request error:', err);
       
@@ -771,7 +1176,11 @@ export function HaevyAIHubView({
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         actionData: fallbackAction
       };
-      setMessages(prev => [...prev, fallbackAiMsg]);
+      setMessages(prev => {
+        const updated = [...prev, fallbackAiMsg];
+        persistSessionUpdates(updated, textToSend);
+        return updated;
+      });
     } finally {
       setIsLoading(false);
     }
@@ -887,20 +1296,28 @@ export function HaevyAIHubView({
     setClaimedRewardIds(prev => ({ ...prev, [cardId]: true }));
   };
 
-  // Clear conversation
+  // Clear conversation / Start fresh
   const handleClearHistory = () => {
-    haptics.medium();
-    if (window.confirm('Bạn có chắc muốn xóa lịch sử cuộc trò chuyện hiện tại?')) {
-      setMessages([]);
-      const userName = user?.displayName || 'bạn';
-      setMessages([{
-        id: `welcome_${Date.now()}`,
-        sender: 'ai',
-        text: `Đã làm mới phiên trò chuyện. **${userName}** cần mình thực hiện tác vụ nào tiếp theo nào? ✨`,
-        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-      }]);
-    }
+    handleStartNewSession();
   };
+
+  // Auto-send initial prompt if triggered from context suggestion / quick menu
+  useEffect(() => {
+    if (initialPrompt && initialPrompt.trim()) {
+      const promptToRun = initialPrompt.trim();
+      setInputMessage(promptToRun);
+      if (onSelectSubTab && activeSubTab !== 'chat') {
+        onSelectSubTab('chat');
+      }
+      if (onClearInitialPrompt) {
+        onClearInitialPrompt();
+      }
+      const timer = setTimeout(() => {
+        handleSendMessage(promptToRun);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [initialPrompt]);
 
   return (
     <div className="flex flex-col h-screen h-[100dvh] max-h-[100dvh] w-full bg-zinc-950 text-white overflow-hidden select-none">
@@ -955,8 +1372,32 @@ export function HaevyAIHubView({
           </div>
         </div>
 
-        {/* Right: Mood Selector, Token Points, Modes Drawer, New Chat */}
+        {/* Right: History Toggle, Mood Selector, Token Points, Modes Drawer, New Chat */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+
+          {/* Chat History Sidebar Toggle Button */}
+          <button
+            type="button"
+            id="haevy_ai_history_sidebar_toggle_btn"
+            onClick={() => {
+              haptics.selection();
+              setIsHistorySidebarOpen(prev => !prev);
+            }}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1.5 shrink-0 ${
+              isHistorySidebarOpen
+                ? 'bg-purple-600/30 text-purple-200 border-purple-500/60 shadow-sm shadow-purple-900/30'
+                : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800'
+            }`}
+            title={isHistorySidebarOpen ? "Đóng thanh Lịch Sử Chat" : "Mở thanh Lịch Sử Chat"}
+          >
+            <Clock size={14} className={isHistorySidebarOpen ? "text-purple-400" : "text-zinc-400"} />
+            <span className="hidden sm:inline">Lịch Sử Chat</span>
+            {sessions.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                {sessions.length}
+              </span>
+            )}
+          </button>
           
           {/* Mood Selector Dropdown */}
           <div className="relative">
@@ -1015,7 +1456,7 @@ export function HaevyAIHubView({
 
           {/* New Chat / Reset Session Button */}
           <button
-            onClick={handleClearHistory}
+            onClick={handleStartNewSession}
             className="px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold transition flex items-center gap-1 shadow-sm"
             title="Bắt đầu phiên chat mới"
           >
@@ -1024,6 +1465,27 @@ export function HaevyAIHubView({
           </button>
         </div>
       </header>
+
+      {/* Main Body Layout: Chat History Sidebar + Content Pane */}
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        <HaevyAIChatHistorySidebar
+          isOpen={isHistorySidebarOpen}
+          onClose={() => setIsHistorySidebarOpen(false)}
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={handleSelectSession}
+          onNewSession={handleStartNewSession}
+          onDeleteSession={handleDeleteSession}
+          onRenameSession={handleRenameSession}
+          onTogglePinSession={handleTogglePinSession}
+          onClearAllSessions={handleClearAllSessions}
+          onSaveCurrentSession={handleSaveCurrentSession}
+          isSaving={isSavingSession}
+          currentMessageCount={messages.length}
+        />
+
+        {/* Right Main Content Column */}
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
       {/* Mode Switcher Tabs: Chat AI vs Ecosystem 12 Modes */}
       <div className="flex-none px-3 sm:px-6 py-2 bg-zinc-950 border-b border-zinc-800/80 flex items-center justify-between gap-2 z-20">
@@ -1900,6 +2362,9 @@ export function HaevyAIHubView({
       </div>
       </div>
       )}
+
+        </div>
+      </div>
 
       {/* Quick Add Modal Across 12 Modes */}
       {quickAddModal && (

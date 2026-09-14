@@ -29,6 +29,46 @@ export interface VipSettings {
   customTheme?: 'royal_gold' | 'cyber_neon' | 'amethyst_purple' | 'emerald_luxury' | 'default_dark';
 }
 
+export interface VipOptimizationSuggestion {
+  id: string;
+  category: 'audio' | 'spiritual' | 'finance' | 'ai_study' | 'space_ar' | 'family_tree' | 'couple' | 'games';
+  modeTitle: string;
+  title: string;
+  description: string;
+  impactScore: string;
+  priority: 'high' | 'recommended' | 'exclusive';
+  actionType: 'apply_setting' | 'navigate_mode' | 'custom_prompt';
+  actionPayload?: any;
+  applied?: boolean;
+}
+
+export interface VipIntelligenceAnalysis {
+  healthScore: number;
+  archetype: {
+    title: string;
+    description: string;
+    tag: string;
+    strengths: string[];
+    untappedOpportunities: string[];
+  };
+  metrics: {
+    hifiUsagePercent: number;
+    monthlyEstimatedSavingsVnd: number;
+    bonusCoinsUnlocked: number;
+    activeEcosystemModesCount: number;
+    peakFocusHour: string;
+    recommendedSolfeggioHz: number;
+  };
+  suggestions: VipOptimizationSuggestion[];
+  insights: {
+    title: string;
+    content: string;
+    mode: string;
+  }[];
+  executiveSummary: string;
+  analyzedAt: string;
+}
+
 export interface PointTransaction {
   id: string;
   title: string;
@@ -69,6 +109,19 @@ export interface Track {
   totalEpisodes?: number;
   storylineSummary?: string;
   nextTrackId?: string;
+}
+
+export interface AudioBookmark {
+  id: string;
+  trackId: string;
+  trackTitle: string;
+  trackArtist: string;
+  trackCoverUrl?: string;
+  timestamp: number; // in seconds
+  label: string; // custom title or description
+  note?: string; // optional personal reflection / notes
+  color?: string; // optional tag color
+  createdAt: number;
 }
 
 export interface AudioSeriesItem {
@@ -173,9 +226,197 @@ export interface CommunityPost {
   isHidden?: boolean;
 }
 
-export type EcosystemMode = 'portal' | 'audio' | 'messages' | 'couple' | 'finance' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'vip' | 'support' | 'profile' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree';
+export type EcosystemMode = 'portal' | 'audio' | 'messages' | 'couple' | 'finance' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'vip' | 'support' | 'profile' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu';
 
-export type ActiveTab = 'portal' | 'home' | 'library' | 'player' | 'community' | 'messages' | 'couple' | 'finance' | 'topup' | 'vip' | 'profile' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'support' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree';
+export type ActiveTab = 'portal' | 'home' | 'library' | 'player' | 'community' | 'messages' | 'couple' | 'finance' | 'topup' | 'vip' | 'profile' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'support' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu';
+
+export type EduLabSubject = 'dashboard' | 'physics' | 'chemistry' | 'biology';
+export type EduSubTab = 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'lab' | 'tools';
+
+export interface StemModuleQuiz {
+  moduleId: string;
+  moduleTitle: string;
+  subject: EduLabSubject;
+  experimentId?: string;
+  badge: string;
+  description: string;
+  questions: EduQuizQuestion[];
+}
+
+export interface GoogleDriveRoadmapFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  webViewLink?: string;
+  createdTime?: string;
+  modifiedTime?: string;
+  size?: string;
+}
+
+export interface EduAiStudyMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  mode?: 'first_principles' | 'socratic' | 'document_data' | 'document_analysis' | 'step_by_step';
+  fileAttachment?: {
+    name: string;
+    snippet: string;
+  };
+  keyTakeaways?: string[];
+  antiRoteWarning?: string;
+  suggestedLab?: {
+    subject: EduLabSubject;
+    experimentId: string;
+    experimentName: string;
+  };
+}
+
+export interface EduNotebookNote {
+  id: string;
+  title: string;
+  subject: 'physics' | 'chemistry' | 'biology' | 'math' | 'general';
+  tags: string[];
+  content: string;
+  firstPrincipleEssence?: string;
+  source?: 'ai_assistant' | 'lab_experiment' | 'manual' | 'roadmap';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type EduGradeLevel = 'all' | 10 | 11 | 12;
+export type EduTextbookSeries = 'KNTT' | 'CD' | 'CTST' | 'CTGDPT_2018';
+
+export interface VirtualLabPreset {
+  id: string;
+  name: string;
+  category: 'physics' | 'chemistry' | 'biology';
+  simulationType: 'pendulum' | 'circuit' | 'reaction' | 'titration' | 'free_fall' | 'wave_interference' | 'thermodynamics' | 'reaction_rate' | 'le_chatelier' | 'electrochemical' | 'plasmolysis' | 'enzyme_catalase' | 'respiration' | string;
+  description: string;
+  initialParams: Record<string, any>;
+  principleSummary: string;
+  badge: string;
+  iconName?: string;
+  gradeLevel?: 10 | 11 | 12;
+  textbookStandard?: string;
+}
+
+export interface LabExperimentRecord {
+  id: string;
+  presetId: string;
+  title: string;
+  category: 'physics' | 'chemistry' | 'biology';
+  timestamp: string;
+  inputs: Record<string, any>;
+  results: Record<string, any>;
+  notes: string;
+  gradeLevel?: 10 | 11 | 12;
+}
+
+export interface EduFlashcard {
+  id: string;
+  front: string;
+  back: string;
+  concept: string;
+  principle: string;
+}
+
+export interface EduQuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  firstPrincipleNote: string;
+}
+
+export interface EduDailyPlanItem {
+  id: string;
+  dayNumber: number;
+  dateLabel?: string;
+  title: string;
+  timeEstimateMinutes: number;
+  documentSummary: string; // Tóm tắt tinh gọn phần tài liệu học trong ngày hôm đó
+  corePrinciples: string[]; // Các nguyên lý bản chất trong ngày
+  actionItems: string[]; // Các bước hành động: đọc mục nào, chứng minh định luật nào
+  practiceLab?: {
+    subject: EduLabSubject;
+    experimentId: string;
+    experimentName: string;
+    mission?: string;
+  };
+  keyFormulas?: string[];
+  selfReflectionPrompt?: string; // Câu hỏi tự vấn đào sâu bản chất
+  quickQuiz?: EduQuizQuestion[]; // Câu hỏi trắc nghiệm kiểm tra nhanh trong ngày
+  isCompleted?: boolean;
+}
+
+export interface EduDailyPlan {
+  totalDays: number;
+  dailyPace: 'speed' | 'standard' | 'deep';
+  overallGoal: string;
+  days: EduDailyPlanItem[];
+}
+
+export interface EduRoadmapStage {
+  id: string;
+  stageNumber: number;
+  title: string;
+  duration: string;
+  coreConcepts: string[];
+  deepLogic: string;
+  practiceLab?: {
+    subject: EduLabSubject;
+    experimentId: string;
+    experimentName: string;
+  };
+  keyFormulas?: string[];
+  pitfalls?: string[];
+  isCompleted?: boolean;
+}
+
+export interface EduDocumentAnalysisResult {
+  title: string;
+  summary: string;
+  firstPrinciples: string[];
+  subject: string;
+  estimatedHours: number;
+  stages: EduRoadmapStage[];
+  flashcards: EduFlashcard[];
+  quiz: EduQuizQuestion[];
+  dailyPlan?: EduDailyPlanItem[];
+  totalDaysPlanned?: number;
+  rawContentSnippet?: string;
+}
+
+export interface EduVideoScene {
+  id: string;
+  sceneIndex: number;
+  title: string;
+  subtitle: string;
+  narration: string;
+  visualType: 'interactive_canvas' | 'diagram' | 'formula' | 'experiment_preview' | 'summary_card';
+  visualData: {
+    headline: string;
+    bulletPoints?: string[];
+    diagramType?: 'pendulum' | 'optics' | 'circuit' | 'titration' | 'reaction' | 'periodic' | 'cell' | 'genetics' | 'dna' | 'flowchart' | 'formula_block';
+    formula?: string;
+    colorTheme?: string;
+    accentBadge?: string;
+    takeaway: string;
+  };
+  durationSec: number;
+}
+
+export interface EduVideoLesson {
+  id: string;
+  lessonTitle: string;
+  lessonSubtitle: string;
+  subject: string;
+  totalDurationSec: number;
+  scenes: EduVideoScene[];
+  createdAt: string;
+}
 
 export interface HaevyAIMessage {
   id: string;
@@ -195,6 +436,17 @@ export interface HaevyAIMessage {
   };
   audioUrl?: string;
   isSpeaking?: boolean;
+}
+
+export interface HaevyAIChatSession {
+  id: string;
+  title: string;
+  createdAt: string; // ISO string or formatted
+  updatedAt: string; // ISO string or formatted
+  messages: HaevyAIMessage[];
+  category?: string;
+  isPinned?: boolean;
+  previewText?: string;
 }
 
 export interface HaevyAIUserContext {
@@ -587,6 +839,10 @@ export interface ConversationParticipant {
   isVip?: boolean;
   isAuthorVerified?: boolean;
   authorStageName?: string;
+  activeThemeBundle?: string;
+  activeAvatarFrame?: string;
+  activeNameBorder?: string;
+  activeNameFont?: string;
 }
 
 export interface Conversation {
@@ -667,6 +923,18 @@ export interface UserAccountData {
   displayName: string;
   photoURL?: string;
   audioPoints: number;
+  haevyLiteCoins?: number; // Xu Haevy Lite dùng đổi vật phẩm shop
+  activeThemeBundle?: string; // Tương thích cũ
+  unlockedThemeBundles?: string[]; // Tương thích cũ
+  activeAvatarFrame?: string; // Khung avatar kích hoạt
+  activeEntranceAnimation?: string; // Hoạt ảnh mở đầu khi vào tài khoản kích hoạt
+  activeChatBorder?: string; // Viền chat trong Haevy Message kích hoạt
+  activeNameBorder?: string; // Viền tên trước khi bấm vào phiên chat kích hoạt
+  activeNameFont?: string; // Phông chữ tên nghệ thuật kích hoạt
+  activePlayerWave?: string; // Sóng visualizer máy nghe nhạc kích hoạt
+  activeTitleBadge?: string; // Danh hiệu hệ sinh thái kích hoạt
+  activeCursorAura?: string; // Hào quang con trỏ & cảm ứng kích hoạt
+  unlockedHaevyLiteItems?: string[]; // Danh sách ID các vật phẩm đã mở khóa trong Haevy Lite Shop
   totalEarnedPoints: number;
   totalListenedMinutes?: number;
   lastDailyCheckin?: string | null;
@@ -710,6 +978,103 @@ export interface PointTopupPackage {
   isBestValue?: boolean;
   description: string;
   tag?: string;
+}
+
+export interface HaevyLiteTopupPackage {
+  id: string;
+  name: string;
+  coins: number;
+  bonusCoins: number;
+  priceVnd: number;
+  originalPriceVnd?: number;
+  isPopular?: boolean;
+  isBestValue?: boolean;
+  description: string;
+  tag?: string;
+}
+
+export type HaevyLiteThemeId = 'cosmic' | 'cyberpunk' | 'aurora' | 'phoenix';
+
+export type HaevyLiteItemCategory = 'avatar_frame' | 'entrance_animation' | 'chat_border' | 'name_border' | 'name_font' | 'player_wave' | 'title_badge' | 'cursor_aura';
+
+export interface HaevyLiteShopItem {
+  id: string;
+  category: HaevyLiteItemCategory;
+  name: string;
+  tagline: string;
+  badge: string;
+  priceLiteCoins: number;
+  icon: string;
+  previewColor: string;
+  
+  // Specific visual properties
+  // Avatar Frame
+  frameBorderClass?: string;
+  frameAuraClass?: string;
+  frameRingClass?: string;
+  frameOrbClass?: string;
+  frameDecorationEmoji?: string;
+
+  // Entrance Animation
+  entranceTitle?: string;
+  entranceSubtitle?: string;
+  entranceIcon?: string;
+  entranceBackdropClass?: string;
+  entranceGlowClass?: string;
+
+  // Chat Bubble Border
+  bubbleBorderClass?: string;
+  bubbleBgClass?: string;
+  bubbleShadowClass?: string;
+  bubbleTextGlowClass?: string;
+
+  // Nameplate Border (Chat list & profile)
+  nameplateBorderClass?: string;
+  nameplateBgClass?: string;
+  nameplateTextClass?: string;
+  nameplateIcon?: string;
+
+  // Name Typography Font (Phông chữ tên nghệ thuật độc bản)
+  fontFamilyName?: string;
+  fontCssStyle?: string;
+  fontPreviewText?: string;
+  fontGlowClass?: string;
+
+  // Audio Player Wave Visualizer (Sóng nhạc sống động)
+  waveGradient?: string;
+  waveGlow?: string;
+  waveStyle?: string;
+  waveBarCount?: number;
+
+  // Title Badge (Danh hiệu hệ sinh thái)
+  titleBadgeText?: string;
+  titleBadgeClass?: string;
+  titleBadgeIcon?: string;
+
+  // Cursor & Touch Aura (Hào quang con trỏ chuột & chạm)
+  cursorAuraType?: string;
+  cursorAuraColor?: string;
+  cursorAuraGlow?: string;
+
+  features: string[];
+}
+
+export interface HaevyLiteThemeBundle {
+  id: HaevyLiteThemeId;
+  name: string;
+  tagline: string;
+  badge: string;
+  priceLiteCoins: number;
+  icon: string;
+  previewColor: string;
+  entranceTitle: string;
+  entranceSubtitle: string;
+  entranceIcon: string;
+  avatarAuraClass: string;
+  avatarRingClass: string;
+  nameGlowClass: string;
+  messageBubbleGlowClass: string;
+  features: string[];
 }
 
 export interface PromoCode {
@@ -812,7 +1177,24 @@ export interface AuthorGiftDonation {
 export interface VipPrivilegeItem {
   id: string;
   title: string;
-  category: 'audio' | 'downloads' | 'social' | 'points' | 'exclusives' | 'playback' | 'creator' | 'couple' | 'messages' | 'studio' | 'finance';
+  category: 
+    | 'audio' 
+    | 'downloads' 
+    | 'social' 
+    | 'points' 
+    | 'exclusives' 
+    | 'playback' 
+    | 'creator' 
+    | 'couple' 
+    | 'messages' 
+    | 'studio' 
+    | 'finance'
+    | 'spiritual'
+    | 'haevy_ai'
+    | 'space'
+    | 'games'
+    | 'family_tree'
+    | 'haevy_lite';
   tierRequired: 'vip';
   shortDesc: string;
   detailedBenefit: string;
@@ -1291,6 +1673,30 @@ export interface FinanceRecurringTransaction {
   autoDeduct: boolean;
 }
 
+export interface FinanceAchievementBadge {
+  id: string; // e.g. 'master_saver', 'budget_ninja', etc.
+  title: string;
+  subtitle: string;
+  description: string;
+  category: 'savings' | 'budget' | 'debt' | 'wealth' | 'cashflow' | 'discipline';
+  iconUrl: string;
+  fallbackSeed: string;
+  accentColor: string;
+  gradient: string;
+  badgeLevel: number; // 1 (Bronze), 2 (Silver), 3 (Gold), 4 (Diamond)
+  levelName: 'Bronze' | 'Silver' | 'Gold' | 'Diamond';
+  isUnlocked: boolean;
+  unlockedAt?: string;
+  isClaimed?: boolean;
+  currentValue: number;
+  targetValue: number;
+  unit: string;
+  progressPercent: number;
+  milestoneDescription: string;
+  rewardXu: number;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+}
+
 // ================= HAEVY MESSAGE TYPES =================
 export interface ThoughtBubble {
   id: string;
@@ -1301,6 +1707,7 @@ export interface ThoughtBubble {
   isUserVip?: boolean;
   isAuthorVerified?: boolean;
   authorStageName?: string;
+  activeAvatarFrame?: string;
   text: string; // The thought bubble content (e.g. max 120 chars)
   emoji?: string; // Mood emoji
   musicSnippet?: {

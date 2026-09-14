@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Bot, 
   Send, 
@@ -28,11 +29,25 @@ import {
   Maximize2,
   Minimize2,
   ArrowLeft,
-  Loader2
+  Loader2,
+  History,
+  AlertTriangle,
+  Search,
+  Filter,
+  Coins,
+  Award,
+  RefreshCw,
+  Eye,
+  Check,
+  Shield,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Copy
 } from 'lucide-react';
-import { SupportMessage, SupportTicketItem } from '../../types';
-import { collection, addDoc } from 'firebase/firestore';
+import { SupportMessage, SupportTicketItem, PointTransaction, AccountSecurityShield } from '../../types';
+import { collection, addDoc, doc, getDoc, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { SixLayerSecurityShield } from './SixLayerSecurityShield';
 
 interface HaevySupportAiViewProps {
   user: any;
@@ -42,6 +57,11 @@ interface HaevySupportAiViewProps {
   isFullScreen?: boolean;
   onNavigateToSecurity?: () => void;
   onNavigateToVip?: () => void;
+  transactions?: PointTransaction[];
+  audioPoints?: number;
+  totalEarnedPoints?: number;
+  vipExpiresAt?: string | null;
+  initialTab?: 'chat' | 'security' | 'history' | 'ticket' | 'faq';
 }
 
 const EMOJIS = ['❤️', '🔥', '👍', '💡', '😂', '🎉', '✨', '🎧', '💯', '🙏', '🛡️', '⚡', '👑', '🚀', '⭐', '🥰'];
@@ -73,8 +93,96 @@ export function HaevySupportAiView({
   isFullScreen = false,
   onNavigateToSecurity,
   onNavigateToVip,
+  transactions,
+  audioPoints = 0,
+  totalEarnedPoints = 0,
+  vipExpiresAt,
+  initialTab = 'chat'
 }: HaevySupportAiViewProps) {
-  const [activeTab, setActiveTab] = useState<'chat' | 'ticket' | 'faq'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'security' | 'history' | 'ticket' | 'faq'>(initialTab);
+
+  // Sync active tab whenever initialTab changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  // Security Shield & History State
+  const [shieldData, setShieldData] = useState<AccountSecurityShield | null>(null);
+  const [loadingShield, setLoadingShield] = useState(false);
+  const [localTransactions, setLocalTransactions] = useState<PointTransaction[]>(transactions || []);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'transactions' | 'security'>('all');
+  const [historySearch, setHistorySearch] = useState('');
+  const [isAiAuditing, setIsAiAuditing] = useState(false);
+  const [aiAuditReport, setAiAuditReport] = useState<string | null>(null);
+
+  // Load real-time 6-layer shield data from Firestore
+  useEffect(() => {
+    if (!user) return;
+    const fetchShield = async () => {
+      setLoadingShield(true);
+      try {
+        const shieldRef = doc(db, 'users', user.uid, 'security', 'shield');
+        const snap = await getDoc(shieldRef);
+        if (snap.exists()) {
+          setShieldData(snap.data() as AccountSecurityShield);
+        } else {
+          setShieldData({
+            layer1PasswordEnabled: true,
+            layer1LastVerifiedAt: new Date().toISOString(),
+            layer2EmailOtpEnabled: true,
+            layer2PrimaryEmail: user.email || '',
+            layer3PinCodeEnabled: false,
+            layer4RecoveryEmailEnabled: false,
+            layer5FaceIdEnabled: false,
+            layer6MasterActivationCode: 'HAEVY-SEC-INIT-2026-X89B',
+            securityScore: 40,
+            overallLockLevel: 'standard'
+          });
+        }
+      } catch (err) {
+        console.warn('Error loading shield data in support view:', err);
+      } finally {
+        setLoadingShield(false);
+      }
+    };
+    fetchShield();
+  }, [user]);
+
+  // Load transactions if not passed
+  useEffect(() => {
+    if (transactions && transactions.length > 0) {
+      setLocalTransactions(transactions);
+      return;
+    }
+    if (!user) return;
+    const fetchTxs = async () => {
+      setLoadingTransactions(true);
+      try {
+        const q = query(
+          collection(db, 'pointTransactions'),
+          orderBy('createdAt', 'desc'),
+          limit(25)
+        );
+        const snap = await getDocs(q);
+        const txs: PointTransaction[] = snap.docs.map(d => ({
+          id: d.id,
+          title: d.data().title || 'Biến động điểm',
+          amount: d.data().amount || 0,
+          type: d.data().type || 'listen',
+          createdAt: d.data().createdAt || new Date().toISOString()
+        }));
+        setLocalTransactions(txs);
+      } catch (e) {
+        console.warn('Error fetching transactions in support:', e);
+      } finally {
+        setLoadingTransactions(false);
+      }
+    };
+    fetchTxs();
+  }, [user, transactions]);
 
   // Handle ESC key to exit full screen
   useEffect(() => {
@@ -87,22 +195,24 @@ export function HaevySupportAiView({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
   const [messages, setMessages] = useState<SupportMessage[]>([
     {
       id: 'welcome',
       sender: 'ai',
-      text: `Xin chào ${user?.displayName || 'bạn'}! Tôi là **Haevy Support AI** — Trợ lý Trí Tuệ Nhân Tạo hỗ trợ khách hàng & an ninh tài khoản 24/7 trong phiên chat **Haevy Message**.
+      text: `Xin chào ${user?.displayName || 'bạn'}! Tôi là **Haevy Support AI** — Trợ lý Trí Tuệ Nhân Tạo hỗ trợ khách hàng, giám sát lịch sử & an ninh tài khoản 24/7 trong phiên chat **Haevy Message**.
 
-Tôi sẵn sàng hỗ trợ bạn tức thì:
-• 🛡️ **Hệ Thống Bảo Vệ 6 Lớp**: Hướng dẫn OTP Gmail, mã PIN 6 số, Gmail cứu hộ, Face ID và Mã Khởi Động Tối Cao.
+Tôi đã tích hợp trực tiếp **Bảo Vệ Tài Khoản 6 Lớp** và **Lịch Sử Biến Động**:
+• 🛡️ **Bảo Vệ 6 Lớp**: Điểm an ninh, OTP Gmail, mã PIN 6 số, Face ID AI và Mã Khởi Động Phần Cứng (có thể cấu hình ngay trong tab Bảo Vệ).
+• 📜 **Lịch Sử Biến Động & An Ninh**: Rà soát nhật ký cộng/trừ điểm Audio, kiểm tra đăng nhập và đánh giá an toàn tài khoản.
 • 👑 **Đặc Quyền Hội Viên VIP**: Âm thanh Hi-Fi Lossless, Deep Bass Boost, âm trường 3D và x3 điểm thưởng.
-• 🎵 **Studio Tác Giả & Âm Nhạc**: Xác minh eKYC nghệ sĩ, phát hành bài hát và Studio lồng tiếng AI TTS.
-• 🎮 **Haevy Games & Khiếu Nại**: Hỗ trợ khắc phục sự cố nạp điểm, kết nối tin nhắn và đấu trường trò chơi.
+• ⚡ **Tự Động 1-Click**: Kích hoạt toàn diện cả 6 lớp bảo vệ đạt 100/100 điểm chỉ với một thao tác.
 
-Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình bất cứ lúc nào!`,
+Hãy chọn hành động nhanh bên dưới hoặc nhắn tin/gửi ghi âm để được hỗ trợ tức thì!`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       suggestedActions: [
-        { label: '🛡️ Bảo vệ tài khoản 6 lớp', action: 'security_guide' },
+        { label: '🛡️ Kiểm tra an ninh 6 lớp', action: 'audit_security' },
+        { label: '📜 Tra cứu lịch sử biến động điểm', action: 'check_history' },
         { label: '⚡ Kích hoạt tự động 6 lớp (1-Click)', action: 'auto_setup_guide' },
         { label: '🔑 Quên mã PIN / Mật khẩu', action: 'forgot_security' },
         { label: '👑 Quyền lợi gói VIP', action: 'vip_benefits' },
@@ -180,7 +290,30 @@ Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình
         body: JSON.stringify({
           message: text + (attachedImgUrl ? ' [Người dùng có đính kèm ảnh chụp màn hình sự cố]' : ''),
           conversationHistory: messages.slice(-6).map(m => ({ sender: m.sender, text: m.text })),
-          userContext: { displayName: user?.displayName, email: user?.email, accountId, isVip }
+          userContext: { 
+            displayName: user?.displayName, 
+            email: user?.email, 
+            accountId, 
+            isVip,
+            audioPoints: audioPoints || 0,
+            securityScore: shieldData?.securityScore || 40,
+            lockLevel: shieldData?.overallLockLevel || 'standard',
+            hasPassword: shieldData?.layer1PasswordEnabled,
+            hasEmailOtp: shieldData?.layer2EmailOtpEnabled,
+            hasPin: shieldData?.layer3PinCodeEnabled,
+            hasRecoveryEmail: shieldData?.layer4RecoveryEmailEnabled,
+            hasFaceId: shieldData?.layer5FaceIdEnabled,
+            hasActivationCode: !!shieldData?.layer6MasterActivationCode,
+            recentTransactionsSummary: localTransactions.slice(0, 5).map(t => `${t.title} (${t.amount >= 0 ? '+' : ''}${t.amount} pts)`).join(', '),
+            recentSecuritySummary: `Điểm an ninh: ${shieldData?.securityScore || 40}%. Các lớp: ${[
+              shieldData?.layer1PasswordEnabled && 'Mật khẩu',
+              shieldData?.layer2EmailOtpEnabled && 'OTP Gmail',
+              shieldData?.layer3PinCodeEnabled && 'PIN 6 số',
+              shieldData?.layer4RecoveryEmailEnabled && 'Gmail dự phòng',
+              shieldData?.layer5FaceIdEnabled && 'Face ID',
+              shieldData?.layer6MasterActivationCode && 'Mã Khởi Động'
+            ].filter(Boolean).join(', ')}`
+          }
         }),
       });
 
@@ -195,7 +328,8 @@ Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình
           text: aiReply,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           suggestedActions: [
-            { label: '🛡️ Bảo Vệ 6 Lớp', action: 'security_guide' },
+            { label: '🛡️ Bảo Vệ 6 Lớp', action: 'open_security_tab' },
+            { label: '📜 Tra Cứu Lịch Sử', action: 'open_history_tab' },
             { label: '⚡ Kích Hoạt 1-Click', action: 'auto_setup_guide' },
             { label: '👑 Quyền Lợi VIP', action: 'vip_benefits' }
           ]
@@ -208,8 +342,12 @@ Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình
         {
           id: (Date.now() + 1).toString(),
           sender: 'ai',
-          text: 'Hệ thống AI đang phản hồi tự động: Bạn có thể sử dụng nút **⚡ Kích Hoạt Tự Động Toàn Bộ 6 Lớp (1-Click)** trong tab Bảo Vệ 6 Lớp để được hệ thống tự động hoàn thiện an ninh 100% ngay lập tức!',
+          text: 'Hệ thống AI đang phản hồi tự động: Bạn có thể sử dụng nút **⚡ Kích Hoạt Tự Động Toàn Bộ 6 Lớp (1-Click)** trong tab Bảo Vệ để đạt điểm 100/100, hoặc mở tab Lịch Sử để kiểm tra các giao dịch và hoạt động bảo mật gần đây!',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          suggestedActions: [
+            { label: '🛡️ Mở Bảo Vệ 6 Lớp', action: 'open_security_tab' },
+            { label: '📜 Mở Lịch Sử', action: 'open_history_tab' }
+          ]
         }
       ]);
     } finally {
@@ -217,8 +355,61 @@ Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình
     }
   };
 
+  const handleRunAiAudit = async () => {
+    setIsAiAuditing(true);
+    setAiAuditReport(null);
+    try {
+      const response = await fetch('/api/gemini/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'Hãy thực hiện ĐÁNH GIÁ VÀ RÀ SOÁT TOÀN DIỆN AN NINH TÀI KHOẢN & LỊCH SỬ BIẾN ĐỘNG ĐIỂM cho tôi. Hãy phân tích chi tiết: 1) Tình trạng kích hoạt của từng lớp trong Hệ Thống Bảo Vệ 6 Lớp; 2) Đánh giá lịch sử biến động điểm gần nhất; 3) Đưa ra 3 khuyến nghị an ninh khẩn cấp để tài khoản được bảo vệ tối đa 100/100 tuyệt đối.',
+          conversationHistory: [],
+          userContext: {
+            displayName: user?.displayName,
+            email: user?.email,
+            accountId,
+            isVip,
+            audioPoints: audioPoints || 0,
+            securityScore: shieldData?.securityScore || 40,
+            lockLevel: shieldData?.overallLockLevel || 'standard',
+            hasPassword: shieldData?.layer1PasswordEnabled,
+            hasEmailOtp: shieldData?.layer2EmailOtpEnabled,
+            hasPin: shieldData?.layer3PinCodeEnabled,
+            hasRecoveryEmail: shieldData?.layer4RecoveryEmailEnabled,
+            hasFaceId: shieldData?.layer5FaceIdEnabled,
+            hasActivationCode: !!shieldData?.layer6MasterActivationCode,
+            recentTransactionsSummary: localTransactions.slice(0, 8).map(t => `${t.title} (${t.amount >= 0 ? '+' : ''}${t.amount} pts)`).join(', '),
+            recentSecuritySummary: `Điểm an ninh 6 lớp: ${shieldData?.securityScore || 40}%. Các lớp: Mật khẩu, OTP Gmail, PIN 6 số, Gmail dự phòng, Face ID AI, Mã Khởi Động.`
+          }
+        })
+      });
+      const data = await response.json();
+      setAiAuditReport(data.reply || data.fallbackReply || 'Haevy Support AI đã hoàn tất phân tích an ninh & lịch sử.');
+    } catch (err) {
+      console.error('Audit error:', err);
+      setAiAuditReport(`Haevy Support AI - Báo Cáo An Ninh & Lịch Sử Tự Động:
+• Điểm An Ninh 6 Lớp: ${shieldData?.securityScore || 40}/100 (${shieldData?.overallLockLevel === 'maximum_6x' ? 'Tối đa 6 Lớp' : 'Mức Tiêu Chuẩn'}).
+• Lịch Sử Biến Động: Ghi nhận ${localTransactions.length} giao dịch gần nhất, dữ liệu đồng bộ an toàn qua Firestore.
+• Khuyến Nghị: Nhấn nút "Kích Hoạt Tự Động 1-Click" trong tab Bảo Vệ 6 Lớp để nâng điểm an ninh lên 100/100 ngay lập tức!`);
+    } finally {
+      setIsAiAuditing(false);
+    }
+  };
+
   const handleQuickAction = (action: string) => {
+    if (action === 'open_security_tab') {
+      setActiveTab('security');
+      return;
+    }
+    if (action === 'open_history_tab') {
+      setActiveTab('history');
+      return;
+    }
+
     const actionPrompts: Record<string, string> = {
+      audit_security: 'Hãy kiểm tra toàn diện điểm an ninh 6 lớp và lịch sử tài khoản của tôi, đánh giá xem có rủi ro nào không và tư vấn giải pháp tối ưu.',
+      check_history: 'Hãy tra cứu và phân tích lịch sử biến động điểm Audio gần đây cùng các mốc bảo mật trong tài khoản của tôi.',
       security_guide: 'Hãy giải thích chi tiết cơ chế hoạt động của từng lớp trong Hệ Thống Bảo Vệ Tài Khoản 6 Lớp của Haevy.',
       auto_setup_guide: 'Nút kích hoạt tự động 1-Click toàn bộ 6 lớp hoạt động như thế nào? Nó có an toàn không?',
       forgot_security: 'Tôi bị quên mã PIN 6 số hoặc mật khẩu thì làm thế nào để dùng Mã Khởi Động Lớp 6 khôi phục tài khoản?',
@@ -370,8 +561,8 @@ Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình
     }
   };
 
-  return (
-    <div className={`w-full ${isFullScreen ? 'fixed inset-0 z-50 bg-zinc-950/98 backdrop-blur-2xl flex flex-col p-3 sm:p-5 md:p-6 overflow-hidden' : 'space-y-4'} animate-in fade-in duration-300`}>
+  const viewContent = (
+    <div className={`w-full ${isFullScreen ? 'fixed inset-0 z-[99999] bg-zinc-950/98 backdrop-blur-2xl flex flex-col p-2.5 sm:p-4 md:p-6 overflow-hidden h-[100dvh] w-screen' : 'space-y-4'} animate-in fade-in duration-300`}>
       {/* Header Bar */}
       <div className="rounded-3xl bg-zinc-900/95 border border-zinc-800 shadow-2xl p-4 sm:p-5 backdrop-blur-xl flex flex-col md:flex-row items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3.5 w-full md:w-auto">
@@ -421,16 +612,36 @@ Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình
             <Video size={14} />
             <span className="hidden sm:inline">Gọi Video AI</span>
           </button>
-          {onNavigateToSecurity && (
-            <button
-              type="button"
-              onClick={onNavigateToSecurity}
-              className="px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
-            >
-              <ShieldCheck size={14} className="text-amber-400" />
-              <span className="hidden sm:inline">Bảo Vệ 6 Lớp</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setActiveTab('security')}
+            className={`px-3 py-2 rounded-2xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+              activeTab === 'security'
+                ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-md'
+                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
+            }`}
+          >
+            <ShieldCheck size={14} className="text-amber-400" />
+            <span className="hidden sm:inline">Bảo Vệ 6 Lớp</span>
+            <span className="text-[10px] font-mono bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-full">
+              {shieldData?.securityScore || 40}%
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`px-3 py-2 rounded-2xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+              activeTab === 'history'
+                ? 'bg-purple-500/25 text-purple-300 border border-purple-500/50 shadow-md'
+                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
+            }`}
+          >
+            <History size={14} className="text-purple-400" />
+            <span className="hidden sm:inline">Lịch Sử</span>
+            <span className="text-[10px] font-mono bg-purple-500/20 text-purple-300 px-1.5 py-0.2 rounded-full">
+              {localTransactions.length}
+            </span>
+          </button>
 
           {/* Prominent Exit Button */}
           {onClose && (
@@ -448,26 +659,46 @@ Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 p-1 rounded-2xl bg-zinc-900/80 border border-zinc-800/80 max-w-md shrink-0 my-1">
+      {/* Tabs Bar */}
+      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-zinc-900/90 border border-zinc-800/80 max-w-full sm:max-w-2xl shrink-0 my-1 overflow-x-auto no-scrollbar">
         {[
-          { key: 'chat', label: 'Chat Trực Tuyến', icon: MessageSquare },
+          { key: 'chat', label: 'Chat Hỗ Trợ AI', icon: MessageSquare },
+          { 
+            key: 'security', 
+            label: 'Bảo Vệ 6 Lớp', 
+            icon: ShieldCheck,
+            badge: `${shieldData?.securityScore || 40}%`,
+            badgeColor: (shieldData?.securityScore || 40) >= 85 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+          },
+          { 
+            key: 'history', 
+            label: 'Lịch Sử & Biến Động', 
+            icon: History,
+            badge: `${localTransactions.length}`,
+            badgeColor: 'bg-purple-500/20 text-purple-300'
+          },
           { key: 'ticket', label: 'Gửi Ticket', icon: FileText },
           { key: 'faq', label: 'FAQ', icon: HelpCircle }
         ].map(t => {
           const Icon = t.icon;
+          const isActive = activeTab === t.key;
           return (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key as any)}
-              className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === t.key
-                  ? 'bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-md'
-                  : 'text-zinc-400 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'bg-gradient-to-r from-indigo-600 via-sky-600 to-blue-600 text-white shadow-md'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
               }`}
             >
-              <Icon size={13} />
+              <Icon size={13} className={isActive ? 'text-white' : 'text-zinc-400'} />
               <span>{t.label}</span>
+              {t.badge && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${t.badgeColor || 'bg-zinc-800 text-zinc-300'}`}>
+                  {t.badge}
+                </span>
+              )}
             </button>
           );
         })}
@@ -763,7 +994,413 @@ Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình
         </div>
       )}
 
-      {/* TAB 2: Support Tickets */}
+      {/* TAB: BẢO VỆ TÀI KHOẢN (6 LỚP) */}
+      {activeTab === 'security' && (
+        <div className={`space-y-4 ${isFullScreen ? 'flex-1 min-h-0 overflow-y-auto pr-1' : ''}`}>
+          {/* AI Security Advisor Banner */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-indigo-950 via-zinc-900 to-zinc-900 border border-indigo-500/40 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 w-full md:w-auto">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center text-zinc-950 shadow-lg shadow-amber-500/20 font-black shrink-0">
+                <ShieldCheck size={26} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-extrabold text-white text-sm">Hệ Thống Bảo Vệ Tài Khoản 6 Lớp</h3>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                    (shieldData?.securityScore || 40) >= 85
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : (shieldData?.securityScore || 40) >= 50
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  }`}>
+                    {shieldData?.securityScore || 40}/100 Điểm Bảo Vệ
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Haevy Support AI giám sát an ninh liên tục, bảo vệ phiên đăng nhập, OTP và khóa khởi động phần cứng
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('chat');
+                  handleSendMessage('Hãy rà soát tình trạng an ninh 6 lớp của tôi và hướng dẫn tôi kích hoạt đầy đủ để đạt 100/100 tuyệt đối.');
+                }}
+                className="px-3.5 py-2 rounded-2xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Bot size={14} />
+                <span>Hỏi Haevy AI Về An Ninh</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('history')}
+                className="px-3.5 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <History size={14} />
+                <span>Xem Nhật Ký Lịch Sử</span>
+              </button>
+            </div>
+          </div>
+
+          {/* SixLayerSecurityShield Component */}
+          <SixLayerSecurityShield
+            user={user}
+            accountId={accountId}
+            isVip={isVip}
+            onOpenSupport={() => setActiveTab('chat')}
+          />
+        </div>
+      )}
+
+      {/* TAB: LỊCH SỬ HOẠT ĐỘNG & BIẾN ĐỘNG TÀI KHOẢN */}
+      {activeTab === 'history' && (
+        <div className={`space-y-4 ${isFullScreen ? 'flex-1 min-h-0 overflow-y-auto pr-1' : ''}`}>
+          {/* Top Summary Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <Coins size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Điểm Hiện Có</p>
+                <p className="text-base font-black text-amber-300 font-mono truncate">{audioPoints.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <Award size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Tổng Đã Nhận</p>
+                <p className="text-base font-black text-emerald-300 font-mono truncate">{totalEarnedPoints.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                <ShieldCheck size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Điểm An Ninh</p>
+                <p className="text-base font-black text-indigo-300 font-mono truncate">{shieldData?.securityScore || 40}/100</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0">
+                <Clock size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Số Bản Ghi</p>
+                <p className="text-base font-black text-sky-300 font-mono truncate">{localTransactions.length} mục</p>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Audit & Health Check Box */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-950/60 via-zinc-900 to-indigo-950/60 border border-purple-500/30 shadow-xl space-y-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-600/30 shrink-0">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
+                    <span>Haevy AI Giám Sát & Phân Tích Lịch Sử Tài Khoản</span>
+                    <span className="text-[9px] bg-purple-500/20 text-purple-300 font-bold px-1.5 py-0.5 rounded-full border border-purple-500/30">Gemini Pro</span>
+                  </h4>
+                  <p className="text-xs text-zinc-400">
+                    Rà soát tự động biến động điểm, phát hiện rủi ro và đánh giá tình trạng an ninh 6 lớp
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRunAiAudit}
+                disabled={isAiAuditing}
+                className="px-4 py-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/30 cursor-pointer disabled:opacity-60 transition-all shrink-0 active:scale-95"
+              >
+                {isAiAuditing ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>AI Đang Rà Soát...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    <span>⚡ AI Quét Lịch Sử & An Ninh</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* AI Audit Output Display */}
+            {aiAuditReport && (
+              <div className="p-4 rounded-2xl bg-zinc-950/80 border border-purple-500/30 space-y-3 animate-in fade-in duration-300">
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-2">
+                  <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                    <CheckCircle2 size={14} className="text-emerald-400" />
+                    Báo Cáo Đánh Giá Từ Haevy Support AI
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(aiAuditReport);
+                        alert('Đã sao chép báo cáo an ninh vào clipboard!');
+                      }}
+                      className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Sao chép báo cáo"
+                    >
+                      <Copy size={12} />
+                      <span>Sao chép</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('chat');
+                        handleSendMessage('Tôi muốn hỏi thêm chi tiết về báo cáo kiểm toán an ninh vừa rồi.');
+                      }}
+                      className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <MessageSquare size={12} />
+                      <span>Hỏi trong chat</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line font-sans">
+                  {aiAuditReport}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Filter & Search Controls */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            {/* Filter Buttons */}
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
+              {[
+                { key: 'all', label: 'Tất Cả' },
+                { key: 'transactions', label: 'Biến Động Điểm' },
+                { key: 'security', label: 'Nhật Ký An Ninh' }
+              ].map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setHistoryFilter(f.key as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                    historyFilter === f.key
+                      ? 'bg-zinc-800 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm giao dịch hoặc hoạt động..."
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 transition-colors"
+              />
+              {historySearch && (
+                <button
+                  onClick={() => setHistorySearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Activity Logs & Transactions Stream */}
+          <div className="p-4 rounded-3xl bg-zinc-900/90 border border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between px-1 pb-2 border-b border-zinc-800/80">
+              <h4 className="text-xs font-bold text-zinc-300 flex items-center gap-2">
+                <History size={14} className="text-purple-400" />
+                <span>Nhật Ký Biến Động Điểm & Hoạt Động An Ninh</span>
+              </h4>
+              <span className="text-[11px] text-zinc-500">Thời gian thực</span>
+            </div>
+
+            {/* Render items */}
+            {(() => {
+              const securityEvents = [
+                {
+                  id: 'sec_layer6',
+                  title: 'Lớp 6: Cấp Mã Khởi Động Tối Cao (Master Key)',
+                  desc: shieldData?.layer6MasterActivationCode ? 'Đã tạo khóa khôi phục phần cứng độc bản và mã hóa an toàn' : 'Chưa cấp mã khởi động',
+                  status: !!shieldData?.layer6MasterActivationCode,
+                  time: 'Hôm nay',
+                  type: 'security_layer',
+                  scoreAdd: '+15%'
+                },
+                {
+                  id: 'sec_layer5',
+                  title: 'Lớp 5: Nhận Diện Khuôn Mặt Face ID AI',
+                  desc: shieldData?.layer5FaceIdEnabled ? 'Sinh trắc học AI hoạt động bảo vệ phiên đăng nhập nhạy cảm' : 'Chưa kích hoạt sinh trắc học',
+                  status: !!shieldData?.layer5FaceIdEnabled,
+                  time: 'Gần đây',
+                  type: 'security_layer',
+                  scoreAdd: '+15%'
+                },
+                {
+                  id: 'sec_layer4',
+                  title: 'Lớp 4: Gmail Dự Phòng Cứu Hộ',
+                  desc: shieldData?.layer4RecoveryEmail ? `Đã xác thực kênh cứu hộ: ${shieldData.layer4RecoveryEmail}` : 'Chưa thiết lập Gmail cứu hộ',
+                  status: !!shieldData?.layer4RecoveryEmailEnabled,
+                  time: 'Gần đây',
+                  type: 'security_layer',
+                  scoreAdd: '+15%'
+                },
+                {
+                  id: 'sec_layer3',
+                  title: 'Lớp 3: Mã PIN 6 Số Bảo Mật Giao Dịch',
+                  desc: shieldData?.layer3PinCodeEnabled ? 'Bảo vệ giao dịch đổi quà và nạp điểm bằng mã PIN cá nhân' : 'Chưa thiết lập mã PIN 6 số',
+                  status: !!shieldData?.layer3PinCodeEnabled,
+                  time: 'Gần đây',
+                  type: 'security_layer',
+                  scoreAdd: '+15%'
+                },
+                {
+                  id: 'sec_layer2',
+                  title: 'Lớp 2: Xác Thực OTP Gmail 6 Số',
+                  desc: shieldData?.layer2EmailOtpEnabled ? `Đã liên kết xác thực 2 bước với email ${user?.email || ''}` : 'Chưa bật OTP Gmail',
+                  status: !!shieldData?.layer2EmailOtpEnabled,
+                  time: 'Gần đây',
+                  type: 'security_layer',
+                  scoreAdd: '+20%'
+                },
+                {
+                  id: 'sec_layer1',
+                  title: 'Lớp 1: Mật Khẩu Cá Nhân Tài Khoản',
+                  desc: 'Mật khẩu độ phức tạp cao, bảo vệ truy cập ban đầu vào tài khoản',
+                  status: !!shieldData?.layer1PasswordEnabled,
+                  time: 'Gần đây',
+                  type: 'security_layer',
+                  scoreAdd: '+20%'
+                }
+              ];
+
+              let displayTx = localTransactions;
+              let displaySec = securityEvents;
+
+              if (historyFilter === 'transactions') {
+                displaySec = [];
+              } else if (historyFilter === 'security') {
+                displayTx = [];
+              }
+
+              if (historySearch.trim()) {
+                const s = historySearch.toLowerCase();
+                displayTx = displayTx.filter(t => t.title?.toLowerCase().includes(s));
+                displaySec = displaySec.filter(se => se.title.toLowerCase().includes(s) || se.desc.toLowerCase().includes(s));
+              }
+
+              if (displayTx.length === 0 && displaySec.length === 0) {
+                return (
+                  <div className="py-8 text-center text-zinc-500 space-y-2">
+                    <History size={24} className="mx-auto text-zinc-600" />
+                    <p className="text-xs">Không tìm thấy bản ghi nào khớp với điều kiện tìm kiếm.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                  {displaySec.map(sec => (
+                    <div
+                      key={sec.id}
+                      className="p-3 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 hover:border-indigo-500/40 flex items-center justify-between gap-3 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          sec.status
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-zinc-800 text-zinc-500 border border-zinc-700'
+                        }`}>
+                          {sec.status ? <ShieldCheck size={18} /> : <Shield size={18} />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white truncate flex items-center gap-2">
+                            <span>{sec.title}</span>
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                              sec.status ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800 text-zinc-400'
+                            }`}>
+                              {sec.status ? 'Đang Hoạt Động' : 'Chưa Bật'}
+                            </span>
+                          </p>
+                          <p className="text-[11px] text-zinc-400 truncate">{sec.desc}</p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-mono font-bold text-indigo-300 block">{sec.scoreAdd}</span>
+                        <span className="text-[10px] text-zinc-500">{sec.time}</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {displayTx.map((tx, idx) => {
+                    const isPositive = tx.amount >= 0;
+                    return (
+                      <div
+                        key={tx.id || `tx_${idx}`}
+                        className="p-3 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 hover:border-zinc-700 flex items-center justify-between gap-3 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            isPositive
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                          }`}>
+                            {isPositive ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-white truncate">{tx.title}</p>
+                            <p className="text-[10px] text-zinc-500">
+                              {new Date(tx.createdAt).toLocaleString('vi-VN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className={`text-xs font-mono font-black ${
+                            isPositive ? 'text-emerald-400' : 'text-rose-400'
+                          }`}>
+                            {isPositive ? '+' : ''}{tx.amount} pts
+                          </span>
+                          <span className="text-[10px] text-zinc-500 block uppercase font-mono">{tx.type}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: Support Tickets */}
       {activeTab === 'ticket' && (
         <div className={`grid grid-cols-1 lg:grid-cols-3 gap-4 ${isFullScreen ? 'flex-1 min-h-0 overflow-y-auto pr-1' : ''}`}>
           <div className="lg:col-span-2 p-5 rounded-3xl bg-zinc-900/90 border border-zinc-800 shadow-xl space-y-4">
@@ -977,4 +1614,10 @@ Hãy nhập thắc mắc hoặc gửi tin nhắn thoại/ảnh chụp màn hình
       )}
     </div>
   );
+
+  if (isFullScreen && typeof document !== 'undefined') {
+    return createPortal(viewContent, document.body);
+  }
+
+  return viewContent;
 }

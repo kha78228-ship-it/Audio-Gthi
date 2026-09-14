@@ -25,17 +25,27 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Users collection
+    // Users collection (Strict protection against privilege escalation and role tampering)
     match /users/{userId} {
       allow read: if true;
-      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin()) && (
+        isAdmin() || 
+        !request.resource.data.keys().hasAny(['role', 'isAdmin', 'isSuperAdmin', 'subAdminPermissions', 'isBanned']) ||
+        request.resource.data.role == 'user'
+      );
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          request.auth.uid == userId && 
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin', 'isSuperAdmin', 'subAdminPermissions', 'isBanned'])
+        )
+      );
       allow delete: if isAdmin();
 
-      // User point transactions
+      // User point transactions (Immutable financial records - no updates or deletions)
       match /pointTransactions/{txId} {
         allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-        allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow update, delete: if false;
       }
 
       // User 6-Layer Security Shield & credentials config (HIGH SECURITY: Only owner or admin can read/write)
@@ -54,20 +64,45 @@ service cloud.firestore {
         allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
         allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
+
+      // User AI Chat Sessions & History
+      match /aiChatSessions/{sessionId} {
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      }
+
+      // User Mode Badges & Notifications (Real-time count of unviewed items per ecosystem mode)
+      match /modeBadges/{docId} {
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      }
+
+      match /modeNotifications/{notificationId} {
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      }
+
+      // User Personal Notifications & Alerts (Haevy Notification Hub)
+      match /notifications/{notificationId} {
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      }
     }
 
-    // Admin referral codes (6 characters, max 100 uses)
+    // Admin referral codes (6 characters, max 100 uses - prevent tampering with code, maxUses, rewardPoints)
     match /referralCodes/{codeId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if isSignedIn() || isAdmin(); // allow incrementing usedCount upon valid user redemption
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount', 'usedByUids', 'lastUsedAt'])
+      );
     }
 
-    // Anonymous VIP Passes (3-digit 1 month or 1 week)
+    // Anonymous VIP Passes (3-digit 1 month or 1 week - prevent changing duration or code)
     match /anonymousPasses/{passId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if isSignedIn() || isAdmin(); // allow incrementing usedCount
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount', 'lastUsedAt'])
+      );
     }
 
     // Community Audio Tracks
@@ -83,115 +118,219 @@ service cloud.firestore {
       allow update, delete: if (isSignedIn() && (resource.data.addedBy == request.auth.uid || resource.data.authorId == request.auth.uid)) || isAdmin();
     }
 
-    // Author Verifications (Gmail, Phone, CCCD, Face photo)
+    // Author Verifications (Prevent users from self-verifying)
     match /authorVerifications/{verificationId} {
       allow read: if (isSignedIn() && (request.auth.uid == verificationId || resource.data.userId == request.auth.uid)) || isAdmin();
-      allow create: if isSignedIn();
-      allow update, delete: if (isSignedIn() && (request.auth.uid == verificationId || resource.data.userId == request.auth.uid)) || isAdmin();
+      allow create: if isSignedIn() && (request.auth.uid == verificationId || request.resource.data.userId == request.auth.uid) && request.resource.data.status == 'pending';
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        (request.auth.uid == verificationId || resource.data.userId == request.auth.uid) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'reviewedBy', 'reviewedAt', 'rejectionReason'])
+      );
+      allow delete: if isAdmin();
     }
 
     // Gift Donations to Authors
     match /giftDonations/{giftId} {
       allow read: if true;
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.senderUid;
       allow update, delete: if isAdmin();
     }
 
     // Community Posts
     match /communityPosts/{postId} {
       allow read: if true;
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.authorId;
       allow update: if isSignedIn() || isAdmin();
       allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
 
       // Comments subcollection
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isSignedIn();
+        allow create: if isSignedIn() && request.auth.uid == request.resource.data.authorId;
         allow update: if isSignedIn() || isAdmin();
         allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
       }
     }
 
-    // Friend Requests (senderId, receiverId, status: pending/accepted/rejected)
+    // Friend Requests (Protected: sender and receiver only)
     match /friendRequests/{requestId} {
-      allow read: if true;
-      allow write: if isSignedIn() || isAdmin();
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.senderId || 
+        request.auth.uid == resource.data.receiverId || 
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.auth.uid == request.resource.data.senderId || 
+        isAdmin()
+      );
+      allow update, delete: if isSignedIn() && (
+        request.auth.uid == resource.data.senderId || 
+        request.auth.uid == resource.data.receiverId || 
+        isAdmin()
+      );
     }
 
     // Friendships (user1, user2, userIds array)
     match /friendships/{friendshipId} {
-      allow read: if true;
-      allow write: if isSignedIn() || isAdmin();
+      allow read: if isSignedIn() && (
+        resource.data.userIds.hasAny([request.auth.uid]) || 
+        request.auth.uid == resource.data.user1 || 
+        request.auth.uid == resource.data.user2 || 
+        isAdmin()
+      );
+      allow write: if isSignedIn() && (
+        request.resource.data.userIds.hasAny([request.auth.uid]) || 
+        isAdmin()
+      );
     }
 
-    // Couple Romance & Marriage Space
+    // Couple Romance & Marriage Space (Private space protected for the 2 partners only)
     match /couples/{coupleId} {
-      allow read: if true;
-      allow write: if isSignedIn() || isAdmin();
+      allow read: if isSignedIn() && (
+        resource.data.partner1.uid == request.auth.uid || 
+        resource.data.partner2.uid == request.auth.uid || 
+        resource.data.creatorUid == request.auth.uid || 
+        isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.partner1.uid == request.auth.uid || 
+        resource.data.partner2.uid == request.auth.uid || 
+        resource.data.creatorUid == request.auth.uid || 
+        isAdmin()
+      );
+
+      match /loveNotes/{noteId} {
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.creatorUid == request.auth.uid ||
+          isAdmin()
+        );
+      }
 
       match /anniversaryGuesses/{guessId} {
-        allow read: if true;
-        allow write: if isSignedIn() || isAdmin();
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.creatorUid == request.auth.uid ||
+          isAdmin()
+        );
       }
 
       match /customQuizzes/{quizId} {
-        allow read: if true;
-        allow write: if isSignedIn() || isAdmin();
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.creatorUid == request.auth.uid ||
+          isAdmin()
+        );
       }
 
       match /loveCards/{cardId} {
-        allow read: if true;
-        allow write: if isSignedIn() || isAdmin();
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.creatorUid == request.auth.uid ||
+          isAdmin()
+        );
       }
 
       match /voiceMoments/{momentId} {
-        allow read: if true;
-        allow write: if isSignedIn() || isAdmin();
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.creatorUid == request.auth.uid ||
+          isAdmin()
+        );
       }
 
       match /memories/{memoryId} {
-        allow read: if true;
-        allow write: if isSignedIn() || isAdmin();
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.creatorUid == request.auth.uid ||
+          isAdmin()
+        );
       }
 
       match /events/{eventId} {
-        allow read: if true;
-        allow write: if isSignedIn() || isAdmin();
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.creatorUid == request.auth.uid ||
+          isAdmin()
+        );
       }
 
       match /periodLogs/{logId} {
-        allow read: if true;
-        allow write: if isSignedIn() || isAdmin();
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.creatorUid == request.auth.uid ||
+          isAdmin()
+        );
       }
 
       match /diaries/{diaryId} {
-        allow read: if true;
-        allow write: if isSignedIn() || isAdmin();
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner1.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.partner2.uid == request.auth.uid ||
+          get(/databases/$(database)/documents/couples/$(coupleId)).data.creatorUid == request.auth.uid ||
+          isAdmin()
+        );
       }
     }
 
-    // Direct Conversations & Messages
+    // Direct Conversations & Messages (Encrypted and restricted strictly to participants)
     match /conversations/{conversationId} {
-      allow read: if true;
-      allow write: if isSignedIn() || isAdmin();
+      allow read: if isSignedIn() && (
+        resource.data.participants.hasAny([request.auth.uid]) || 
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.participants.hasAny([request.auth.uid]) || 
+        isAdmin()
+      );
+      allow update: if isSignedIn() && (
+        resource.data.participants.hasAny([request.auth.uid]) || 
+        isAdmin()
+      );
+      allow delete: if isAdmin();
 
       match /messages/{messageId} {
-        allow read: if true;
-        allow write: if isSignedIn() || isAdmin();
+        allow read: if isSignedIn() && (
+          get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants.hasAny([request.auth.uid]) || 
+          isAdmin()
+        );
+        allow create: if isSignedIn() && (
+          request.resource.data.senderId == request.auth.uid || 
+          request.resource.data.senderUid == request.auth.uid || 
+          isAdmin()
+        );
+        allow update, delete: if isSignedIn() && (
+          resource.data.senderId == request.auth.uid || 
+          resource.data.senderUid == request.auth.uid || 
+          isAdmin()
+        );
       }
     }
 
     // User Real-time Presence
     match /userPresence/{presenceId} {
       allow read: if true;
-      allow write: if isSignedIn() || true;
+      allow write: if isSignedIn() && (
+        request.auth.uid == presenceId || 
+        (request.resource.data != null && request.resource.data.uid == request.auth.uid) || 
+        isAdmin()
+      );
     }
 
     // System Transparency & Activity Audit Logs (IMMUTABLE: No updates or deletions allowed to prevent cover-ups)
     match /systemAuditLogs/{logId} {
-      allow read: if true;
-      allow create: if true;
+      allow read: if isAdmin();
+      allow create: if isSignedIn() || true;
       allow update, delete: if false;
     }
 
@@ -217,22 +356,22 @@ service cloud.firestore {
     // Friend Thought Bubbles (Bong bóng suy nghĩ / Notes)
     match /thoughtBubbles/{bubbleId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
     // Friend Photo Posts (Trang Tin: Ảnh chụp / Tải lên kèm miêu tả)
     match /friendPhotoPosts/{postId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() || isAdmin();
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
       allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
 
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isSignedIn();
-        allow update: if isSignedIn() || isAdmin();
+        allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
         allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
       }
     }
@@ -245,9 +384,9 @@ service cloud.firestore {
     }
 
     match /crowdBets/{betId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if isAdmin();
     }
 
     // Haevy Games: Đoán Bài Hát (Audio Quiz Tracks)
@@ -259,15 +398,26 @@ service cloud.firestore {
     // Customer Service Support Tickets & Feedback
     match /supportTickets/{ticketId} {
       allow read: if (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email)) || isAdmin();
-      allow create: if true;
-      allow update, delete: if (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email)) || isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
-    // Direct Voice & Video Calling Signaling Sessions
+    // Direct Voice & Video Calling Signaling Sessions (Only participants can access)
     match /activeCalls/{callId} {
-      allow read: if true;
-      allow create: if isSignedIn() || true;
-      allow update, delete: if isSignedIn() || true;
+      allow read: if isSignedIn() && (
+        resource.data.caller.uid == request.auth.uid || 
+        resource.data.recipient.uid == request.auth.uid || 
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.caller.uid == request.auth.uid || 
+        isAdmin()
+      );
+      allow update, delete: if isSignedIn() && (
+        resource.data.caller.uid == request.auth.uid || 
+        resource.data.recipient.uid == request.auth.uid || 
+        isAdmin()
+      );
     }
 
     // Haevy Family Tree (Gia Phả Dòng Tộc Thông Minh)
@@ -291,9 +441,8 @@ service cloud.firestore {
 
     match /familyProposals/{proposalId} {
       allow read: if true;
-      allow create: if isSignedIn() || true;
+      allow create: if isSignedIn();
       allow update, delete: if isSignedIn() || isAdmin();
     }
   }
 }
-

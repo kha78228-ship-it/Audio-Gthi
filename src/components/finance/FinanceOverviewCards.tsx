@@ -9,18 +9,22 @@ import {
   ArrowDownRight,
   ShieldCheck,
   AlertTriangle,
-  Scale
+  Scale,
+  Award,
+  ChevronRight
 } from 'lucide-react';
-import { FinanceWallet, FinanceTransaction, FinanceBudget } from '../../types';
+import { FinanceWallet, FinanceTransaction, FinanceBudget, FinanceAchievementBadge } from '../../types';
 
 interface FinanceOverviewCardsProps {
   wallets: FinanceWallet[];
   transactions: FinanceTransaction[];
   budget?: FinanceBudget;
   selectedMonth: string; // YYYY-MM
+  badges?: FinanceAchievementBadge[];
   onOpenWallets: () => void;
   onOpenBudget: () => void;
   onOpenAiAdvisor: () => void;
+  onOpenAchievements?: () => void;
 }
 
 export function FinanceOverviewCards({
@@ -28,9 +32,11 @@ export function FinanceOverviewCards({
   transactions,
   budget,
   selectedMonth,
+  badges = [],
   onOpenWallets,
   onOpenBudget,
-  onOpenAiAdvisor
+  onOpenAiAdvisor,
+  onOpenAchievements
 }: FinanceOverviewCardsProps) {
   // Format VND currency
   const formatVND = (amount: number) => {
@@ -259,6 +265,56 @@ export function FinanceOverviewCards({
           </div>
         </div>
       </div>
+
+      {/* Achievement Badges Milestone Quick Strip */}
+      {badges.length > 0 && onOpenAchievements && (
+        <div 
+          onClick={onOpenAchievements}
+          className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800 hover:border-amber-500/40 shadow-xl transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 group relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 group-hover:scale-105 transition-transform shrink-0">
+              <Award size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-white group-hover:text-amber-300 transition-colors">
+                  Cột Mốc &amp; Huy Hiệu Tài Chính
+                </span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                  {badges.filter(b => b.isUnlocked).length}/{badges.length} Đã Mở Khóa
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                Chinh phục <span className="text-emerald-400 font-bold">Master Saver</span>, <span className="text-cyan-400 font-bold">Budget Ninja</span> &amp; nhận thưởng Xu Haevy.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <div className="flex items-center -space-x-2">
+              {badges.slice(0, 4).map((b) => (
+                <div 
+                  key={b.id}
+                  title={`${b.title} (${b.isUnlocked ? 'Đã đạt' : 'Đang chinh phục'})`}
+                  className={`w-7 h-7 rounded-full border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold shadow-md transition-transform group-hover:scale-110 ${
+                    b.isUnlocked 
+                      ? 'bg-gradient-to-tr from-amber-500 to-emerald-400 text-zinc-950 ring-1 ring-amber-400/50' 
+                      : 'bg-zinc-800 text-zinc-500'
+                  }`}
+                >
+                  {b.isUnlocked ? '★' : '•'}
+                </div>
+              ))}
+            </div>
+            <span className="text-xs font-bold text-amber-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+              Xem huy hiệu <ChevronRight size={14} />
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

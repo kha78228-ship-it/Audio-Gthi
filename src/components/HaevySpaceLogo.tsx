@@ -193,26 +193,26 @@ export function HaevySpaceLogo({
 
   if (variant === 'hero') {
     return (
-      <div className={`flex flex-col items-center text-center ${className}`}>
+      <div className={`flex flex-col items-center text-center max-w-full overflow-hidden ${className}`}>
         {/* Grand Hero Emblem with Floating Celestial Rays */}
-        <div className="relative mb-5 sm:mb-6">
+        <div className="relative mb-4 sm:mb-6">
           {/* Background Warp Tunnel Aura */}
-          <div className="absolute -inset-8 bg-gradient-to-r from-cyan-500/20 via-indigo-600/30 to-amber-500/20 rounded-full blur-2xl animate-pulse pointer-events-none" />
+          <div className="absolute -inset-4 sm:-inset-8 bg-gradient-to-r from-cyan-500/20 via-indigo-600/30 to-amber-500/20 rounded-full blur-2xl animate-pulse pointer-events-none" />
           
           {/* Large Emblem */}
           {renderSpatialEmblem()}
 
           {/* Floating Orbiting Badges */}
-          <div className="absolute -top-2 -right-4 px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/60 text-cyan-300 text-[10px] font-black tracking-widest shadow-lg shadow-cyan-500/30 animate-bounce">
+          <div className="absolute -top-2 -right-2 sm:-right-4 px-2 sm:px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/60 text-cyan-300 text-[9px] sm:text-[10px] font-black tracking-widest shadow-lg shadow-cyan-500/30 animate-bounce">
             5D AR
           </div>
-          <div className="absolute -bottom-2 -left-4 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-300 text-[10px] font-black tracking-widest shadow-lg shadow-amber-500/30">
+          <div className="absolute -bottom-2 -left-2 sm:-left-4 px-2 sm:px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-300 text-[9px] sm:text-[10px] font-black tracking-widest shadow-lg shadow-amber-500/30">
             60-120 FPS
           </div>
         </div>
 
         {/* Hero Title with Metallic Spatial Gradient */}
-        <h1 className={`${dims.text} font-black tracking-tight mb-2 text-white flex items-center justify-center gap-2 flex-wrap`}>
+        <h1 className={`${dims.text} font-black tracking-tight mb-2 text-white flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap max-w-full`}>
           <span>HAEVY</span>
           <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(34,211,238,0.4)]">
             SPACE
@@ -221,9 +221,9 @@ export function HaevySpaceLogo({
         </h1>
 
         {showSubtitle && (
-          <div className="flex items-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-cyan-500/10 via-indigo-500/15 to-amber-500/10 border border-cyan-500/30 text-cyan-200 text-xs sm:text-sm font-extrabold tracking-wide shadow-inner">
-            <Sparkles size={14} className="text-amber-400 animate-spin" />
-            <span>CỔNG KHÔNG GIAN ĐA CHIỀU • 3D AIR STUDIO & AR 5D</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 rounded-full bg-gradient-to-r from-cyan-500/10 via-indigo-500/15 to-amber-500/10 border border-cyan-500/30 text-cyan-200 text-[10px] sm:text-xs md:text-sm font-extrabold tracking-wide shadow-inner max-w-full">
+            <Sparkles size={12} className="text-amber-400 animate-spin shrink-0" />
+            <span className="truncate max-w-[280px] xs:max-w-none">CỔNG KHÔNG GIAN ĐA CHIỀU • 3D AIR STUDIO & AR 5D</span>
           </div>
         )}
       </div>
@@ -232,10 +232,10 @@ export function HaevySpaceLogo({
 
   // Default 'full' variant
   return (
-    <div className={`flex items-center gap-2.5 sm:gap-3 ${className}`}>
+    <div className={`flex items-center gap-2.5 sm:gap-3 shrink-0 ${className}`}>
       {renderSpatialEmblem()}
-      <div className="flex flex-col text-left">
-        <div className="flex items-center gap-1.5">
+      <div className="flex flex-col text-left shrink-0">
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
           <span className={`${dims.text} font-black text-white tracking-tight`}>Haevy</span>
           <span className={`${dims.text} font-black bg-gradient-to-r from-cyan-400 via-sky-300 to-amber-300 bg-clip-text text-transparent`}>
             Space
@@ -243,7 +243,7 @@ export function HaevySpaceLogo({
           <span className="text-xs sm:text-sm">🌌</span>
         </div>
         {showSubtitle && (
-          <span className={`${dims.sub} font-bold text-cyan-300/80 tracking-wider uppercase`}>
+          <span className={`${dims.sub} font-bold text-cyan-300/80 tracking-wider uppercase whitespace-nowrap`}>
             3D Studio & AR Metaverse
           </span>
         )}

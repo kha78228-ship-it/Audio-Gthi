@@ -371,9 +371,9 @@ export function HaevyMorningView({
   const totalNotifications = unreadMessagesCount + pendingFriendCount + getUnreadAnnouncementsCount();
 
   const handleOpenDrawer = () => {
-    setIsEcosystemDrawerOpen(true);
-    if (onOpenEcosystemDrawer) {
-      onOpenEcosystemDrawer();
+    // Trigger the ultra-responsive, space-optimized Quick Mode Switcher Sheet
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('haevy-open-quick-mode-switcher'));
     }
   };
 
@@ -4506,7 +4506,7 @@ export function HaevyMorningView({
   return (
     <div 
       id="haevy-spatial-canvas-root"
-      className="fixed inset-0 z-50 w-screen h-screen bg-black overflow-hidden select-none flex flex-col justify-between"
+      className="fixed inset-0 z-50 w-full max-w-full h-full h-[100dvh] bg-black overflow-hidden overflow-x-hidden select-none flex flex-col justify-between touch-pan-y overscroll-none"
     >
       {/* Background: Theme image or pure black */}
       {activeEnv.bgUrl && (
@@ -4549,12 +4549,12 @@ export function HaevyMorningView({
       />
 
       {/* ========================================================================= */}
-      {/* TOP BAR: STREAMLINED CONTROLS & ESSENTIAL SWITCHES */}
+      {/* TOP BAR: STREAMLINED CONTROLS & ESSENTIAL SWITCHES (MOBILE ERGONOMIC) */}
       {/* ========================================================================= */}
-      <div className="absolute top-3 left-3 right-3 sm:top-5 sm:left-5 sm:right-5 z-40 flex items-center justify-between pointer-events-none gap-2">
+      <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-40 flex items-center justify-between pointer-events-none gap-1 sm:gap-2">
         
         {/* Left Toolbar: Quick Switchers, Tools, Soundscape & Calibration */}
-        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto flex-wrap max-w-[65%]">
+        <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto flex-nowrap shrink-0 overflow-x-auto no-scrollbar py-0.5 max-w-[50%] sm:max-w-none">
           {/* Quick Space Switcher to Space Portal */}
           {spaceView !== 'portal' && (
             <button
@@ -4563,11 +4563,12 @@ export function HaevyMorningView({
                 setSnapshotToast('🌌 Đã quay về Cổng Chọn Không Gian Haevy Space');
                 setTimeout(() => setSnapshotToast(null), 1800);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-zinc-950/90 hover:bg-zinc-900 border border-cyan-500/40 text-cyan-300 font-bold text-xs shadow-lg backdrop-blur-md transition-all active:scale-95 group"
+              className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-2xl bg-zinc-950/90 hover:bg-zinc-900 border border-cyan-500/40 text-cyan-300 font-bold text-xs shadow-lg backdrop-blur-md transition-all active:scale-95 group shrink-0"
               title="Quay lại Cổng Chọn Không Gian Haevy Space"
             >
-              <Home size={14} className="text-cyan-400 group-hover:scale-110 transition-transform" />
-              <span className="hidden xs:inline">Cổng Space</span>
+              <Home size={13} className="text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Cổng Space</span>
+              <span className="sm:hidden text-[11px]">Cổng</span>
             </button>
           )}
 
@@ -4579,11 +4580,11 @@ export function HaevyMorningView({
                 setSnapshotToast('🐲 Đã chuyển sang Tương Tác Linh Vật 5D Haevy Son');
                 setTimeout(() => setSnapshotToast(null), 1800);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-black font-extrabold text-xs shadow-lg shadow-amber-500/25 transition-all active:scale-95"
+              className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-black font-extrabold text-xs shadow-lg shadow-amber-500/25 transition-all active:scale-95 shrink-0"
               title="Chuyển sang tương tác với Linh vật 5D Haevy Son"
             >
-              <Flame size={14} />
-              <span className="hidden sm:inline">Gặp Pet Haevy Son 5D</span>
+              <Flame size={13} />
+              <span className="hidden md:inline">Gặp Pet 5D</span>
             </button>
           )}
 
@@ -4594,11 +4595,11 @@ export function HaevyMorningView({
                 setSnapshotToast('✍️ Đã chuyển sang Bảng Vẽ & Thư Pháp 3D');
                 setTimeout(() => setSnapshotToast(null), 1800);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/25 transition-all active:scale-95"
+              className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/25 transition-all active:scale-95 shrink-0"
               title="Chuyển sang Bảng Vẽ & Thư Pháp 3D"
             >
-              <PenLine size={14} />
-              <span className="hidden sm:inline">Sang Bảng Vẽ 3D</span>
+              <PenLine size={13} />
+              <span className="hidden md:inline">Bảng Vẽ 3D</span>
             </button>
           )}
 
@@ -4607,7 +4608,7 @@ export function HaevyMorningView({
             <button
               onClick={isCameraActive ? stopCamera : startCamera}
               disabled={isCameraLoading}
-              className={`flex items-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 rounded-2xl text-xs font-bold transition-all shadow-xl border backdrop-blur-xl ${
+              className={`flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-2xl text-xs font-bold transition-all shadow-xl border backdrop-blur-xl shrink-0 ${
                 isCameraActive
                   ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/30'
                   : 'bg-gradient-to-r from-cyan-500 to-indigo-600 border-cyan-400/40 text-white hover:from-cyan-400 hover:to-indigo-500'
@@ -4615,56 +4616,56 @@ export function HaevyMorningView({
               title={isCameraActive ? 'Tắt camera' : 'Bật camera'}
             >
               {isCameraLoading ? (
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={13} className="animate-spin" />
               ) : isCameraActive ? (
-                <Camera size={14} className="text-emerald-400 animate-pulse" />
+                <Camera size={13} className="text-emerald-400 animate-pulse" />
               ) : (
-                <Camera size={14} />
+                <Camera size={13} />
               )}
-              <span className="hidden sm:inline">{isCameraActive ? 'Camera Bật' : 'Bật Camera'}</span>
+              <span className="hidden md:inline">{isCameraActive ? 'Camera Bật' : 'Camera'}</span>
             </button>
           )}
 
           {/* AR Scenery Theme Selector */}
           <button
             onClick={() => setShowSceneDrawer(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-bold backdrop-blur-md shadow-lg transition-all"
+            className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-2xl bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-bold backdrop-blur-md shadow-lg transition-all shrink-0"
             title="Đổi bối cảnh không gian AR"
           >
-            <Compass size={14} className="text-cyan-400" />
-            <span className="hidden sm:inline">Bối Cảnh</span>
+            <Compass size={13} className="text-cyan-400" />
+            <span className="hidden md:inline">Bối Cảnh</span>
           </button>
 
-          {/* Optical Calibration & Low-Light Setting Button (Canvas mode only) */}
+          {/* Optical Calibration & Low-Light Setting Button (Canvas mode only) - Responsive */}
           {spaceView === 'canvas' && (
             <button
               onClick={() => {
                 setShowCalibrationModal(true);
                 if (isCameraActive) runLightingAnalysis(true);
               }}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-2xl border text-xs font-bold backdrop-blur-md shadow-md transition-all ${
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-2xl border text-xs font-bold backdrop-blur-md shadow-md transition-all shrink-0 ${
                 spaceCalibrationData || (isCameraActive && lightingAnalysisStats)
                   ? 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60'
                   : 'bg-zinc-950/80 hover:bg-zinc-900 border-zinc-800 text-zinc-300'
               }`}
               title="Hiệu chuẩn quang học & Phân tích ánh sáng phòng"
             >
-              <Scan size={14} className="text-amber-400" />
-              <span className="hidden md:inline">
+              <Scan size={13} className="text-amber-400" />
+              <span className="hidden lg:inline">
                 {lightingAnalysisStats ? `${lightingAnalysisStats.lux} Lux` : 'Hiệu Chuẩn'}
               </span>
             </button>
           )}
 
-          {/* Direct Share to Community Feed Button */}
+          {/* Direct Share to Community Feed Button - Desktop only */}
           {spaceView === 'canvas' && (
             <button
               onClick={handleDirectShareToCommunity}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-500/50 text-amber-300 font-bold text-xs shadow-lg backdrop-blur-md transition-all active:scale-95"
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-500/50 text-amber-300 font-bold text-xs shadow-lg backdrop-blur-md transition-all active:scale-95 shrink-0"
               title="Chia sẻ tác phẩm 3D lên Bảng Tin Cộng Đồng (+25 Điểm)"
             >
               <Share2 size={13} className="text-amber-400" />
-              <span className="hidden md:inline">Chia Sẻ (+25đ)</span>
+              <span className="hidden lg:inline">Chia Sẻ (+25đ)</span>
             </button>
           )}
 
@@ -4672,7 +4673,7 @@ export function HaevyMorningView({
           {spaceView === 'canvas' && (
             <button
               onClick={autoBalanceScreen}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-zinc-950/80 hover:bg-cyan-950/40 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 font-bold text-xs shadow-lg backdrop-blur-md transition-all active:scale-95 group"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-zinc-950/80 hover:bg-cyan-950/40 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 font-bold text-xs shadow-lg backdrop-blur-md transition-all active:scale-95 group shrink-0"
               title="Tự động cân bằng màn hình: Căn giữa nét vẽ, cân bằng đường chân trời và tối ưu hóa phơi sáng quang học"
             >
               <Scale size={14} className="text-cyan-400 group-hover:rotate-12 transition-transform" />
@@ -4687,12 +4688,12 @@ export function HaevyMorningView({
               setIsSoundMuted(nextMuted);
               morningAudio.playSpatialBackground(soundscape, nextMuted ? 0 : 0.6);
             }}
-            className={`p-2 sm:px-2.5 sm:py-2 rounded-2xl border text-xs transition-all backdrop-blur-md ${
+            className={`p-1.5 sm:px-2.5 sm:py-2 rounded-2xl border text-xs transition-all backdrop-blur-md shrink-0 ${
               !isSoundMuted ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300' : 'bg-zinc-950/80 border-zinc-800 text-zinc-500'
             }`}
             title={isSoundMuted ? 'Bật âm thanh không gian' : 'Tắt âm thanh'}
           >
-            {isSoundMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+            {isSoundMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
           </button>
         </div>
 
@@ -4713,6 +4714,19 @@ export function HaevyMorningView({
             </button>
           </div>
 
+          {/* 🌟 Nút Chuyển Chế Độ Hệ Sinh Thái - Vị trí ưu tiên số 1, Luôn Luôn Hiển Thị Rõ Ràng & Không Bao Giờ Mất */}
+          <button
+            id="space-modes-btn"
+            onClick={handleOpenDrawer}
+            className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs shadow-lg shadow-amber-500/25 border border-amber-300/80 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0 backdrop-blur-xl group ring-1 ring-amber-400/40"
+            title="Chuyển đổi qua các chế độ trong Hệ Sinh Thái Haevy (Audio, AI Hub, Tin Nhắn, VIP, Games,...)"
+          >
+            <Layers size={14} className="text-black group-hover:rotate-12 transition-transform shrink-0" />
+            <span className="text-[11px] sm:text-xs font-black tracking-tight whitespace-nowrap">
+              Chế Độ
+            </span>
+          </button>
+
           {/* Fullscreen Toggle Button */}
           <button
             id="space-fullscreen-btn"
@@ -4731,19 +4745,6 @@ export function HaevyMorningView({
             )}
             <span className="hidden xl:inline text-[11px] font-bold">
               {isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
-            </span>
-          </button>
-
-          {/* Smartphone Ecosystem Mode Switcher Button (Nút điện thoại chuyển các chế độ cạnh nút thông báo) */}
-          <button
-            id="space-modes-btn"
-            onClick={handleOpenDrawer}
-            className="p-2 sm:px-2.5 sm:py-2 rounded-2xl bg-zinc-950/85 hover:bg-zinc-900 border border-zinc-800 hover:border-amber-500/40 text-amber-400 hover:text-amber-300 transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0 backdrop-blur-xl group"
-            title="Chuyển đổi qua các chế độ trong Hệ Sinh Thái Haevy"
-          >
-            <Smartphone size={15} className="text-amber-400 group-hover:scale-110 transition-transform" />
-            <span className="hidden xl:inline text-[11px] font-bold text-zinc-200 group-hover:text-amber-300">
-              Chế độ
             </span>
           </button>
 
@@ -4841,19 +4842,9 @@ export function HaevyMorningView({
           ) : (
             <div className="flex items-center gap-1.5 shrink-0">
               <button
-                id="space-open-modes-btn-guest"
-                onClick={handleOpenDrawer}
-                className="flex items-center gap-1.5 bg-zinc-950/85 hover:bg-zinc-900 text-zinc-200 text-xs font-bold px-2.5 py-1.5 rounded-2xl border border-zinc-800 hover:border-amber-500/40 transition-all cursor-pointer shadow-sm group backdrop-blur-xl"
-                title="Khám phá 6 Chế độ Hệ sinh thái Haevy"
-              >
-                <Layers size={13} className="text-amber-400" />
-                <span className="text-[11px] font-bold">6 Chế Độ</span>
-              </button>
-
-              <button
                 id="space-open-login-btn"
                 onClick={onOpenAuth}
-                className="flex items-center gap-1 bg-white hover:bg-zinc-200 text-black text-xs font-bold px-3 py-1.5 rounded-2xl transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
+                className="flex items-center gap-1 bg-white hover:bg-zinc-200 text-black text-xs font-bold px-2.5 sm:px-3 py-1.5 rounded-2xl transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
               >
                 <LogIn size={13} />
                 <span className="text-[11px]">Đăng nhập</span>
@@ -5031,201 +5022,222 @@ export function HaevyMorningView({
       {spaceView === 'canvas' && (
         <div className="absolute bottom-3 sm:bottom-5 left-3 right-3 sm:left-6 sm:right-6 z-20 pointer-events-none flex flex-col items-center gap-2">
           
-          {/* Toggle Minimize/Maximize Dock Handle */}
-          <button
-            onClick={() => setIsDockMinimized(!isDockMinimized)}
-            className="pointer-events-auto px-3 py-1 rounded-full bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 backdrop-blur-md shadow-lg transition-all"
-          >
-            <span>{isDockMinimized ? 'Hiện Thanh Công Cụ' : 'Thu Gọn'}</span>
-            {isDockMinimized ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
+          {/* Toggle Minimize/Maximize Dock Handle & Quick Mode Switcher */}
+          <div className="pointer-events-auto flex items-center gap-1.5">
+            <button
+              onClick={() => setIsDockMinimized(!isDockMinimized)}
+              className="px-3 py-1 rounded-full bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 backdrop-blur-md shadow-lg transition-all cursor-pointer"
+            >
+              <span>{isDockMinimized ? 'Hiện Thanh Công Cụ' : 'Thu Gọn'}</span>
+              {isDockMinimized ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+
+            {isDockMinimized && (
+              <button
+                id="space-minimized-modes-btn"
+                onClick={handleOpenDrawer}
+                className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-[11px] flex items-center gap-1 backdrop-blur-md shadow-lg shadow-amber-500/20 border border-amber-300/80 transition-all cursor-pointer active:scale-95 ring-1 ring-amber-400/30"
+                title="Chuyển chế độ trong Hệ Sinh Thái Haevy"
+              >
+                <Layers size={12} className="text-black shrink-0" />
+                <span>Chế Độ</span>
+              </button>
+            )}
+          </div>
 
           {!isDockMinimized && (
-            <div className="pointer-events-auto w-full max-w-4xl flex flex-wrap items-center justify-between gap-2.5 bg-zinc-950/95 backdrop-blur-2xl border border-zinc-800/90 p-2 sm:p-2.5 rounded-3xl shadow-2xl animate-in slide-in-from-bottom-3 duration-200">
+            <div className="pointer-events-auto w-full max-w-[calc(100vw-16px)] sm:max-w-4xl bg-zinc-950/95 backdrop-blur-2xl border border-zinc-800/90 p-1.5 sm:p-2.5 rounded-2xl sm:rounded-3xl shadow-2xl animate-in slide-in-from-bottom-3 duration-200 flex flex-col gap-1.5 sm:gap-2 box-border">
               
-              {/* ZONE 1: PRIMARY DRAWING & ERASING TOOLSET */}
-              <div className="flex items-center gap-1.5">
+              {/* ROW 1: PRIMARY DRAWING, COLORS & UNDO/REDO */}
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full overflow-x-auto no-scrollbar py-0.5">
+                
                 {/* Pen vs Selective Eraser Switch */}
-                <div className="flex items-center gap-1 bg-zinc-900/95 p-1 rounded-2xl border border-zinc-800">
-                <button
-                  onClick={() => {
-                    setActiveTool('pen');
-                    activeToolRef.current = 'pen';
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
-                    activeTool === 'pen'
-                      ? 'bg-gradient-to-r from-cyan-500 to-sky-500 text-black shadow-md shadow-cyan-500/25'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                  title="Bút vẽ không gian AR"
-                >
-                  <PenLine size={13} />
-                  <span>Bút Vẽ</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveTool('eraser');
-                    activeToolRef.current = 'eraser';
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
-                    activeTool === 'eraser'
-                      ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/25 animate-pulse'
-                      : 'text-zinc-400 hover:text-rose-300'
-                  }`}
-                  title="Cục tẩy không gian: Chỉ xóa đúng các nét sai mà đầu ngón tay chạm vào"
-                >
-                  <Eraser size={13} />
-                  <span>Cục Tẩy</span>
-                </button>
-              </div>
-
-              {/* Eraser Size Selector (when eraser is active) */}
-              {activeTool === 'eraser' ? (
-                <div className="flex items-center gap-1 bg-rose-950/40 border border-rose-500/40 p-1 rounded-2xl animate-in fade-in">
-                  <span className="text-[10px] text-rose-300 px-1 font-bold">CỠ:</span>
-                  {[
-                    { label: 'Nhỏ', r: 20 },
-                    { label: 'Vừa', r: 34 },
-                    { label: 'Lớn', r: 52 },
-                  ].map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => {
-                        setEraserRadius(item.r);
-                        eraserRadiusRef.current = item.r;
-                      }}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
-                        eraserRadius === item.r
-                          ? 'bg-rose-500 text-white shadow-sm'
-                          : 'text-rose-300/70 hover:text-white'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                /* Color Palette & Brush FX when pen is active */
-                <div className="flex items-center gap-1.5">
-                  {/* Colors */}
-                  <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-900/90 rounded-2xl border border-zinc-800">
-                    {['#fbbf24', '#06b6d4', '#38bdf8', '#f472b6', '#34d399', '#ffffff'].map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => setBrushColor(color)}
-                        style={{ backgroundColor: color }}
-                        className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-all ${
-                          brushColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110' : 'opacity-70 hover:opacity-100'
-                        }`}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Brush FX Selector Dropdown Button */}
+                <div className="flex items-center gap-1 bg-zinc-900/95 p-1 rounded-2xl border border-zinc-800 shrink-0">
                   <button
                     onClick={() => {
-                      setShowBrushFxPicker(!showBrushFxPicker);
-                      setShowMoreActions(false);
+                      setActiveTool('pen');
+                      activeToolRef.current = 'pen';
                     }}
-                    className={`px-2.5 py-1.5 rounded-2xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
-                      showBrushFxPicker
-                        ? 'bg-cyan-500/30 border-cyan-500/50 text-cyan-300'
-                        : 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1 sm:gap-1.5 ${
+                      activeTool === 'pen'
+                        ? 'bg-gradient-to-r from-cyan-500 to-sky-500 text-black shadow-md shadow-cyan-500/25'
+                        : 'text-zinc-400 hover:text-white'
                     }`}
-                    title="Đổi hiệu ứng nét vẽ (Laser, Sao, Cầu vồng, Lửa, Ngọc, Galaxy, Neon, Quantum, Matrix, Aurora)"
+                    title="Bút vẽ không gian AR"
                   >
-                    <Palette size={13} className="text-cyan-400" />
-                    <span className="hidden sm:inline capitalize">
-                      {brushType === 'laser' ? '⚡ Laser' :
-                       brushType === 'stardust' ? '✨ Sao' :
-                       brushType === 'rainbow' ? '🌈 Cầu Vồng' :
-                       brushType === 'plasma' ? '🔥 Lửa' :
-                       brushType === 'emerald' ? '💎 Ngọc' :
-                       brushType === 'galaxy' ? '🌌 Galaxy' :
-                       brushType === 'neon' ? '💠 Neon' :
-                       brushType === 'quantum' ? '⚛️ Quantum' :
-                       brushType === 'matrix' ? '💻 Matrix' : '🌌 Aurora'}
-                    </span>
+                    <PenLine size={13} />
+                    <span>Bút Vẽ</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTool('eraser');
+                      activeToolRef.current = 'eraser';
+                    }}
+                    className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1 sm:gap-1.5 ${
+                      activeTool === 'eraser'
+                        ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/25 animate-pulse'
+                        : 'text-zinc-400 hover:text-rose-300'
+                    }`}
+                    title="Cục tẩy không gian: Chỉ xóa đúng các nét sai mà đầu ngón tay chạm vào"
+                  >
+                    <Eraser size={13} />
+                    <span>Cục Tẩy</span>
                   </button>
                 </div>
-              )}
-            </div>
 
-            {/* ZONE 2: GESTURE MODE & PERFORMANCE (ZERO-LAG) */}
-            <div className="flex items-center gap-1.5">
-              {/* Gesture Mode Selector */}
-              <div className="flex items-center gap-0.5 bg-zinc-900/90 p-1 rounded-2xl border border-zinc-800">
-                <button
-                  onClick={() => setAirWritingTriggerMode('pinch_to_draw')}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
-                    airWritingTriggerMode === 'pinch_to_draw'
-                      ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                  title="Chụm ngón cái & trỏ để viết (Giống cầm bút thật)"
-                >
-                  <span>🫰 Chụm</span>
-                </button>
-                <button
-                  onClick={() => setAirWritingTriggerMode('index_continuous')}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
-                    airWritingTriggerMode === 'index_continuous'
-                      ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                  title="Giơ ngón trỏ và di chuyển để vẽ liên tục"
-                >
-                  <span>☝️ Ngón Trỏ</span>
-                </button>
+                {/* Eraser Size Selector or Color Palette & Brush FX */}
+                {activeTool === 'eraser' ? (
+                  <div className="flex items-center gap-1 bg-rose-950/40 border border-rose-500/40 p-1 rounded-2xl animate-in fade-in shrink-0">
+                    <span className="text-[10px] text-rose-300 px-1 font-bold">CỠ:</span>
+                    {[
+                      { label: 'Nhỏ', r: 20 },
+                      { label: 'Vừa', r: 34 },
+                      { label: 'Lớn', r: 52 },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => {
+                          setEraserRadius(item.r);
+                          eraserRadiusRef.current = item.r;
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                          eraserRadius === item.r
+                            ? 'bg-rose-500 text-white shadow-sm'
+                            : 'text-rose-300/70 hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                    {/* Colors */}
+                    <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 bg-zinc-900/90 rounded-2xl border border-zinc-800">
+                      {['#fbbf24', '#06b6d4', '#38bdf8', '#f472b6', '#34d399', '#ffffff'].map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setBrushColor(color)}
+                          style={{ backgroundColor: color }}
+                          className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full transition-all ${
+                            brushColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110' : 'opacity-70 hover:opacity-100'
+                          }`}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Brush FX Selector Dropdown Button */}
+                    <button
+                      onClick={() => {
+                        setShowBrushFxPicker(!showBrushFxPicker);
+                        setShowMoreActions(false);
+                      }}
+                      className={`px-2 sm:px-2.5 py-1.5 rounded-2xl border text-xs font-bold flex items-center gap-1 transition-all ${
+                        showBrushFxPicker
+                          ? 'bg-cyan-500/30 border-cyan-500/50 text-cyan-300'
+                          : 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                      }`}
+                      title="Đổi hiệu ứng nét vẽ (Laser, Sao, Cầu vồng, Lửa, Ngọc, Galaxy, Neon, Quantum, Matrix, Aurora)"
+                    >
+                      <Palette size={13} className="text-cyan-400" />
+                      <span className="hidden sm:inline capitalize">
+                        {brushType === 'laser' ? '⚡ Laser' :
+                         brushType === 'stardust' ? '✨ Sao' :
+                         brushType === 'rainbow' ? '🌈 Cầu Vồng' :
+                         brushType === 'plasma' ? '🔥 Lửa' :
+                         brushType === 'emerald' ? '💎 Ngọc' :
+                         brushType === 'galaxy' ? '🌌 Galaxy' :
+                         brushType === 'neon' ? '💠 Neon' :
+                         brushType === 'quantum' ? '⚛️ Quantum' :
+                         brushType === 'matrix' ? '💻 Matrix' : '🌌 Aurora'}
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Undo / Redo */}
+                <div className="flex items-center gap-0.5 bg-zinc-900/95 p-1 rounded-2xl border border-zinc-800 shrink-0">
+                  <button
+                    onClick={undoLastStroke}
+                    disabled={strokeCount === 0}
+                    className={`p-1.5 rounded-xl text-xs font-bold transition-all ${
+                      strokeCount > 0
+                        ? 'text-cyan-300 hover:bg-cyan-500/20 active:scale-95'
+                        : 'text-zinc-600 opacity-40 cursor-not-allowed'
+                    }`}
+                    title="Hoàn tác nét sai vừa vẽ (Ctrl+Z)"
+                  >
+                    <Undo2 size={13} />
+                  </button>
+
+                  <button
+                    onClick={redoLastStroke}
+                    disabled={!canRedo}
+                    className={`p-1.5 rounded-xl text-xs font-bold transition-all ${
+                      canRedo
+                        ? 'text-cyan-300 hover:bg-cyan-500/20 active:scale-95'
+                        : 'text-zinc-600 opacity-40 cursor-not-allowed'
+                    }`}
+                    title="Khôi phục nét vừa hoàn tác"
+                  >
+                    <Redo2 size={13} />
+                  </button>
+                </div>
               </div>
 
-              {/* Ultra Low Latency (0-Lag) Accelerator Button */}
-              <button
-                onClick={() => {
-                  const next = !isUltraLowLatency;
-                  setIsUltraLowLatency(next);
-                  isUltraLowLatencyRef.current = next;
-                  setSnapshotToast(next ? '⚡ Đã bật Chế Độ Giảm Trễ Siêu Tốc (MediaPipe 60FPS)!' : 'Đã chuyển về Cân Bằng');
-                  setTimeout(() => setSnapshotToast(null), 2500);
-                }}
-                className={`px-2.5 py-1.5 rounded-2xl border text-xs font-extrabold transition-all flex items-center gap-1.5 ${
-                  isUltraLowLatency
-                    ? 'bg-gradient-to-r from-amber-500/30 to-yellow-500/30 border-amber-400/60 text-amber-300 shadow-md shadow-amber-500/15'
-                    : 'bg-zinc-900/90 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                }`}
-                title="Tối ưu độ trễ siêu nhạy: Tăng tốc độ phản hồi nét vẽ theo ngón tay gần như 0ms"
-              >
-                <Zap size={13} className={isUltraLowLatency ? 'text-amber-400 fill-amber-400' : 'text-zinc-500'} />
-                <span>{isUltraLowLatency ? '⚡ 0-Lag' : '0-Lag'}</span>
-              </button>
+              {/* ROW 2: GESTURES, PERFORMANCE, ZOOM, AI SMART TOOLS & MORE */}
+              <div className="flex items-center justify-between gap-1 sm:gap-2 w-full overflow-x-auto no-scrollbar py-0.5">
+                
+                {/* Gesture Mode Selector */}
+                <div className="flex items-center gap-0.5 bg-zinc-900/90 p-0.5 sm:p-1 rounded-2xl border border-zinc-800 shrink-0">
+                  <button
+                    onClick={() => setAirWritingTriggerMode('pinch_to_draw')}
+                    className={`px-2 sm:px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+                      airWritingTriggerMode === 'pinch_to_draw'
+                        ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                    title="Chụm ngón cái & trỏ để viết (Giống cầm bút thật)"
+                  >
+                    <span>🫰 Chụm</span>
+                  </button>
+                  <button
+                    onClick={() => setAirWritingTriggerMode('index_continuous')}
+                    className={`px-2 sm:px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+                      airWritingTriggerMode === 'index_continuous'
+                        ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                    title="Giơ ngón trỏ và di chuyển để vẽ liên tục"
+                  >
+                    <span>☝️ Trỏ</span>
+                  </button>
+                </div>
 
-              {/* Dual-Hand Pinch-To-Zoom Controls & Caliper Widget */}
-              <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-2xl border border-zinc-800">
+                {/* Ultra Low Latency (0-Lag) Accelerator Button */}
                 <button
                   onClick={() => {
-                    const nextMode = dualHandMode === 'zoom_pan' ? 'dual_draw' : 'zoom_pan';
-                    setDualHandMode(nextMode);
-                    dualHandModeRef.current = nextMode;
-                    setSnapshotToast(nextMode === 'zoom_pan' ? '🔍 Đã bật Thu Phóng 2 Tay (Pinch-To-Zoom)' : '✍️ Đã bật Chế độ Vẽ 2 Tay');
-                    setTimeout(() => setSnapshotToast(null), 2000);
+                    const next = !isUltraLowLatency;
+                    setIsUltraLowLatency(next);
+                    isUltraLowLatencyRef.current = next;
+                    setSnapshotToast(next ? '⚡ Đã bật Chế Độ Giảm Trễ Siêu Tốc (MediaPipe 60FPS)!' : 'Đã chuyển về Cân Bằng');
+                    setTimeout(() => setSnapshotToast(null), 2500);
                   }}
-                  className={`px-2 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
-                    dualHandMode === 'zoom_pan'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                      : 'text-zinc-400 hover:text-white'
+                  className={`px-2 sm:px-2.5 py-1.5 rounded-2xl border text-xs font-extrabold transition-all flex items-center gap-1 shrink-0 ${
+                    isUltraLowLatency
+                      ? 'bg-gradient-to-r from-amber-500/30 to-yellow-500/30 border-amber-400/60 text-amber-300 shadow-md shadow-amber-500/15'
+                      : 'bg-zinc-900/90 border-zinc-800 text-zinc-400 hover:text-zinc-200'
                   }`}
-                  title="Chuyển đổi: Thu phóng bằng 2 ngón tay (Pinch-to-zoom) hoặc Vẽ 2 tay đồng thời"
+                  title="Tối ưu độ trễ siêu nhạy: Tăng tốc độ phản hồi nét vẽ theo ngón tay gần như 0ms"
                 >
-                  <Hand size={12} className={dualHandTelemetry.handsDetected >= 2 ? 'text-amber-400 animate-pulse' : 'text-cyan-400'} />
-                  <span className="hidden md:inline">{dualHandMode === 'zoom_pan' ? 'Thu Phóng 2 Tay' : 'Vẽ 2 Tay'}</span>
-                  {dualHandTelemetry.handsDetected >= 2 && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  )}
+                  <Zap size={12} className={isUltraLowLatency ? 'text-amber-400 fill-amber-400' : 'text-zinc-500'} />
+                  <span>{isUltraLowLatency ? '⚡ 0-Lag' : '0-Lag'}</span>
                 </button>
 
-                <div className="flex items-center gap-0.5">
+                {/* Dual-Hand Zoom & Caliper Controls */}
+                <div className="flex items-center gap-0.5 bg-zinc-900/90 p-0.5 sm:p-1 rounded-2xl border border-zinc-800 shrink-0">
                   <button
                     onClick={() => {
                       const next = Math.max(0.4, Number((spatialZoom - 0.15).toFixed(2)));
@@ -5235,7 +5247,7 @@ export function HaevyMorningView({
                     className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
                     title="Thu nhỏ không gian"
                   >
-                    <ZoomOut size={13} />
+                    <ZoomOut size={12} />
                   </button>
 
                   <button
@@ -5243,7 +5255,7 @@ export function HaevyMorningView({
                       setSpatialZoom(1.0);
                       spatialZoomRef.current = 1.0;
                     }}
-                    className="px-1.5 py-0.5 rounded-lg text-[11px] font-mono font-bold text-cyan-300 hover:bg-cyan-950/40 transition-all"
+                    className="px-1 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-mono font-bold text-cyan-300 hover:bg-cyan-950/40 transition-all"
                     title="Đặt lại mức thu phóng về 100%"
                   >
                     {Math.round(spatialZoom * 100)}%
@@ -5258,99 +5270,79 @@ export function HaevyMorningView({
                     className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
                     title="Phóng to không gian"
                   >
-                    <ZoomIn size={13} />
+                    <ZoomIn size={12} />
                   </button>
                 </div>
-              </div>
-            </div>
 
-            {/* ZONE 3: AI SMART ACTIONS, UNDO/REDO & MORE OPTIONS */}
-            <div className="flex items-center gap-1.5">
-              {/* Undo / Redo */}
-              <div className="flex items-center gap-0.5 bg-zinc-900/95 p-1 rounded-2xl border border-zinc-800">
+                {/* AI Beautify & Shape Straightener */}
                 <button
-                  onClick={undoLastStroke}
-                  disabled={strokeCount === 0}
-                  className={`p-1.5 rounded-xl text-xs font-bold transition-all ${
-                    strokeCount > 0
-                      ? 'text-cyan-300 hover:bg-cyan-500/20 active:scale-95'
-                      : 'text-zinc-600 opacity-40 cursor-not-allowed'
-                  }`}
-                  title="Hoàn tác nét sai vừa vẽ (Ctrl+Z)"
+                  onClick={beautifyAndReconstructStrokesWithAI}
+                  disabled={isAiBeautifying}
+                  className="px-2 sm:px-2.5 py-1.5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white border border-purple-300/40 text-xs font-extrabold flex items-center gap-1 shadow-lg active:scale-95 transition-all shrink-0"
+                  title="Dùng AI Gemini nắn thẳng hình học (tam giác, chữ nhật, parabol,..) và chữ viết tay"
                 >
-                  <Undo2 size={14} />
+                  {isAiBeautifying ? (
+                    <Loader2 size={12} className="animate-spin text-yellow-300" />
+                  ) : (
+                    <Wand2 size={12} className="text-yellow-300" />
+                  )}
+                  <span className="hidden sm:inline">Nắn Thẳng AI</span>
+                  <span className="sm:hidden text-[11px]">Nắn AI</span>
                 </button>
 
+                {/* AI OCR Handwriting Reader */}
                 <button
-                  onClick={redoLastStroke}
-                  disabled={!canRedo}
-                  className={`p-1.5 rounded-xl text-xs font-bold transition-all ${
-                    canRedo
-                      ? 'text-cyan-300 hover:bg-cyan-500/20 active:scale-95'
-                      : 'text-zinc-600 opacity-40 cursor-not-allowed'
-                  }`}
-                  title="Khôi phục nét vừa hoàn tác"
+                  onClick={() => recognizeHandwritingWithAI(false)}
+                  disabled={isRecognizingText}
+                  className="px-2 sm:px-2.5 py-1.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white border border-cyan-300/40 text-xs font-extrabold flex items-center gap-1 shadow-lg active:scale-95 transition-all shrink-0"
+                  title="Đọc chữ viết tay không gian qua AI Vision"
                 >
-                  <Redo2 size={14} />
+                  {isRecognizingText ? <Loader2 size={12} className="animate-spin" /> : <Bot size={12} />}
+                  <span className="hidden sm:inline">Đọc Chữ AI</span>
+                  <span className="sm:hidden text-[11px]">Đọc AI</span>
                 </button>
-              </div>
 
-              {/* Hoàn Thành & Tái Tạo Không Gian Anime 3D & Bản Thể Kỹ Thuật Số */}
-              <button
-                onClick={() => openAnimeMetaverse('home_hub')}
-                className="px-3 sm:px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-sky-400 via-indigo-500 to-fuchsia-500 hover:from-sky-300 hover:to-fuchsia-400 text-white border border-sky-300/60 text-xs font-black flex items-center gap-1.5 shadow-lg shadow-indigo-500/25 active:scale-95 transition-all"
-                title="Vào Haevy Space: Trải nghiệm 2 cơ chế Không gian vẽ 3D và Chơi đùa với Linh vật Haevy Son qua AR"
-              >
-                <Sparkles size={13} className="text-yellow-300" />
-                <span className="inline font-extrabold">Haevy Space (3D & AR)</span>
-              </button>
-
-              {/* AI Beautify & Shape Straightener */}
-              <button
-                onClick={beautifyAndReconstructStrokesWithAI}
-                disabled={isAiBeautifying}
-                className="px-2.5 sm:px-3 py-1.5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white border border-purple-300/40 text-xs font-extrabold flex items-center gap-1.5 shadow-lg active:scale-95 transition-all"
-                title="Dùng AI Gemini nắn thẳng hình học (tam giác, chữ nhật, parabol,..) và chữ viết tay"
-              >
-                {isAiBeautifying ? (
-                  <Loader2 size={13} className="animate-spin text-yellow-300" />
-                ) : (
-                  <Wand2 size={13} className="text-yellow-300" />
-                )}
-                <span className="hidden sm:inline">Nắn Thẳng AI</span>
-              </button>
-
-              {/* AI OCR Handwriting Reader */}
-              <button
-                onClick={() => recognizeHandwritingWithAI(false)}
-                disabled={isRecognizingText}
-                className="px-2.5 sm:px-3 py-1.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white border border-cyan-300/40 text-xs font-extrabold flex items-center gap-1.5 shadow-lg active:scale-95 transition-all"
-                title="Đọc chữ viết tay không gian qua AI Vision"
-              >
-                {isRecognizingText ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />}
-                <span className="hidden sm:inline">Đọc Chữ AI</span>
-              </button>
-
-              {/* More Actions Popover Trigger */}
-              <div className="relative">
+                {/* Ecosystem Mode Switcher Button in Canvas Dock */}
                 <button
-                  onClick={() => {
-                    setShowMoreActions(!showMoreActions);
-                    setShowBrushFxPicker(false);
-                  }}
-                  className={`p-2 rounded-2xl border text-xs font-bold transition-all ${
-                    showMoreActions
-                      ? 'bg-cyan-500/30 border-cyan-500/50 text-cyan-300'
-                      : 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-                  }`}
-                  title="Các tùy chọn & Thao tác khác"
+                  id="space-dock-modes-btn"
+                  onClick={handleOpenDrawer}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black border border-amber-300/80 text-xs font-black shadow-md shadow-amber-500/20 active:scale-95 transition-all shrink-0 cursor-pointer ring-1 ring-amber-400/40"
+                  title="Chuyển sang chế độ khác trong Hệ Sinh Thái Haevy (Audio, AI Hub, VIP, Games,...)"
                 >
-                  <MoreHorizontal size={15} />
+                  <Layers size={13} className="text-black shrink-0" />
+                  <span>Chế Độ</span>
                 </button>
+
+                {/* More Actions Popover Trigger */}
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => {
+                      setShowMoreActions(!showMoreActions);
+                      setShowBrushFxPicker(false);
+                    }}
+                    className={`p-1.5 sm:p-2 rounded-2xl border text-xs font-bold transition-all ${
+                      showMoreActions
+                        ? 'bg-cyan-500/30 border-cyan-500/50 text-cyan-300'
+                        : 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                    }`}
+                    title="Các tùy chọn & Thao tác khác"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
 
                 {/* More Actions Dropdown Menu */}
                 {showMoreActions && (
                   <div className="absolute bottom-full right-0 mb-2 w-56 bg-zinc-950/95 backdrop-blur-2xl border border-zinc-800 p-2 rounded-2xl shadow-2xl animate-in zoom-in-95 z-50 flex flex-col gap-1">
+                    <button
+                      onClick={() => {
+                        handleOpenDrawer();
+                        setShowMoreActions(false);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 text-amber-300 text-xs font-extrabold flex items-center gap-2 transition-all text-left border border-amber-500/40 shadow-sm"
+                    >
+                      <Layers size={14} className="text-amber-400" />
+                      <span>🌌 Chuyển Chế Độ Hệ Sinh Thái</span>
+                    </button>
                     <button
                       onClick={() => {
                         openAnimeMetaverse();

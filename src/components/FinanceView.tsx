@@ -20,7 +20,8 @@ import {
   TrendingUp,
   TrendingDown,
   ShieldCheck,
-  Crown
+  Crown,
+  Award
 } from 'lucide-react';
 import { 
   FinanceWallet, 
@@ -29,7 +30,8 @@ import {
   FinanceBudget, 
   FinanceSavingsGoal, 
   FinanceDebtRecord, 
-  FinanceRecurringTransaction 
+  FinanceRecurringTransaction,
+  FinanceAchievementBadge
 } from '../types';
 import { 
   DEFAULT_FINANCE_CATEGORIES, 
@@ -52,6 +54,11 @@ import { FinanceFamilyFundView } from './finance/FinanceFamilyFundView';
 import { FinanceCalculatorsView } from './finance/FinanceCalculatorsView';
 import { FinanceAddExpenseView } from './finance/FinanceAddExpenseView';
 import { FinanceAIAdvisorModal } from './finance/FinanceAIAdvisorModal';
+import { FinanceAchievementsSection } from './finance/FinanceAchievementsSection';
+import { FinanceMilestoneToast } from './finance/FinanceMilestoneToast';
+import { FinanceBadgeDetailModal } from './finance/FinanceBadgeDetailModal';
+import { computeFinanceAchievements, FINANCE_UNLOCKED_SEEN_KEY, setBadgeClaimed } from '../data/financeAchievements';
+import { useAuth } from '../context/AuthContext';
 
 interface FinanceViewProps {
   currentUserId?: string;
@@ -74,6 +81,8 @@ export function FinanceView({
   openWalletsTrigger,
   openAddTransactionTrigger
 }: FinanceViewProps) {
+  const { addAudioPoints } = useAuth();
+
   // Active 5-Page System
   const [localPage, setLocalPage] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
   const currentPage = activePage || localPage;
@@ -83,8 +92,15 @@ export function FinanceView({
     if (onSelectPage) onSelectPage(p);
   };
 
-  // Sub-tabs for Page 2 (Ngân Sách / Tiết Kiệm / Nợ Vay / Định Kỳ)
-  const [page2SubTab, setPage2SubTab] = useState<'budget' | 'savings' | 'debts' | 'recurring'>(initialPage2SubTab || 'budget');
+  // Sub-tabs for Page 2 (Ngân Sách / Tiết Kiệm / Nợ Vay / Định Kỳ / Huy Hiệu)
+  const [page2SubTab, setPage2SubTab] = useState<'budget' | 'savings' | 'debts' | 'recurring' | 'achievements'>(initialPage2SubTab || 'budget');
+
+  // Page 1 View Switcher (Transactions vs Achievements)
+  const [page1Tab, setPage1Tab] = useState<'transactions' | 'achievements'>('transactions');
+  const [refreshBadgesCounter, setRefreshBadgesCounter] = useState(0);
+  const [toastBadge, setToastBadge] = useState<FinanceAchievementBadge | null>(null);
+  const [selectedModalBadge, setSelectedModalBadge] = useState<FinanceAchievementBadge | null>(null);
+  const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
 
   // React to initialPage2SubTab prop changes
   useEffect(() => {
@@ -140,6 +156,35 @@ export function FinanceView({
     if (saved) return JSON.parse(saved);
     return DEFAULT_FINANCE_RECURRING;
   });
+
+  // Real-time evaluation of achievement badges based on user milestones
+  const badges = React.useMemo(() => {
+    return computeFinanceAchievements({
+      wallets,
+      transactions,
+      budget,
+      savingsGoals,
+      debts,
+      selectedMonth
+    });
+  }, [wallets, transactions, budget, savingsGoals, debts, selectedMonth, refreshBadgesCounter]);
+
+  // Monitor newly reached milestones during the current session
+  useEffect(() => {
+    try {
+      const seenRaw = sessionStorage.getItem(FINANCE_UNLOCKED_SEEN_KEY);
+      const seenIds: string[] = seenRaw ? JSON.parse(seenRaw) : [];
+      
+      const newlyUnlocked = badges.find(b => b.isUnlocked && !seenIds.includes(b.id));
+      if (newlyUnlocked) {
+        const nextSeen = [...seenIds, newlyUnlocked.id];
+        sessionStorage.setItem(FINANCE_UNLOCKED_SEEN_KEY, JSON.stringify(nextSeen));
+        setToastBadge(newlyUnlocked);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [badges]);
 
   // Modal Controls
   const [isWalletsModalOpen, setIsWalletsModalOpen] = useState(false);
@@ -450,118 +495,219 @@ export function FinanceView({
               transactions={transactions}
               budget={budget}
               selectedMonth={selectedMonth}
+              badges={badges}
               onOpenWallets={() => setIsWalletsModalOpen(true)}
               onOpenBudget={() => handleSetPage('page2')}
               onOpenAiAdvisor={() => setIsAiAdvisorOpen(true)}
+              onOpenAchievements={() => setPage1Tab('achievements')}
             />
 
-            {/* Quick Mini Charts & Full Transactions */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-8">
-                <FinanceTransactionList
-                  transactions={transactions}
-                  categories={categories}
-                  wallets={wallets}
-                  selectedMonth={selectedMonth}
-                  onAddTransaction={handleAddTransaction}
-                  onEditTransaction={handleEditTransaction}
-                  onDeleteTransaction={handleDeleteTransaction}
-                  onExportCSV={handleExportCSV}
-                />
+            {/* Page 1 Sub-Tab Switcher: Transactions vs Achievements */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-2">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => setPage1Tab('transactions')}
+                  className={`px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+                    page1Tab === 'transactions'
+                      ? 'bg-zinc-800 text-white border border-zinc-700 shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                  }`}
+                >
+                  <span>📋 Sổ Nhật Ký &amp; Giao Dịch</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-900 text-zinc-400 font-bold">
+                    {transactions.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setPage1Tab('achievements')}
+                  className={`px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+                    page1Tab === 'achievements'
+                      ? 'bg-gradient-to-r from-amber-500/20 to-emerald-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                  }`}
+                >
+                  <Award size={14} className="text-amber-400" />
+                  <span>Cột Mốc &amp; Huy Hiệu</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold border border-emerald-500/30">
+                    {badges.filter(b => b.isUnlocked).length}/{badges.length} Đã Đạt
+                  </span>
+                </button>
               </div>
 
-              {/* Sidebar Quick Shortcuts */}
-              <div className="lg:col-span-4 space-y-4">
-                {/* Savings Goal Quick Peek */}
-                <div className="p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                      <PiggyBank size={15} className="text-cyan-400" />
-                      Mục Tiêu Tích Lũy
-                    </h4>
-                    <button
-                      onClick={() => handleSetPage('page2')}
-                      className="text-[11px] font-bold text-cyan-400 hover:underline cursor-pointer"
-                    >
-                      Xem tất cả ({savingsGoals.length})
-                    </button>
-                  </div>
+              {page1Tab === 'achievements' && (
+                <button
+                  onClick={() => setPage1Tab('transactions')}
+                  className="text-xs text-zinc-400 hover:text-emerald-400 font-bold transition-colors cursor-pointer self-start sm:self-auto"
+                >
+                  ← Trở lại sổ giao dịch
+                </button>
+              )}
+            </div>
 
-                  {savingsGoals.slice(0, 2).map(goal => (
-                    <div key={goal.id} className="p-3 rounded-2xl bg-zinc-950 border border-zinc-800/80 space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-white">{goal.title}</span>
-                        <span className="text-cyan-400 font-extrabold">
-                          {Math.round((goal.currentAmount / goal.targetAmount) * 100)}%
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-cyan-500 rounded-full"
-                          style={{ width: `${Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Debt & Loan Summary Peek */}
-                <div className="p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                      <Users size={15} className="text-teal-400" />
-                      Sổ Vay Nợ Nhanh
-                    </h4>
-                    <button
-                      onClick={() => handleSetPage('page2')}
-                      className="text-[11px] font-bold text-teal-400 hover:underline cursor-pointer"
-                    >
-                      Chi tiết
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-center">
-                    <div className="p-2.5 rounded-2xl bg-zinc-950 border border-zinc-800">
-                      <span className="text-[10px] text-zinc-400">Cho vay</span>
-                      <p className="text-xs font-black text-teal-300">
-                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
-                          debts.filter(d => d.type === 'lent' && d.status !== 'completed').reduce((s, d) => s + (d.amount - d.paidAmount), 0)
-                        )}
-                      </p>
-                    </div>
-                    <div className="p-2.5 rounded-2xl bg-zinc-950 border border-zinc-800">
-                      <span className="text-[10px] text-zinc-400">Đi vay</span>
-                      <p className="text-xs font-black text-rose-400">
-                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
-                          debts.filter(d => d.type === 'borrowed' && d.status !== 'completed').reduce((s, d) => s + (d.amount - d.paidAmount), 0)
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Analytics Quick Peek */}
-                <div className="p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                      <BarChart3 size={15} className="text-emerald-400" />
-                      Phân Bổ Chi Tiêu
-                    </h4>
-                    <button
-                      onClick={() => handleSetPage('page5')}
-                      className="text-[11px] font-bold text-emerald-400 hover:underline cursor-pointer"
-                    >
-                      Tính toán tài chính
-                    </button>
-                  </div>
-                  <FinanceAnalyticsCharts
+            {/* Achievements View on Page 1 */}
+            {page1Tab === 'achievements' ? (
+              <FinanceAchievementsSection
+                badges={badges}
+                onRefreshBadges={() => setRefreshBadgesCounter(c => c + 1)}
+              />
+            ) : (
+              /* Quick Mini Charts & Full Transactions */
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-8">
+                  <FinanceTransactionList
                     transactions={transactions}
                     categories={categories}
+                    wallets={wallets}
                     selectedMonth={selectedMonth}
+                    onAddTransaction={handleAddTransaction}
+                    onEditTransaction={handleEditTransaction}
+                    onDeleteTransaction={handleDeleteTransaction}
+                    onExportCSV={handleExportCSV}
                   />
                 </div>
+
+                {/* Sidebar Quick Shortcuts */}
+                <div className="lg:col-span-4 space-y-4">
+                  {/* Milestone Achievements Quick Peek */}
+                  <div className="p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                        <Award size={15} className="text-amber-400" />
+                        Cột Mốc Huy Hiệu Nổi Bật
+                      </h4>
+                      <button
+                        onClick={() => setPage1Tab('achievements')}
+                        className="text-[11px] font-bold text-amber-400 hover:underline cursor-pointer"
+                      >
+                        Tất cả ({badges.length})
+                      </button>
+                    </div>
+
+                    {badges.slice(0, 2).map(badge => (
+                      <div 
+                        key={badge.id}
+                        onClick={() => {
+                          setSelectedModalBadge(badge);
+                          setIsBadgeModalOpen(true);
+                        }}
+                        className="p-3 rounded-2xl bg-zinc-950 border border-zinc-800/80 hover:border-amber-500/40 transition-all cursor-pointer space-y-1.5 group"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-white group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
+                            <span>{badge.isUnlocked ? '🏆' : '🔒'}</span>
+                            <span>{badge.title}</span>
+                          </span>
+                          <span className={`text-[11px] font-black ${badge.isUnlocked ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                            {badge.progressPercent}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              badge.isUnlocked ? 'bg-gradient-to-r from-amber-400 to-emerald-400' : 'bg-zinc-700'
+                            }`}
+                            style={{ width: `${Math.min(badge.progressPercent, 100)}%` }}
+                          />
+                        </div>
+                        <div className="text-[10px] text-zinc-400 truncate">
+                          {badge.milestoneDescription}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Savings Goal Quick Peek */}
+                  <div className="p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                        <PiggyBank size={15} className="text-cyan-400" />
+                        Mục Tiêu Tích Lũy
+                      </h4>
+                      <button
+                        onClick={() => handleSetPage('page2')}
+                        className="text-[11px] font-bold text-cyan-400 hover:underline cursor-pointer"
+                      >
+                        Xem tất cả ({savingsGoals.length})
+                      </button>
+                    </div>
+
+                    {savingsGoals.slice(0, 2).map(goal => (
+                      <div key={goal.id} className="p-3 rounded-2xl bg-zinc-950 border border-zinc-800/80 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-white">{goal.title}</span>
+                          <span className="text-cyan-400 font-extrabold">
+                            {Math.round((goal.currentAmount / goal.targetAmount) * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-cyan-500 rounded-full"
+                            style={{ width: `${Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Debt & Loan Summary Peek */}
+                  <div className="p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                        <Users size={15} className="text-teal-400" />
+                        Sổ Vay Nợ Nhanh
+                      </h4>
+                      <button
+                        onClick={() => handleSetPage('page2')}
+                        className="text-[11px] font-bold text-teal-400 hover:underline cursor-pointer"
+                      >
+                        Chi tiết
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      <div className="p-2.5 rounded-2xl bg-zinc-950 border border-zinc-800">
+                        <span className="text-[10px] text-zinc-400">Cho vay</span>
+                        <p className="text-xs font-black text-teal-300">
+                          {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
+                            debts.filter(d => d.type === 'lent' && d.status !== 'completed').reduce((s, d) => s + (d.amount - d.paidAmount), 0)
+                          )}
+                        </p>
+                      </div>
+                      <div className="p-2.5 rounded-2xl bg-zinc-950 border border-zinc-800">
+                        <span className="text-[10px] text-zinc-400">Đi vay</span>
+                        <p className="text-xs font-black text-rose-400">
+                          {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
+                            debts.filter(d => d.type === 'borrowed' && d.status !== 'completed').reduce((s, d) => s + (d.amount - d.paidAmount), 0)
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Analytics Quick Peek */}
+                  <div className="p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                        <BarChart3 size={15} className="text-emerald-400" />
+                        Phân Bổ Chi Tiêu
+                      </h4>
+                      <button
+                        onClick={() => handleSetPage('page5')}
+                        className="text-[11px] font-bold text-emerald-400 hover:underline cursor-pointer"
+                      >
+                        Tính toán tài chính
+                      </button>
+                    </div>
+                    <FinanceAnalyticsCharts
+                      transactions={transactions}
+                      categories={categories}
+                      selectedMonth={selectedMonth}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -575,6 +721,7 @@ export function FinanceView({
                 { id: 'savings', label: '🐷 Mục Tiêu Tiết Kiệm' },
                 { id: 'debts', label: '👥 Sổ Vay Nợ & Trả Góp' },
                 { id: 'recurring', label: '🔁 Hóa Đơn Định Kỳ' },
+                { id: 'achievements', label: '🏆 Cột Mốc & Huy Hiệu' },
               ].map((sub) => (
                 <button
                   key={sub.id}
@@ -589,6 +736,14 @@ export function FinanceView({
                 </button>
               ))}
             </div>
+
+            {/* Sub-view: Achievements */}
+            {page2SubTab === 'achievements' && (
+              <FinanceAchievementsSection
+                badges={badges}
+                onRefreshBadges={() => setRefreshBadgesCounter(c => c + 1)}
+              />
+            )}
 
             {/* Sub-view: Budget */}
             {page2SubTab === 'budget' && (
@@ -732,6 +887,44 @@ export function FinanceView({
               ...updatedCategoryLimits,
             },
           }));
+        }}
+      />
+
+      {/* Newly Unlocked Milestone Toast Banner */}
+      <FinanceMilestoneToast
+        unlockedBadge={toastBadge}
+        onClose={() => setToastBadge(null)}
+        onViewBadge={(b) => {
+          setSelectedModalBadge(b);
+          setIsBadgeModalOpen(true);
+          setToastBadge(null);
+        }}
+      />
+
+      {/* Badge Detail & Reward Claim Modal */}
+      <FinanceBadgeDetailModal
+        badge={selectedModalBadge}
+        isOpen={isBadgeModalOpen}
+        onClose={() => {
+          setIsBadgeModalOpen(false);
+          setSelectedModalBadge(null);
+        }}
+        onClaimReward={async (badgeId) => {
+          const target = badges.find(b => b.id === badgeId);
+          if (target && target.isUnlocked && !target.isClaimed) {
+            setBadgeClaimed(badgeId);
+            if (addAudioPoints) {
+              await addAudioPoints(
+                target.rewardXu,
+                `Thưởng Cột Mốc Tài Chính: ${target.title} (${target.subtitle})`,
+                'bonus'
+              );
+            }
+            setRefreshBadgesCounter(c => c + 1);
+            if (selectedModalBadge) {
+              setSelectedModalBadge(prev => prev ? { ...prev, isClaimed: true } : null);
+            }
+          }
         }}
       />
     </div>

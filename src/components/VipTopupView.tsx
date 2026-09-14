@@ -37,7 +37,13 @@ import {
   Radio,
   Share2,
   Heart,
-  TrendingUp
+  TrendingUp,
+  Compass,
+  BrainCircuit,
+  GitFork,
+  Calendar,
+  Eye,
+  Gamepad2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -54,6 +60,7 @@ import {
 import { VIP_PRIVILEGES_LIST, POINT_TOPUP_PACKAGES } from '../data';
 import { collection, query, orderBy, limit, getDocs, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { VipAiIntelligenceDashboard } from './VipAiIntelligenceDashboard';
 
 interface VipTopupViewProps {
   onOpenAuth: () => void;
@@ -61,8 +68,9 @@ interface VipTopupViewProps {
   allTracks?: Track[];
   currentTrack?: Track;
   onOpenGiftShopModal?: (author?: any) => void;
-  activePage?: 'page1' | 'page2' | 'page3' | 'page4';
-  onSelectPage?: (page: 'page1' | 'page2' | 'page3' | 'page4') => void;
+  activePage?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
+  onSelectPage?: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
+  onNavigateMode?: (mode: string, params?: any) => void;
 }
 
 export const VIP_PACKAGES: VipPackage[] = [
@@ -73,13 +81,15 @@ export const VIP_PACKAGES: VipPackage[] = [
     priceVnd: 30000,
     bonusPoints: 300,
     tier: 'vip',
-    description: 'Trải nghiệm âm thanh Hi-Fi & tăng x3 Xu Haevy trong 7 ngày',
+    description: 'Trải nghiệm âm thanh Hi-Fi, x3 Xu Haevy & mở khóa đặc quyền đa chế độ trong 7 ngày',
     features: [
       'Âm thanh Hi-Fi Lossless 320kbps & 24-bit/96kHz',
+      'Haevy Spiritual: Trải 78 lá Tarot 3D & Xem Tử Vi 2026',
+      'Haevy AI Master: Phân tích tài liệu logic chuyên sâu không giới hạn',
       'Haevy Finance: Tăng x3 Xu Haevy & 0% Phí chuyển xu',
       'Haevy Message: Khung avatar VIP & Tin nhắn thoại HD',
       'Haevy Studio: Giảm 33% phí AI Voice & Hàng chờ số 1',
-      'I Love Haevy: Mở khóa Theme hẹn hò VIP lãng mạn',
+      'Haevy Lite: Tặng trọn bộ 7 Phông Chữ Độc Quyền',
       'Thưởng ngay +300 Xu Haevy'
     ]
   },
@@ -92,13 +102,16 @@ export const VIP_PACKAGES: VipPackage[] = [
     bonusPoints: 1000,
     tier: 'vip',
     isPopular: true,
-    description: 'Gói tiết kiệm & được yêu thích nhất cho người yêu âm nhạc',
+    description: 'Gói tiết kiệm & được yêu thích nhất cho người dùng trải nghiệm toàn hệ sinh thái',
     features: [
       'Đặc quyền trọn vẹn Hi-Fi Lossless & Spatial 3D Audio 360°',
+      'Haevy Spiritual: Không giới hạn Tarot 3D & 9 Sóng Solfeggio 8D',
+      'Haevy AI: Luồng GPU riêng Zero-Wait & Gia sư AI phân tích bản chất logic',
+      'Haevy Space: Bộ cọ 3D AR Neon Cực Quang & Son 3D giáp vàng',
+      'Haevy Games: Nhân đôi (x2) điểm thưởng & Vòng quay VIP 100% trúng',
+      'Haevy Lite: Khung Avatar Rồng Vàng Dragon Aura & Giảm 50% Shop',
       'Haevy Finance: Nhân 3 (x3) Xu & Sinh lời +15%/năm Két Sắt',
       'Haevy Message: Cùng Nghe Nhạc (Listen Together) & Sticker VIP 3D',
-      'Haevy Studio: Xuất Studio Master FLAC & Kho nhạc nền Pro',
-      'I Love Haevy: Hộp Thời Gian Voice Capsule & Album 4K',
       '100% Không quảng cáo & Tải Offline Lossless không giới hạn',
       'Thưởng ngay +1.000 Xu Haevy'
     ]
@@ -111,11 +124,14 @@ export const VIP_PACKAGES: VipPackage[] = [
     originalPriceVnd: 360000,
     bonusPoints: 2500,
     tier: 'vip',
-    description: 'Tiết kiệm chi phí, nhân 3 Xu Haevy suốt 90 ngày',
+    description: 'Tiết kiệm chi phí, đặc quyền toàn năng suốt 90 ngày liên tục',
     features: [
-      'Đặc quyền VIP trọn gói 90 ngày liên tục toàn hệ thống',
+      'Đặc quyền VIP trọn gói 90 ngày liên tục toàn bộ 12 phân hệ',
+      'Haevy Family Tree: Quản lý gia phả vô hạn đời & Báo lịch giỗ đa kênh',
+      'Haevy Spiritual: Chiêm tinh học Natal Chart & Luận giải Đại Hạn 2026',
+      'Haevy Games: Siêu xe thần thoại & Chiến cơ không gian mạ vàng',
       'Haevy Finance: Rút thưởng về MB Bank tức thì dưới 30s',
-      'Haevy Studio: Tác phẩm đẩy Top 1 BXH & Ưu tiên duyệt số 1',
+      'Haevy Studio: Tác phẩm đẩy Top 1 BXH & Xuất FLAC 24-bit',
       'Haevy Message: Ghim hội thoại & Lưu trữ đám mây vô hạn',
       'I Love Haevy: Trợ lý AI sáng tạo thơ tình & Lời chúc đôi',
       'Thưởng ngay +2.500 Xu Haevy'
@@ -129,11 +145,13 @@ export const VIP_PACKAGES: VipPackage[] = [
     originalPriceVnd: 720000,
     bonusPoints: 5000,
     tier: 'vip',
-    description: 'Nửa năm trải nghiệm đỉnh cao với ưu đãi lớn',
+    description: 'Nửa năm trải nghiệm đỉnh cao với ưu đãi vượt trội',
     features: [
       'Trải nghiệm VIP toàn diện 180 ngày đẳng cấp Hoàng Gia',
-      'Haevy Studio: Bộ trộn Multi-Track đa tầng không giới hạn',
-      'Haevy Finance: Báo cáo tài chính & Phân tích thu chi AI',
+      'Haevy Space: Xuất mô hình 3D chuẩn .GLB & Video 4K 60FPS',
+      'Haevy Studio: Bộ trộn Multi-Track đa tầng & Tách lời AI Vocal Remover',
+      'Haevy Finance: Báo cáo tài chính & Phân tích 6 hũ dòng tiền AI',
+      'Haevy Family Tree: Số hóa văn bia sắc phong cổ chuẩn Ultra-HD',
       'I Love Haevy: Khung nhẫn đôi & Nhịp tim phát sáng đồng bộ',
       'Đường truyền máy chủ CDN riêng biệt Zero-Latency 0ms',
       'Thưởng ngay +5.000 Xu Haevy'
@@ -150,8 +168,8 @@ export const VIP_PACKAGES: VipPackage[] = [
     isBestValue: true,
     description: 'Tiết kiệm tới 80% chi phí - Trở thành VIP Hoàng Gia đích thực',
     features: [
-      'Đặc quyền VIP Hoàng Gia 365 ngày mở khóa 100% tính năng',
-      'Haevy Message + Studio + Finance + I Love Haevy Đỉnh Cao Nhất',
+      'Đặc quyền VIP Hoàng Gia 365 ngày mở khóa 100% tính năng tất cả chế độ',
+      'Toàn quyền: Spiritual + AI Master + Space + Games + Family Tree + Lite',
       'Vương Miện mạ vàng & Golden Aura phát sáng trên toàn hệ thống',
       'Trọn bộ 6 Preset Dolby Theater & Equalizer 10 băng tần',
       'Tặng trọn gói kho giao diện Royal, Cyber Neon & Luxury',
@@ -174,7 +192,8 @@ export function VipTopupView({
   currentTrack,
   onOpenGiftShopModal,
   activePage = 'page1',
-  onSelectPage
+  onSelectPage,
+  onNavigateMode
 }: VipTopupViewProps) {
   const { 
     user, 
@@ -189,7 +208,7 @@ export function VipTopupView({
   } = useAuth();
 
   // Internal tab state synced with activePage prop
-  const [internalPage, setInternalPage] = useState<'page1' | 'page2' | 'page3' | 'page4'>(activePage);
+  const [internalPage, setInternalPage] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>(activePage);
 
   useEffect(() => {
     if (activePage) {
@@ -197,7 +216,7 @@ export function VipTopupView({
     }
   }, [activePage]);
 
-  const handleTabChange = (page: 'page1' | 'page2' | 'page3' | 'page4') => {
+  const handleTabChange = (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => {
     setInternalPage(page);
     if (onSelectPage) {
       onSelectPage(page);
@@ -218,6 +237,7 @@ export function VipTopupView({
 
   // --- PRIVILEGES FILTER (PAGE 1) ---
   const [privilegeCategoryTab, setPrivilegeCategoryTab] = useState<string>('all');
+  const [privilegeSearchQuery, setPrivilegeSearchQuery] = useState<string>('');
   const [qrModalOpen, setQrModalOpen] = useState(false);
 
   // --- XU HAEVY TOP-UP STATE (PAGE 3) ---
@@ -595,8 +615,8 @@ export function VipTopupView({
   const transferContentCoin = `HAEVY XU ${user?.uid?.substring(0, 6).toUpperCase() || 'USER'} ${selectedCoinPackage.id.toUpperCase()}`;
   const transferContentGiftVip = `HAEVY TANG VIP ${user?.uid?.substring(0, 6).toUpperCase() || 'USER'} ${giftSelectedVipPkg.id.toUpperCase()}`;
 
-  const qrImageUrlVip = `https://img.vietqr.io/image/MB-999988886666-compact2.png?amount=${vipFinal}&addInfo=${encodeURIComponent(transferContentVip)}&accountName=HAEVY%20AUDIO`;
-  const qrImageUrlCoin = `https://img.vietqr.io/image/MB-999988886666-compact2.png?amount=${coinFinal}&addInfo=${encodeURIComponent(transferContentCoin)}&accountName=HAEVY%20AUDIO`;
+  const qrImageUrlVip = `https://img.vietqr.io/image/VPB-0795249860-compact2.png?amount=${vipFinal}&addInfo=${encodeURIComponent(transferContentVip)}&accountName=HA%20QUANG%20KHAI`;
+  const qrImageUrlCoin = `https://img.vietqr.io/image/VPB-0795249860-compact2.png?amount=${coinFinal}&addInfo=${encodeURIComponent(transferContentCoin)}&accountName=HA%20QUANG%20KHAI`;
 
   return (
     <div id="haevy-vip-hub" className="min-h-screen bg-zinc-950 text-zinc-100 pb-36 pt-1 sm:pt-2 px-2.5 sm:px-6 max-w-7xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-250 w-full overflow-hidden sm:overflow-visible">
@@ -729,6 +749,20 @@ export function VipTopupView({
             <span className="sm:hidden">Tặng Bạn</span>
             <span className="hidden sm:inline">Trang 4: Tặng Bạn Bè</span>
           </button>
+
+          <button
+            id="vip-tab-page5"
+            onClick={() => handleTabChange('page5')}
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-95 ${
+              internalPage === 'page5'
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-lg shadow-amber-500/20 font-black'
+                : 'bg-zinc-900/80 hover:bg-zinc-800 text-amber-300 border border-amber-500/40 hover:border-amber-500/70 shadow-sm'
+            }`}
+          >
+            <BrainCircuit size={15} className={internalPage === 'page5' ? 'fill-black text-black' : 'text-amber-400 animate-pulse'} />
+            <span className="sm:hidden">AI VIP</span>
+            <span className="hidden sm:inline">Trang 5: AI VIP Intelligence</span>
+          </button>
         </div>
       </div>
 
@@ -737,6 +771,34 @@ export function VipTopupView({
       {/* ========================================================================= */}
       {internalPage === 'page1' && (
         <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200">
+          
+          {/* AI VIP Intelligence Highlight Callout Banner */}
+          <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-r from-amber-500/15 via-zinc-900 to-zinc-900 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-500 text-black flex items-center justify-center font-black shrink-0 shadow-lg shadow-amber-500/20">
+                <BrainCircuit size={24} />
+              </div>
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-wider">
+                  <Sparkles size={11} className="text-amber-400" />
+                  <span>Gemini 3.8 Flash • AI Autonomous VIP</span>
+                </div>
+                <h3 className="text-sm sm:text-base font-black text-white">
+                  Khám Phá AI VIP Intelligence Dashboard
+                </h3>
+                <p className="text-xs text-zinc-300">
+                  Phân tích hành vi cá nhân & tối ưu hóa tự động 12 phân hệ Haevy đạt hiệu suất đặc quyền tối đa.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleTabChange('page5')}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black text-xs hover:brightness-110 active:scale-95 transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer whitespace-nowrap"
+            >
+              <span>Mở Dashboard AI</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
           
           {/* Interactive Sound Quality Comparison Demo Card */}
           <div className="p-4 sm:p-7 rounded-3xl bg-zinc-900/90 border border-zinc-800 space-y-4 sm:space-y-5">
@@ -869,85 +931,150 @@ export function VipTopupView({
               </span>
             </div>
 
-            {/* Category Filter Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 custom-scrollbar text-xs">
-              {[
-                { id: 'all', label: '✨ Tất Cả', count: VIP_PRIVILEGES_LIST.length },
-                { id: 'finance', label: '💰 Haevy Finance', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'finance').length },
-                { id: 'studio', label: '🎙️ Haevy Studio', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'studio').length },
-                { id: 'messages', label: '💬 Haevy Message', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'messages').length },
-                { id: 'couple', label: '💖 I Love Haevy', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'couple').length },
-                { id: 'audio', label: '🎵 Âm Thanh & Hi-Fi', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'audio').length },
-                { id: 'playback', label: '⚡ Phát Nhạc', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'playback').length },
-                { id: 'downloads', label: '📥 Tải Offline', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'downloads').length },
-                { id: 'social', label: '👑 Giao Diện & Social', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'social').length },
-              ].map((tab) => {
-                const isActive = privilegeCategoryTab === tab.id;
-                return (
+            {/* Search and Category Filter Tabs */}
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm đặc quyền VIP (VD: Tarot, AI, Games, Gia Phả, Hi-Fi, Két Sắt, Font, Avatar...)"
+                  value={privilegeSearchQuery}
+                  onChange={(e) => setPrivilegeSearchQuery(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 transition-colors"
+                />
+                {privilegeSearchQuery && (
                   <button
-                    key={tab.id}
-                    onClick={() => setPrivilegeCategoryTab(tab.id)}
-                    className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer text-xs shrink-0 flex items-center gap-1.5 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black shadow-md shadow-amber-500/20'
-                        : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-700'
-                    }`}
+                    onClick={() => setPrivilegeSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
                   >
-                    <span>{tab.label}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                      isActive ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
-                    }`}>
-                      {tab.count}
-                    </span>
+                    <X size={14} />
                   </button>
-                );
-              })}
+                )}
+              </div>
+
+              {/* Category Filter Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 custom-scrollbar text-xs">
+                {[
+                  { id: 'all', label: '✨ Tất Cả', count: VIP_PRIVILEGES_LIST.length },
+                  { id: 'spiritual', label: '🔮 Spiritual', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'spiritual').length },
+                  { id: 'haevy_ai', label: '🧠 AI Master', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'haevy_ai').length },
+                  { id: 'space', label: '🌌 Space 3D AR', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'space').length },
+                  { id: 'games', label: '🎮 Games', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'games').length },
+                  { id: 'family_tree', label: '👑 Gia Phả', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'family_tree').length },
+                  { id: 'haevy_lite', label: '💎 Haevy Lite', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'haevy_lite').length },
+                  { id: 'finance', label: '💰 Haevy Finance', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'finance').length },
+                  { id: 'studio', label: '🎙️ Haevy Studio', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'studio').length },
+                  { id: 'messages', label: '💬 Haevy Message', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'messages').length },
+                  { id: 'couple', label: '💖 I Love Haevy', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'couple').length },
+                  { id: 'audio', label: '🎵 Âm Thanh & Hi-Fi', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'audio').length },
+                  { id: 'playback', label: '⚡ Phát Nhạc', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'playback').length },
+                  { id: 'downloads', label: '📥 Tải Offline', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'downloads').length },
+                  { id: 'social', label: '👑 Giao Diện & Social', count: VIP_PRIVILEGES_LIST.filter(p => p.category === 'social').length },
+                ].map((tab) => {
+                  const isActive = privilegeCategoryTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setPrivilegeCategoryTab(tab.id)}
+                      className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer text-xs shrink-0 flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black shadow-md shadow-amber-500/20'
+                          : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      <span>{tab.label}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        isActive ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Filtered Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {VIP_PRIVILEGES_LIST.filter(item => privilegeCategoryTab === 'all' || item.category === privilegeCategoryTab).map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="p-4 sm:p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800/80 hover:border-amber-500/40 hover:bg-zinc-900 transition-all flex flex-col justify-between group space-y-3"
-                >
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
-                        <Sparkles size={16} />
+              {VIP_PRIVILEGES_LIST.filter(item => {
+                const matchCategory = privilegeCategoryTab === 'all' || item.category === privilegeCategoryTab;
+                const matchSearch = !privilegeSearchQuery.trim() ||
+                  item.title.toLowerCase().includes(privilegeSearchQuery.toLowerCase()) ||
+                  item.shortDesc.toLowerCase().includes(privilegeSearchQuery.toLowerCase()) ||
+                  item.detailedBenefit.toLowerCase().includes(privilegeSearchQuery.toLowerCase()) ||
+                  (item.badge && item.badge.toLowerCase().includes(privilegeSearchQuery.toLowerCase()));
+                return matchCategory && matchSearch;
+              }).map((item, idx) => {
+                const getCategoryMeta = (cat: string) => {
+                  switch (cat) {
+                    case 'spiritual': return { label: 'Haevy Spiritual', icon: <Sparkles size={16} className="text-purple-400" />, border: 'border-purple-500/20', bg: 'bg-purple-500/10' };
+                    case 'haevy_ai': return { label: 'Haevy AI Master', icon: <BrainCircuit size={16} className="text-indigo-400" />, border: 'border-indigo-500/20', bg: 'bg-indigo-500/10' };
+                    case 'space': return { label: 'Haevy Space 3D', icon: <Compass size={16} className="text-cyan-400" />, border: 'border-cyan-500/20', bg: 'bg-cyan-500/10' };
+                    case 'games': return { label: 'Haevy Games', icon: <Gamepad2 size={16} className="text-amber-400" />, border: 'border-amber-500/20', bg: 'bg-amber-500/10' };
+                    case 'family_tree': return { label: 'Haevy Gia Phả', icon: <GitFork size={16} className="text-amber-500" />, border: 'border-amber-500/20', bg: 'bg-amber-500/10' };
+                    case 'haevy_lite': return { label: 'Haevy Lite', icon: <Crown size={16} className="text-pink-400" />, border: 'border-pink-500/20', bg: 'bg-pink-500/10' };
+                    case 'finance': return { label: 'Haevy Finance', icon: <Coins size={16} className="text-emerald-400" />, border: 'border-emerald-500/20', bg: 'bg-emerald-500/10' };
+                    case 'studio': return { label: 'Haevy Studio', icon: <Sliders size={16} className="text-rose-400" />, border: 'border-rose-500/20', bg: 'bg-rose-500/10' };
+                    case 'messages': return { label: 'Haevy Message', icon: <Send size={16} className="text-sky-400" />, border: 'border-sky-500/20', bg: 'bg-sky-500/10' };
+                    case 'couple': return { label: 'I Love Haevy', icon: <Heart size={16} className="text-rose-400" />, border: 'border-rose-500/20', bg: 'bg-rose-500/10' };
+                    case 'audio': return { label: 'Hi-Fi Audio', icon: <Headphones size={16} className="text-indigo-400" />, border: 'border-indigo-500/20', bg: 'bg-indigo-500/10' };
+                    case 'playback': return { label: 'Phát Nhạc', icon: <Zap size={16} className="text-amber-400" />, border: 'border-amber-500/20', bg: 'bg-amber-500/10' };
+                    case 'downloads': return { label: 'Tải Offline', icon: <Download size={16} className="text-blue-400" />, border: 'border-blue-500/20', bg: 'bg-blue-500/10' };
+                    default: return { label: 'Social VIP', icon: <Sparkles size={16} className="text-amber-400" />, border: 'border-amber-500/20', bg: 'bg-amber-500/10' };
+                  }
+                };
+                const meta = getCategoryMeta(item.category);
+                return (
+                  <div
+                    key={item.id || idx}
+                    className="p-4 sm:p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800/80 hover:border-amber-500/40 hover:bg-zinc-900 transition-all flex flex-col justify-between group space-y-3"
+                  >
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className={`w-8 h-8 rounded-xl ${meta.bg} border ${meta.border} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                          {meta.icon}
+                        </div>
+                        {item.badge && (
+                          <span className="text-[10px] font-black bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+                            {item.badge}
+                          </span>
+                        )}
                       </div>
-                      {item.badge && (
-                        <span className="text-[10px] font-black bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
-                          {item.badge}
-                        </span>
-                      )}
+
+                      <div>
+                        <h4 className="text-sm font-bold text-white group-hover:text-amber-200 transition-colors">
+                          {item.title}
+                        </h4>
+                        <p className="text-xs text-zinc-400 mt-1 leading-relaxed break-words">
+                          {item.detailedBenefit || item.shortDesc}
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
-                      <h4 className="text-sm font-bold text-white group-hover:text-amber-200 transition-colors">
-                        {item.title}
-                      </h4>
-                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed break-words">
-                        {item.detailedBenefit || item.shortDesc}
-                      </p>
+                    <div className="pt-2 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500">
+                      <span className="capitalize text-zinc-500 font-mono text-[10px]">
+                        {meta.label}
+                      </span>
+                      <CheckCircle2 size={14} className="text-emerald-400" />
                     </div>
                   </div>
-
-                  <div className="pt-2 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500">
-                    <span className="capitalize text-zinc-500 font-mono text-[10px]">
-                      {item.category === 'finance' ? 'Haevy Finance' :
-                       item.category === 'studio' ? 'Haevy Studio' :
-                       item.category === 'messages' ? 'Haevy Message' :
-                       item.category === 'couple' ? 'I Love Haevy' :
-                       item.category === 'audio' ? 'Hi-Fi Audio' :
-                       item.category === 'playback' ? 'Playback' :
-                       item.category === 'downloads' ? 'Offline' : 'Social VIP'}
-                    </span>
-                    <CheckCircle2 size={14} className="text-emerald-400" />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
+            {VIP_PRIVILEGES_LIST.filter(item => {
+              const matchCategory = privilegeCategoryTab === 'all' || item.category === privilegeCategoryTab;
+              const matchSearch = !privilegeSearchQuery.trim() ||
+                item.title.toLowerCase().includes(privilegeSearchQuery.toLowerCase()) ||
+                item.shortDesc.toLowerCase().includes(privilegeSearchQuery.toLowerCase()) ||
+                item.detailedBenefit.toLowerCase().includes(privilegeSearchQuery.toLowerCase()) ||
+                (item.badge && item.badge.toLowerCase().includes(privilegeSearchQuery.toLowerCase()));
+              return matchCategory && matchSearch;
+            }).length === 0 && (
+              <div className="text-center py-10 px-4 bg-zinc-900/50 rounded-2xl border border-zinc-800 text-zinc-400 text-xs">
+                Không tìm thấy đặc quyền phù hợp với từ khóa "{privilegeSearchQuery}".
+              </div>
+            )}
           </div>
 
           {/* Comparison: Standard Free vs VIP */}
@@ -955,7 +1082,7 @@ export function VipTopupView({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 border-b border-zinc-800 pb-3">
               <h3 className="text-sm sm:text-lg font-black text-white flex items-center gap-2">
                 <Crown size={18} className="text-amber-400 fill-amber-400 shrink-0" />
-                <span>Bảng So Sánh Quyền Lợi: Bản Chuẩn vs Haevy VIP</span>
+                <span>Bảng So Sánh Quyền Lợi Toàn Diện: Bản Chuẩn vs Haevy VIP</span>
               </h3>
             </div>
 
@@ -964,13 +1091,19 @@ export function VipTopupView({
               {[
                 { title: 'Chất lượng âm thanh', free: '128 kbps', vip: '320kbps & 24-bit Lossless' },
                 { title: 'Không gian âm thanh 3D', free: '❌ Không', vip: '✅ Spatial 360° Surround' },
-                { title: 'Haevy Finance (Tài chính & Xu)', free: '1x Chuẩn, có phí chuyển', vip: '🔥 x3 Xu, 0% phí & Rút 30s' },
-                { title: 'Haevy Studio (Phòng thu AI)', free: '500 ký tự, 75 pts/lượt', vip: '🎙️ -33% phí, Master FLAC' },
-                { title: 'Haevy Message (Tin nhắn VIP)', free: 'Tin nhắn cơ bản', vip: '💬 Khung Gold, Listen Together' },
-                { title: 'I Love Haevy (Không gian đôi)', free: '1 Theme cơ bản', vip: '💖 Full Theme, Voice Capsule' },
-                { title: 'Tải nhạc Offline', free: 'Tối đa 3 bài', vip: '✅ Không giới hạn FLAC' },
-                { title: 'Trải nghiệm quảng cáo', free: 'Có quảng cáo', vip: '✅ 100% Không quảng cáo' },
-                { title: 'Huy hiệu Vương Miện VIP', free: '❌ Không', vip: '👑 Vương Miện Hoàng Gia' }
+                { title: '🔮 Haevy Spiritual', free: '1 trải bài cơ bản/ngày', vip: '✨ Không giới hạn 78 lá 3D & Tử Vi 2026' },
+                { title: '🧠 Haevy AI Master & Study', free: '10 câu hỏi/ngày, cơ bản', vip: '⚡ Luồng GPU riêng, phân tích logic sâu' },
+                { title: '🌌 Haevy Space 3D AR', free: '2 cọ cơ bản', vip: '🎨 Cọ Neon Cực Quang & Son 3D giáp vàng' },
+                { title: '🎮 Haevy Games', free: 'Thưởng chuẩn 1x', vip: '🔥 x2 Thưởng, Vòng Quay VIP & Xe đua vàng' },
+                { title: '👑 Gia Phả Dòng Tộc', free: 'Tối đa 2 đời', vip: '📜 Vô hạn đời & Báo lịch giỗ đa kênh' },
+                { title: '💎 Haevy Lite Trang Sức', free: 'Mua lẻ bằng Xu', vip: '👑 Full 7 Fonts VIP & Dragon Aura' },
+                { title: '💰 Haevy Finance', free: '1x Chuẩn, có phí chuyển', vip: '🔥 x3 Xu, 0% phí & Rút MB Bank 30s' },
+                { title: '🎙️ Haevy Studio', free: '500 ký tự, 75 pts/lượt', vip: '🎧 -33% phí, Master FLAC & Top 1 BXH' },
+                { title: '💬 Haevy Message', free: 'Tin nhắn cơ bản', vip: '👑 Khung Gold, Listen Together' },
+                { title: '💖 I Love Haevy', free: '1 Theme cơ bản', vip: '💑 Full Theme, Voice Capsule & AI Thơ' },
+                { title: '📥 Tải nhạc Offline', free: 'Tối đa 3 bài', vip: '✅ Không giới hạn FLAC' },
+                { title: '⚡ Trải nghiệm & Nghe nền', free: 'Có quảng cáo', vip: '✅ 100% Không quảng cáo & Chạy nền' },
+                { title: '👑 Huy hiệu Vương Miện VIP', free: '❌ Không', vip: '👑 Vương Miện Hoàng Gia & Golden Aura' }
               ].map((row, rIdx) => (
                 <div key={rIdx} className="p-3 rounded-2xl bg-zinc-950 border border-zinc-850 space-y-2">
                   <div className="text-xs font-bold text-white">{row.title}</div>
@@ -993,9 +1126,9 @@ export function VipTopupView({
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-zinc-800 text-zinc-400">
-                    <th className="pb-3 font-bold">Tính Năng / Quyền Lợi</th>
-                    <th className="pb-3 font-bold text-center w-32">Bản Chuẩn</th>
-                    <th className="pb-3 font-bold text-center w-44 text-amber-300">Haevy VIP 👑</th>
+                    <th className="pb-3 font-bold">Tính Năng / Quyền Lợi Theo Chế Độ</th>
+                    <th className="pb-3 font-bold text-center w-36">Bản Chuẩn</th>
+                    <th className="pb-3 font-bold text-center w-52 text-amber-300">Haevy VIP 👑</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
@@ -1010,39 +1143,69 @@ export function VipTopupView({
                     <td className="py-3 text-center font-bold text-emerald-400">✅ Có (360° Surround)</td>
                   </tr>
                   <tr>
-                    <td className="py-3 font-medium">Haevy Finance: Tốc độ tích lũy & sinh lời Xu</td>
+                    <td className="py-3 font-medium">🔮 Haevy Spiritual: Tarot 3D & Tử Vi 2026</td>
+                    <td className="py-3 text-center text-zinc-500">1 trải bài/ngày</td>
+                    <td className="py-3 text-center font-bold text-purple-400">✅ Không giới hạn 78 lá 3D & Tử Vi</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 font-medium">🧠 Haevy AI Master: Phân tích bản chất logic</td>
+                    <td className="py-3 text-center text-zinc-500">10 câu hỏi/ngày</td>
+                    <td className="py-3 text-center font-bold text-indigo-400">✅ Không giới hạn & Luồng GPU Zero-Wait</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 font-medium">🌌 Haevy Space: Vẽ 3D AR & Linh vật Son</td>
+                    <td className="py-3 text-center text-zinc-500">2 cọ cơ bản</td>
+                    <td className="py-3 text-center font-bold text-cyan-400">✅ Cọ Neon Cực Quang & Son Giáp Vàng</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 font-medium">🎮 Haevy Games: Điểm thưởng & Trang bị</td>
                     <td className="py-3 text-center text-zinc-500">1x Chuẩn</td>
-                    <td className="py-3 text-center font-bold text-amber-300">Nhân 3 (x3) Xu & +15%/năm</td>
+                    <td className="py-3 text-center font-bold text-amber-400">✅ Nhân đôi (x2) điểm & Vòng Quay VIP</td>
                   </tr>
                   <tr>
-                    <td className="py-3 font-medium">Haevy Studio: Sáng tạo AI Voice & Xuất file</td>
+                    <td className="py-3 font-medium">👑 Haevy Family Tree: Quản lý gia phả dòng họ</td>
+                    <td className="py-3 text-center text-zinc-500">Tối đa 2 đời</td>
+                    <td className="py-3 text-center font-bold text-amber-300">✅ Vô hạn đời & Báo lịch giỗ đa kênh</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 font-medium">💎 Haevy Lite: Phông chữ & Trang sức avatar</td>
+                    <td className="py-3 text-center text-zinc-500">Mua lẻ theo vật phẩm</td>
+                    <td className="py-3 text-center font-bold text-pink-400">✅ Full 7 Fonts VIP & Dragon Aura</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 font-medium">💰 Haevy Finance: Tốc độ tích lũy & sinh lời Xu</td>
+                    <td className="py-3 text-center text-zinc-500">1x Chuẩn</td>
+                    <td className="py-3 text-center font-bold text-amber-300">Nhân 3 (x3) Xu & +15%/năm Két Sắt</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 font-medium">🎙️ Haevy Studio: Sáng tạo AI Voice & Xuất file</td>
                     <td className="py-3 text-center text-zinc-500">75 pts/lượt</td>
-                    <td className="py-3 text-center font-bold text-emerald-400">✅ 50 pts/lượt & Master FLAC</td>
+                    <td className="py-3 text-center font-bold text-emerald-400">✅ 50 pts/lượt (-33%) & Master FLAC</td>
                   </tr>
                   <tr>
-                    <td className="py-3 font-medium">Haevy Message: Trò chuyện & Cùng nghe nhạc</td>
+                    <td className="py-3 font-medium">💬 Haevy Message: Trò chuyện & Cùng nghe nhạc</td>
                     <td className="py-3 text-center text-zinc-500">Cơ bản</td>
                     <td className="py-3 text-center font-bold text-amber-300">✅ Listen Together & HD Voice</td>
                   </tr>
                   <tr>
-                    <td className="py-3 font-medium">I Love Haevy: Theme đôi & Voice Capsule</td>
+                    <td className="py-3 font-medium">💖 I Love Haevy: Theme đôi & Voice Capsule</td>
                     <td className="py-3 text-center text-zinc-500">1 Theme cơ bản</td>
-                    <td className="py-3 text-center font-bold text-pink-400">✅ Full VIP Theme & AI Letter</td>
+                    <td className="py-3 text-center font-bold text-pink-400">✅ Full VIP Theme & AI Love Letter</td>
                   </tr>
                   <tr>
-                    <td className="py-3 font-medium">Tải nhạc Offline không giới hạn</td>
+                    <td className="py-3 font-medium">📥 Tải nhạc Offline không giới hạn</td>
                     <td className="py-3 text-center text-zinc-500">Tối đa 3 bài</td>
-                    <td className="py-3 text-center font-bold text-emerald-400">✅ Không giới hạn FLAC</td>
+                    <td className="py-3 text-center font-bold text-emerald-400">✅ Không giới hạn FLAC Lossless</td>
                   </tr>
                   <tr>
-                    <td className="py-3 font-medium">Trải nghiệm không quảng cáo & Nghe nền</td>
+                    <td className="py-3 font-medium">⚡ Trải nghiệm không quảng cáo & Nghe nền</td>
                     <td className="py-3 text-center text-zinc-500">Có quảng cáo</td>
                     <td className="py-3 text-center font-bold text-emerald-400">✅ 100% Không quảng cáo</td>
                   </tr>
                   <tr>
-                    <td className="py-3 font-medium">Huy hiệu Vương Miện & Aura Vàng bình luận</td>
+                    <td className="py-3 font-medium">👑 Huy hiệu Vương Miện & Aura Vàng bình luận</td>
                     <td className="py-3 text-center text-zinc-500">❌ Không</td>
-                    <td className="py-3 text-center font-bold text-amber-300">✅ Vương Miện Hoàng Gia</td>
+                    <td className="py-3 text-center font-bold text-amber-300">✅ Vương Miện Hoàng Gia & Golden Aura</td>
                   </tr>
                 </tbody>
               </table>
@@ -1306,18 +1469,23 @@ export function VipTopupView({
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-zinc-950 border border-zinc-850">
                     <span className="text-zinc-400 shrink-0">Ngân hàng:</span>
-                    <span className="font-bold text-white font-mono text-right">MB BANK (Quân Đội)</span>
+                    <span className="font-bold text-white font-mono text-right">VPBANK (Việt Nam Thịnh Vượng)</span>
                   </div>
 
                   <div 
-                    onClick={() => handleCopyText('999988886666', 'account_no')}
+                    onClick={() => handleCopyText('0795249860', 'account_no')}
                     className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-zinc-950 border border-zinc-850 hover:border-amber-500/40 cursor-pointer group transition-colors active:scale-[0.99]"
                   >
                     <span className="text-zinc-400 shrink-0">Số tài khoản:</span>
                     <div className="flex items-center gap-1.5 font-bold font-mono text-amber-300">
-                      <span>999988886666</span>
+                      <span>0795249860</span>
                       {copiedBankInfo === 'account_no' ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} className="text-zinc-500 group-hover:text-amber-300" />}
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-zinc-950 border border-zinc-850">
+                    <span className="text-zinc-400 shrink-0">Chủ tài khoản:</span>
+                    <span className="font-bold text-white font-mono uppercase text-right">HA QUANG KHAI</span>
                   </div>
 
                   <div 
@@ -1576,14 +1744,19 @@ export function VipTopupView({
             <div className="space-y-3 flex flex-col justify-between">
               <div className="space-y-2 text-xs">
                 <div 
-                  onClick={() => handleCopyText('999988886666', 'coin_account')}
+                  onClick={() => handleCopyText('0795249860', 'coin_account')}
                   className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-zinc-950 border border-zinc-850 hover:border-amber-500/40 cursor-pointer group transition-colors active:scale-[0.99]"
                 >
-                  <span className="text-zinc-400">STK MB Bank:</span>
+                  <span className="text-zinc-400">STK VPBank:</span>
                   <div className="flex items-center gap-1.5 font-bold font-mono text-amber-300">
-                    <span>999988886666</span>
+                    <span>0795249860</span>
                     {copiedBankInfo === 'coin_account' ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} className="text-zinc-500 group-hover:text-amber-300" />}
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-zinc-950 border border-zinc-850">
+                  <span className="text-zinc-400">Chủ tài khoản:</span>
+                  <span className="font-bold text-white font-mono uppercase">HA QUANG KHAI</span>
                 </div>
 
                 <div 
@@ -1744,7 +1917,7 @@ export function VipTopupView({
                 <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold shrink-0">
-                      {recipientPreview.name.charAt(0)}
+                      {recipientPreview?.name?.charAt(0) || 'U'}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
@@ -1935,6 +2108,17 @@ export function VipTopupView({
             </div>
           )}
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TRANG 5: AI VIP INTELLIGENCE DASHBOARD (Powered by Gemini API)            */}
+      {/* ========================================================================= */}
+      {internalPage === 'page5' && (
+        <VipAiIntelligenceDashboard
+          onOpenAuth={onOpenAuth}
+          onNavigateMode={onNavigateMode}
+          onGoToProfile={onGoToProfile}
+        />
       )}
     </div>
   );

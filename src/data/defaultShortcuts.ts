@@ -274,6 +274,17 @@ export const DEFAULT_SHORTCUTS_CONFIG: ShortcutsConfig = {
     shiftKey: true,
     enabled: true
   },
+  toggle_mode_switcher: {
+    id: 'toggle_mode_switcher',
+    action: 'toggle_mode_switcher',
+    label: 'Đồng Bộ Chuyển Phân Hệ',
+    desc: '🌐 Mở Bảng Đồng Bộ Chuyển Chế Độ Toàn Hệ Sinh Thái (Alt + M)',
+    category: 'navigation',
+    code: 'KeyM',
+    keyChar: 'M',
+    allowAltOrCtrl: true,
+    enabled: true
+  },
   toggle_shortcuts: {
     id: 'toggle_shortcuts',
     action: 'toggle_shortcuts',

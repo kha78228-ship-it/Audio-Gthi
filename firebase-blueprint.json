@@ -460,6 +460,75 @@
         "durationSec": { "type": "number" }
       },
       "required": ["caller", "recipient", "type", "status", "startedAt"]
+    },
+    "aiChatSessions": {
+      "title": "Haevy AI Chat Session",
+      "description": "User saved and historical conversation threads with Haevy AI",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "messages": { "type": "array" },
+        "category": { "type": "string" },
+        "isPinned": { "type": "boolean" },
+        "previewText": { "type": "string" }
+      },
+      "required": ["title", "createdAt", "updatedAt", "messages"]
+    },
+    "modeBadges": {
+      "title": "Mode Notification Badges",
+      "description": "Real-time badge counter and last-viewed timestamps for ecosystem modes",
+      "type": "object",
+      "properties": {
+        "unreadCounts": {
+          "type": "object",
+          "description": "Map of modeId to number of unviewed items"
+        },
+        "subTabUnreadCounts": {
+          "type": "object",
+          "description": "Map of subTabKey to number of unviewed items"
+        },
+        "lastViewedAt": {
+          "type": "object",
+          "description": "Timestamps when user viewed each mode"
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "modeNotifications": {
+      "title": "Mode Notification Item",
+      "description": "Individual notifications associated with an ecosystem mode and tab",
+      "type": "object",
+      "properties": {
+        "modeId": { "type": "string" },
+        "subTabId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "category": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["modeId", "title", "message", "isRead"]
+    },
+    "notifications": {
+      "title": "User Notification",
+      "description": "Persistent user-specific notification in Haevy Notification Hub across system, friends, finance, and family tree",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "category": { "type": "string", "enum": ["system", "friends", "finance", "family_tree", "audio", "couple", "games"] },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "targetMode": { "type": "string" },
+        "targetTab": { "type": "string" },
+        "actionUrl": { "type": "string" },
+        "actionText": { "type": "string" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "category", "isRead", "createdAt"]
     }
   },
   "firestore": {
@@ -519,9 +588,17 @@
       "entity": "securityShield",
       "description": "User multi-layer authentication and security credentials state"
     },
+    "/users/{userId}/aiChatSessions/{sessionId}": {
+      "entity": "aiChatSessions",
+      "description": "User saved and historical conversation threads with Haevy AI"
+    },
     "/customTracks/{trackId}": {
       "entity": "customTracks",
       "description": "Shared audio tracks uploaded by community"
+    },
+    "/tracks/{trackId}": {
+      "entity": "customTracks",
+      "description": "Primary audio tracks collection for ecosystem music, podcasts, and audiobooks"
     },
     "/communityPosts/{postId}": {
       "entity": "communityPosts",
@@ -594,6 +671,18 @@
     "/activeCalls/{callId}": {
       "entity": "activeCalls",
       "description": "Active real-time direct voice and video call sessions"
+    },
+    "/users/{userId}/modeBadges/{docId}": {
+      "entity": "modeBadges",
+      "description": "Real-time notification badge counts for each ecosystem mode per user"
+    },
+    "/users/{userId}/modeNotifications/{notificationId}": {
+      "entity": "modeNotifications",
+      "description": "Individual notifications belonging to a specific mode for a user"
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "entity": "notifications",
+      "description": "User specific real-time notifications for system announcements, friend activity, finance, and family tree alerts"
     }
   }
 }

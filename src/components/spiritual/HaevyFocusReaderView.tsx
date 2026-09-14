@@ -240,12 +240,31 @@ export function HaevyFocusReaderView({
   const [fontSize, setFontSize] = useState<number>(26); // Default large 26px font for comfort
   const [lineHeightMultiplier, setLineHeightMultiplier] = useState<number>(2.0); // Generous line height
   const [fontFamily, setFontFamily] = useState<ReaderFontFamily>('serif');
-  const [theme, setTheme] = useState<ReaderTheme>('onyx_gold');
+  const [theme, setTheme] = useState<ReaderTheme>(() => {
+    if (typeof document !== 'undefined' && document.documentElement.classList.contains('light')) {
+      return 'parchment';
+    }
+    return 'onyx_gold';
+  });
   const [readingMode, setReadingMode] = useState<ReadingMode>('paginated');
   const [isTrueFullscreen, setIsTrueFullscreen] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
   const [isAutoScrollActive, setIsAutoScrollActive] = useState(false);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState(1); // 1 = slow & gentle
+
+  // Sync reader theme when global HTML light/dark mode changes
+  useEffect(() => {
+    const checkTheme = () => {
+      const isLight = document.documentElement.classList.contains('light');
+      if (isLight && (theme === 'onyx_gold' || theme === 'indigo' || theme === 'emerald')) {
+        setTheme('parchment');
+      }
+    };
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, [theme]);
 
   // Pagination for non-scroll mode (avoiding complex dragging)
   const [currentPageIndex, setCurrentPageIndex] = useState(0);

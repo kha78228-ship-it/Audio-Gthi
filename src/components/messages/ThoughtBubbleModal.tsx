@@ -3,6 +3,7 @@ import { X, Sparkles, Trash2, Smile, Check, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { setThoughtBubble, deleteThoughtBubble } from '../../services/socialService';
 import { ThoughtBubble } from '../../types';
+import { CosmicAvatarFX } from '../haevyLite/CosmicAvatarFX';
 
 interface ThoughtBubbleModalProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export function ThoughtBubbleModal({
   currentBubble,
   onSaved
 }: ThoughtBubbleModalProps) {
-  const { user, accountId, isVip, isAuthorVerified, authorStageName } = useAuth();
+  const { user, accountId, isVip, isAuthorVerified, authorStageName, activeAvatarFrame } = useAuth();
   const [text, setText] = useState(currentBubble?.text || '');
   const [selectedEmoji, setSelectedEmoji] = useState(currentBubble?.emoji || '💭');
   const [selectedBg, setSelectedBg] = useState(currentBubble?.bgColor || '#18181b');
@@ -60,7 +61,8 @@ export function ThoughtBubbleModal({
         photoURL: user.photoURL,
         isVip,
         isAuthorVerified,
-        stageName: authorStageName
+        stageName: authorStageName,
+        activeAvatarFrame: activeAvatarFrame || ''
       },
       text: text.trim(),
       emoji: selectedEmoji,
@@ -129,15 +131,17 @@ export function ThoughtBubbleModal({
             />
           </div>
 
-          {/* User Avatar */}
-          <div className="w-12 h-12 rounded-2xl overflow-hidden bg-zinc-800 border-2 border-amber-400/80 shadow-md">
-            {user.photoURL ? (
-              <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-amber-400 font-bold">
-                {user.displayName?.charAt(0) || 'U'}
-              </div>
-            )}
+          {/* User Avatar with equipped Haevy Lite Avatar Frame */}
+          <div className="relative my-1">
+            <CosmicAvatarFX
+              photoURL={user.photoURL}
+              displayName={user.displayName || 'Tôi'}
+              avatarFrameId={activeAvatarFrame}
+              isCurrentUser={true}
+              isVip={isVip}
+              size="md"
+              showBadge={false}
+            />
           </div>
         </div>
 

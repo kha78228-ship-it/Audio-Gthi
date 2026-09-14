@@ -31,11 +31,16 @@ import {
   Zap,
   ListMusic,
   BrainCircuit,
-  GitFork
+  GitFork,
+  Orbit,
+  Moon,
+  GraduationCap
 } from 'lucide-react';
 import { ActiveTab, EcosystemMode, Track } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useModeBadges } from '../context/ModeBadgeContext';
 import { HaevySpaceLogo } from './HaevySpaceLogo';
+import { CosmicAvatarFX } from './haevyLite/CosmicAvatarFX';
 
 interface DesktopSidebarProps {
   currentMode: EcosystemMode;
@@ -68,9 +73,23 @@ export function DesktopSidebar({
   onPlayTrack,
   onTogglePlay
 }: DesktopSidebarProps) {
-  const { user, isVip, isAuthorVerified, isAdmin, audioPoints, favorites } = useAuth();
+  const { 
+    user, 
+    isVip, 
+    isAuthorVerified, 
+    isAdmin, 
+    audioPoints, 
+    favorites,
+    userProfile,
+    displayName: authDisplayName,
+    photoURL: authPhotoURL
+  } = useAuth();
+  const { getBadgeForMode, markModeAsViewed } = useModeBadges();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
+
+  const effectiveDisplayName = userProfile?.displayName || authDisplayName || user?.displayName || user?.email?.split('@')[0] || 'Thành Viên';
+  const effectivePhotoURL = userProfile?.photoURL || authPhotoURL || user?.photoURL;
 
   // Primary Ecosystem Modes Navigation
   const ecosystemModes: Array<{
@@ -191,6 +210,26 @@ export function DesktopSidebar({
       badge: 'Gia Phả'
     },
     {
+      id: 'haevy_lite',
+      label: 'Xu Haevy Lite ✨',
+      subLabel: 'Combo Vũ Trụ & Hoạt Ảnh Động',
+      icon: Orbit,
+      colorClass: 'text-purple-400',
+      activeBg: 'bg-purple-500/20 border-purple-500/50 text-purple-300 font-bold shadow-lg shadow-purple-900/30',
+      defaultTab: 'haevy_lite' as any,
+      badge: 'Xu Lite'
+    },
+    {
+      id: 'edu',
+      label: 'Haevy Edu 🎓',
+      subLabel: 'Lab ảo & Lộ trình học tập',
+      icon: GraduationCap,
+      colorClass: 'text-emerald-400',
+      activeBg: 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold shadow-lg shadow-emerald-900/30',
+      defaultTab: 'edu' as any,
+      badge: 'STEM'
+    },
+    {
       id: 'vip',
       label: 'Haevy VIP Hub',
       subLabel: 'Đặc quyền thành viên & Nạp xu',
@@ -265,6 +304,18 @@ export function DesktopSidebar({
           { id: 'admin' as ActiveTab, label: 'Admin Dashboard', icon: ShieldCheck },
           { id: 'library' as ActiveTab, label: 'Quản Lý Audio', icon: Library }
         ];
+      case 'haevy_ai':
+        return [
+          { id: 'haevy_ai' as ActiveTab, label: 'Haevy AI Master Hub', icon: BrainCircuit }
+        ];
+      case 'spiritual':
+        return [
+          { id: 'spiritual' as ActiveTab, label: 'Tâm Linh & Tử Vi 2026', icon: Moon }
+        ];
+      case 'support':
+        return [
+          { id: 'support' as ActiveTab, label: 'Trung Tâm Hỗ Trợ', icon: Headphones }
+        ];
       case 'morning':
       case 'space':
         return [
@@ -273,6 +324,11 @@ export function DesktopSidebar({
       case 'family_tree':
         return [
           { id: 'family_tree' as ActiveTab, label: 'Gia Phả Dòng Họ', icon: GitFork }
+        ];
+      case 'haevy_lite':
+        return [
+          { id: 'haevy_lite' as ActiveTab, label: 'Combo Vũ Trụ', icon: Orbit },
+          { id: 'vip' as ActiveTab, label: 'Nạp VIP', icon: Crown }
         ];
       default:
         return [
@@ -354,21 +410,25 @@ export function DesktopSidebar({
             {ecosystemModes.map((mode) => {
               const Icon = mode.icon;
               const isActive = currentMode === mode.id;
+              const unreadCount = getBadgeForMode(mode.id);
 
               return (
                 <button
                   key={mode.id}
                   type="button"
                   id={`sidebar-mode-${mode.id}`}
-                  onClick={() => onSelectMode(mode.id, mode.defaultTab)}
+                  onClick={() => {
+                    markModeAsViewed(mode.id, mode.defaultTab);
+                    onSelectMode(mode.id, mode.defaultTab);
+                  }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all text-left cursor-pointer group border ${
                     isActive
                       ? `${mode.activeBg} font-bold shadow-lg shadow-black/40`
                       : 'border-transparent text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/80 hover:border-zinc-800/80'
                   }`}
-                  title={mode.label}
+                  title={`${mode.label}${unreadCount > 0 ? ` (${unreadCount} thông báo mới)` : ''}`}
                 >
-                  <div className={`p-1.5 rounded-xl transition-transform group-hover:scale-110 ${
+                  <div className={`relative p-1.5 rounded-xl transition-transform group-hover:scale-110 ${
                     isActive ? 'bg-black/30' : 'bg-zinc-900 border border-zinc-800'
                   }`}>
                     {mode.id === 'morning' ? (
@@ -376,15 +436,27 @@ export function DesktopSidebar({
                     ) : (
                       <Icon size={18} className={mode.colorClass} />
                     )}
+                    {unreadCount > 0 && isCollapsed && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-lg shadow-rose-500/50 border border-zinc-950 animate-pulse">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </div>
 
                   {!isCollapsed && (
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold truncate flex items-center justify-between">
-                        <span>{mode.label}</span>
-                        {isActive && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                        )}
+                      <div className="text-xs font-bold truncate flex items-center justify-between gap-1">
+                        <span className="truncate">{mode.label}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {unreadCount > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-500 text-white shadow-md shadow-rose-500/40 animate-pulse">
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                          )}
+                          {isActive && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          )}
+                        </div>
                       </div>
                       <p className="text-[10px] text-zinc-500 truncate group-hover:text-zinc-400 transition-colors">
                         {mode.subLabel}
@@ -521,20 +593,20 @@ export function DesktopSidebar({
                 className="flex items-center gap-2.5 p-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-all cursor-pointer group"
                 title="Bấm để xem hồ sơ cá nhân"
               >
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 p-[1px] shrink-0">
-                  <div className="w-full h-full bg-zinc-950 rounded-xl flex items-center justify-center overflow-hidden">
-                    {user.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || 'Avatar'} className="w-full h-full object-cover" />
-                    ) : (
-                      <UserIcon size={16} className="text-amber-400" />
-                    )}
-                  </div>
+                <div className="shrink-0">
+                  <CosmicAvatarFX
+                    photoURL={effectivePhotoURL}
+                    displayName={effectiveDisplayName}
+                    isVip={isVip}
+                    size="xs"
+                    showBadge={false}
+                  />
                 </div>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
                     <span className="text-xs font-bold text-white truncate group-hover:text-amber-300 transition-colors">
-                      {user.displayName || 'Thành Viên'}
+                      {effectiveDisplayName}
                     </span>
                     {isVip && (
                       <Crown size={12} className="text-amber-400 fill-amber-400 shrink-0" />

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Haevy Audio</title>
-    <meta name="description" content="Hệ sinh thái Haevy toàn năng: Haevy Finance AI (Phân tích thói quen chi tiêu & Dự báo 6 hũ tiền), Haevy AI Trí tuệ toàn năng & Tâm sự thấu cảm, Haevy Spiritual (Tarot 3D, Tử Vi, Chiêm Tinh & Solfeggio), Bảng vẽ AR 3D, Sáng tác Audio AI TTS, Bảo mật 6 lớp, Âm nhạc Hi-Fi Lossless và Đấu trường minigame." />
+    <meta name="description" content="Hệ sinh thái Haevy toàn năng: Haevy Edu (STEM Virtual Labs Lý - Hóa - Sinh, Bài kiểm tra nhanh Quick Quiz sau mỗi module, Tóm gọn lộ trình với Google Drive &amp; Video bài giảng AI), Haevy Family Tree, Haevy Finance AI &amp; Huy hiệu thành tựu, Haevy AI Master, Haevy Spiritual, Bảng vẽ AR 3D, Âm nhạc Hi-Fi Lossless." />
     
     <!-- PWA & Mobile Fullscreen Standalone App Configuration -->
     <link rel="manifest" href="/manifest.json" />
@@ -17,14 +17,56 @@
     <meta name="format-detection" content="telephone=no" />
     <meta name="msapplication-TileColor" content="#09090b" />
 
-    <meta property="og:title" content="Haevy Ecosystem - Cổng Tổng Hợp Hệ Sinh Thái Đa Chiều" />
-    <meta property="og:description" content="Trang chủ Hệ sinh thái Haevy Ecosystem: Đại lễ ưu đãi, bảng vẽ không gian 3D AR, trợ lý học sâu AI, kho audio truyện đêm và kết nối cộng đồng." />
+    <meta property="og:title" content="Haevy Audio - Cổng Tổng Hợp Hệ Sinh Thái Đa Chiều" />
+    <meta property="og:description" content="Trang chủ Hệ sinh thái Haevy: Bảng vẽ không gian 3D AR, trợ lý học sâu AI, kho audio truyện đêm và kết nối cộng đồng sáng tạo." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 
     <!-- Google MediaPipe 21-Joint 3D Hand Tracking Engine -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4.1675466862/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js" crossorigin="anonymous"></script>
+
+    <!-- Typography: Plus Jakarta Sans for crystal clear UI & Gothic Collection -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cinzel+Decorative:wght@700;900&family=Creepster&family=Great+Vibes&family=MedievalSharp&family=Orbitron:wght@600;800;900&family=Pirata+One&family=Press+Start+2P&family=Syne:wght@700;800&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
+
+    <!-- Immediate OS-level or solar dark/light mode preference detection on initial load -->
+    <script>
+      (function() {
+        try {
+          var storageKey = 'haevy_theme_mode';
+          var saved = localStorage.getItem(storageKey);
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          
+          var effective = 'dark';
+          if (saved === 'dark' || saved === 'light') {
+            effective = saved;
+          } else if (saved === 'system') {
+            effective = prefersDark ? 'dark' : 'light';
+          } else {
+            // Default or 'solar' mode: estimate from local clock (06:00 to 18:30 is light, else dark)
+            var hour = new Date().getHours() + new Date().getMinutes() / 60;
+            effective = (hour >= 6 && hour < 18.5) ? 'light' : 'dark';
+          }
+
+          var root = document.documentElement;
+          if (effective === 'dark') {
+            root.classList.add('dark');
+            root.classList.remove('light');
+            root.style.colorScheme = 'dark';
+          } else {
+            root.classList.add('light');
+            root.classList.remove('dark');
+            root.style.colorScheme = 'light';
+          }
+          var metaThemeColor = document.querySelector('meta[name="theme-color"]');
+          if (metaThemeColor) {
+            metaThemeColor.setAttribute('content', effective === 'dark' ? '#09090b' : '#f1f5f9');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

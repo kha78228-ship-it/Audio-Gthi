@@ -515,6 +515,218 @@ export const VIP_PRIVILEGES_LIST: VipPrivilegeItem[] = [
     detailedBenefit: 'Chuyển đổi giao diện độc quyền: Hoàng Gia Gold, Cyberpunk Neon, Thạch Anh Tím và Ngọc Lục Bảo Quý Phái.',
     iconName: 'Sparkles',
     badge: 'Themes'
+  },
+
+  // --- NHÓM 6: HAEVY SPIRITUAL (TÂM LINH, TAROT 3D & TỬ VI 2026 🔮) ---
+  {
+    id: 'spiritual_tarot_unlimited_3d',
+    title: 'Haevy Spiritual: Trải Bài 78 Lá Tarot 3D & AI Luận Giải Chiêm Tinh Không Giới Hạn',
+    category: 'spiritual',
+    tierRequired: 'vip',
+    shortDesc: 'Mở khóa toàn bộ 78 lá bài Rider-Waite 3D xoay lật đa chiều và luận giải AI chuyên sâu',
+    detailedBenefit: 'Không giới hạn số lượt trải bài mỗi ngày, giải nghĩa chi tiết lá bài ngược-xuôi, phối hợp trải 3 lá (Quá khứ - Hiện tại - Tương lai) và trải bài tình duyên/công việc chuyên sâu.',
+    iconName: 'Sparkles',
+    badge: 'Tarot 3D VIP'
+  },
+  {
+    id: 'spiritual_tuvi_2026_full',
+    title: 'Haevy Spiritual: Lập Lá Số Tử Vi 12 Cung & Luận Giải Vận Hạn 2026 (Bính Ngọ)',
+    category: 'spiritual',
+    tierRequired: 'vip',
+    shortDesc: 'Bình giải chuyên sâu Cung Mệnh, Thân, Tài Bạch, Quan Lộc & Sao chiếu mệnh năm 2026',
+    detailedBenefit: 'Hệ thống AI Huyền học phân tích can chi, ngũ hành nạp âm, các chòm sao chính tinh/phụ tinh và gợi ý phương hướng hóa giải tiểu hạn hanh thông.',
+    iconName: 'Compass',
+    badge: 'Tử Vi 2026'
+  },
+  {
+    id: 'spiritual_solfeggio_9_waves',
+    title: 'Haevy Spiritual: Trọn Bộ 9 Tần Số Sóng Âm Chữa Lành Solfeggio Ultra-Resonance',
+    category: 'spiritual',
+    tierRequired: 'vip',
+    shortDesc: 'Mở khóa 174Hz, 285Hz, 396Hz, 417Hz, 528Hz, 639Hz, 741Hz, 852Hz, 963Hz kết hợp âm thanh tự nhiên 8D',
+    detailedBenefit: 'Kho sóng âm tái tạo năng lượng sinh học, khai mở luân xa, giải phóng âu lo và hỗ trợ thiền định sâu với chất lượng âm thanh thuần khiết 24-bit.',
+    iconName: 'Radio',
+    badge: 'Solfeggio 8D'
+  },
+  {
+    id: 'spiritual_natal_chart_astrology',
+    title: 'Haevy Spiritual: Bản Đồ Sao Sinh (Natal Chart) & Chiêm Tinh Học Cá Nhân Hóa',
+    category: 'spiritual',
+    tierRequired: 'vip',
+    shortDesc: 'Tính toán chính xác Cung Mọc (Ascendant), Cung Mặt Trăng, Mặt Trời và các góc hợp thiên văn',
+    detailedBenefit: 'Phân tích tính cách cốt lõi, tiềm năng nghề nghiệp và xu hướng tình cảm thông qua vị trí các hành tinh tại thời điểm bạn chào đời.',
+    iconName: 'Eye',
+    badge: 'Natal Chart'
+  },
+
+  // --- NHÓM 7: HAEVY AI MASTER & STUDY (TRÍ TUỆ NHÂN TẠO & HỌC TẬP LOGIC 🧠) ---
+  {
+    id: 'ai_study_deep_logic_unlimited',
+    title: 'Haevy AI: Phân Tích Bản Chất Logic & Tóm Tắt Tài Liệu Học Tập (Tránh Học Vẹt)',
+    category: 'haevy_ai',
+    tierRequired: 'vip',
+    shortDesc: 'Xử lý file tài liệu, giáo trình, bài giảng không giới hạn với Gemini AI thế hệ mới',
+    detailedBenefit: 'Trợ lý AI bóc tách nguyên lý cốt lõi của mọi vấn đề học thuật, giải thích logic bản chất từ gốc rễ, trích xuất mindmap và tạo bộ câu hỏi trắc nghiệm ôn tập siêu tốc.',
+    iconName: 'BrainCircuit',
+    badge: 'AI Study Pro'
+  },
+  {
+    id: 'ai_emotion_companion_247',
+    title: 'Haevy AI: Bạn Tri Kỷ Tâm Sự Emotion AI 24/7 & Lắng Nghe Thấu Cảm',
+    category: 'haevy_ai',
+    tierRequired: 'vip',
+    shortDesc: 'Giọng đọc thấu cảm, xoa dịu tâm trạng, tư vấn tình cảm và gợi ý âm nhạc chữa lành',
+    detailedBenefit: 'AI thấu hiểu cảm xúc qua từng câu chữ, lắng nghe tâm tư không phán xét, hỗ trợ vượt qua áp lực cuộc sống và đồng hành cùng bạn suốt đêm dài.',
+    iconName: 'Heart',
+    badge: 'Tri Kỷ 24/7'
+  },
+  {
+    id: 'ai_priority_gpu_zero_latency',
+    title: 'Haevy AI: Luồng Xử Lý GPU Riêng Biệt Tốc Độ Phản Hồi Tức Thì (Zero-Wait)',
+    category: 'haevy_ai',
+    tierRequired: 'vip',
+    shortDesc: 'Không bao giờ bị giới hạn băng thông (No Rate-Limit) và phản hồi dưới 0.5 giây',
+    detailedBenefit: 'Tài khoản VIP được cấp quyền truy cập cụm máy chủ điện toán đám mây riêng, xử lý prompt văn bản dài và tư duy đa bước tức thì.',
+    iconName: 'Zap',
+    badge: 'GPU Zero-Wait'
+  },
+
+  // --- NHÓM 8: HAEVY SPACE & 3D AR (SÁNG TẠO KHÔNG GIAN & LINH VẬT SON 🌌) ---
+  {
+    id: 'space_3d_cosmic_brushes',
+    title: 'Haevy Space: Bộ Cọ Vẽ 3D Không Gian Vũ Trụ & Dải Hạt Plasma Đa Chiều',
+    category: 'space',
+    tierRequired: 'vip',
+    shortDesc: 'Mở khóa cọ vẽ Neon Cực Quang, Bụi Vàng Golden Stardust, Vệt Lửa Phoenix & Khói Laser',
+    detailedBenefit: 'Vẽ tự do trong không gian 3D thực tế tăng cường với nét vẽ phát sáng rực rỡ, xoay 360 độ và điều khiển tương tác không chạm bằng cử chỉ Pinch camera.',
+    iconName: 'Compass',
+    badge: 'Cọ 3D AR VIP'
+  },
+  {
+    id: 'space_haevy_son_royal_armor',
+    title: 'Haevy Space: Linh Vật Haevy Son 3D Giáp Vàng Hoàng Kim & Trang Phục Phi Hành Gia',
+    category: 'space',
+    tierRequired: 'vip',
+    shortDesc: 'Tương tác độc quyền với linh vật Son 3D mạ vàng kèm hiệu ứng chào đón VIP',
+    detailedBenefit: 'Linh vật Haevy Son 3D đồng hành biểu diễn các động tác nhào lộn đặc biệt, chúc mừng thành tích và tương tác theo nhịp điệu bài hát.',
+    iconName: 'Sparkles',
+    badge: 'Son Giáp Vàng'
+  },
+  {
+    id: 'space_cloud_export_4k',
+    title: 'Haevy Space: Xuất Mô Hình 3D Chuẩn .GLB & Video AR Độ Phân Giải 4K 60FPS',
+    category: 'space',
+    tierRequired: 'vip',
+    shortDesc: 'Lưu trữ không giới hạn tác phẩm 3D trên đám mây và xuất file sang phần mềm đồ họa',
+    detailedBenefit: 'Tự do tải tác phẩm về máy chuẩn định dạng 3D tiêu chuẩn công nghiệp (.glb/.obj) để in 3D hoặc chia sẻ lên mạng xã hội với video 4K sắc nét.',
+    iconName: 'Download',
+    badge: 'Xuất 4K 3D'
+  },
+
+  // --- NHÓM 9: HAEVY GAMES & METAVERSE (TRÒ CHƠI & ĐUA TOP 🎮) ---
+  {
+    id: 'games_multiplier_rewards_x2',
+    title: 'Haevy Games: Nhân Đôi (x2) Điểm Thưởng & Vòng Quay May Mắn Hoàng Gia VIP',
+    category: 'games',
+    tierRequired: 'vip',
+    shortDesc: 'Nhận x2 điểm thưởng khi chiến thắng mọi mini-game và 100% trúng quà Vòng Quay VIP',
+    detailedBenefit: 'Cơ hội nhận Xu Haevy khủng, vật phẩm trang sức hiếm và lượt chơi đặc quyền trong Vòng Quay Hoàng Gia dành riêng cho VIP.',
+    iconName: 'Award',
+    badge: 'x2 Thưởng Game'
+  },
+  {
+    id: 'games_mythic_cosmic_vehicles',
+    title: 'Haevy Games: Mở Khóa Siêu Xe Thần Thoại & Chiến Cơ Không Gian Mạ Vàng',
+    category: 'games',
+    tierRequired: 'vip',
+    shortDesc: 'Chiến cơ bọc giáp titan, siêu xe phản lực tốc độ tối thượng trong các tựa game arcade',
+    detailedBenefit: 'Sở hữu ngay các phương tiện độc quyền với hiệu ứng âm thanh pô nổ, hào quang vệt khói ngũ sắc và chỉ số gia tốc vượt trội.',
+    iconName: 'Zap',
+    badge: 'Chiến Cơ Vàng'
+  },
+  {
+    id: 'games_vip_hall_of_fame_crown',
+    title: 'Haevy Games: Huy Hiệu Vương Miện "Đại Gia Đua Top VIP" Trên Bảng Xếp Hạng',
+    category: 'games',
+    tierRequired: 'vip',
+    shortDesc: 'Vinh danh tên tuổi trên Bảng Vàng Vinh Quang với khung mạ vàng và hào quang rực rỡ',
+    detailedBenefit: 'Khẳng định vị thế thủ lĩnh bảng xếp hạng game, nhận vé mời trực tiếp vào các giải đấu tranh cúp vô địch hệ sinh thái hàng tháng.',
+    iconName: 'Crown',
+    badge: 'Đại Gia Đua Top'
+  },
+
+  // --- NHÓM 10: HAEVY FAMILY TREE (GIA PHẢ & DÒNG TỘC 👑) ---
+  {
+    id: 'family_tree_unlimited_generations',
+    title: 'Haevy Family Tree: Quản Lý Phả Hệ Không Giới Hạn Đời & Thành Viên Dòng Tộc',
+    category: 'family_tree',
+    tierRequired: 'vip',
+    shortDesc: 'Sơ đồ cây tương tác phóng to thu nhỏ O(1), bảo mật mã hóa gia tộc đa tầng',
+    detailedBenefit: 'Lưu giữ trọn vẹn gia phả hàng chục thế hệ con cháu, phân chia chi phái rõ ràng và phân quyền Trưởng tộc (Admin) kiểm duyệt bảo mật tuyệt đối.',
+    iconName: 'GitFork',
+    badge: 'Gia Phả Vô Hạn'
+  },
+  {
+    id: 'family_tree_lunar_anniversary_sms',
+    title: 'Haevy Family Tree: Tự Động Tính Lịch Giỗ Âm-Dương & Thông Báo Con Cháu Đa Kênh',
+    category: 'family_tree',
+    tierRequired: 'vip',
+    shortDesc: 'Tự động tính ngày giỗ nhuận, đếm ngược ngày giỗ và gửi thông báo nhắc nhở',
+    detailedBenefit: 'Hệ thống gửi tin nhắn thông báo tự động trước 7 ngày và 1 ngày tới toàn bộ con cháu trong dòng tộc, kèm văn khấn mẫu chuẩn truyền thống.',
+    iconName: 'Calendar',
+    badge: 'Lịch Giỗ Auto'
+  },
+  {
+    id: 'family_tree_digital_monuments_hd',
+    title: 'Haevy Family Tree: Số Hóa Văn Bia, Sắc Phong & Kỷ Vật Tổ Tiên Chuẩn Ultra-HD',
+    category: 'family_tree',
+    tierRequired: 'vip',
+    shortDesc: 'Lưu trữ tài liệu cổ, sắc phong vua ban, ảnh phục dựng cụ tổ không nén dung lượng',
+    detailedBenefit: 'Bảo tồn di sản dòng họ vĩnh cửu trên hạ tầng điện toán đám mây Haevy Cloud, chống hư hỏng mờ ố theo thời gian.',
+    iconName: 'ShieldCheck',
+    badge: 'Số Hóa Sắc Phong'
+  },
+
+  // --- NHÓM 11: HAEVY LITE (VŨ TRỤ TRANG SỨC & THẺ HỒ SƠ 💎) ---
+  {
+    id: 'lite_all_7_fonts_unlocked',
+    title: 'Haevy Lite: Mở Khóa Miễn Phí Toàn Bộ 7 Phông Chữ Độc Quyền',
+    category: 'haevy_lite',
+    tierRequired: 'vip',
+    shortDesc: 'Sở hữu ngay Gothic Fraktur, Cyberpunk Neon, Retro Pixel, Creepster, Syne, Orbitron & Tokyo Kanji',
+    detailedBenefit: 'Tự do đổi phông chữ tên hiển thị không giới hạn, không cần dùng Xu Haevy mua lẻ từng phông chữ trong Cửa Hàng.',
+    iconName: 'Sparkles',
+    badge: 'Full 7 Fonts'
+  },
+  {
+    id: 'lite_vip_dragon_avatar_frame',
+    title: 'Haevy Lite: Khung Avatar Rồng Vàng Dragon Aura & Bảng Tên Phù Điêu Hoàng Gia',
+    category: 'haevy_lite',
+    tierRequired: 'vip',
+    shortDesc: 'Khung viền rồng vàng cuộn sóng, bảng tên khắc hoa văn hoàng gia phát sáng lộng lẫy',
+    detailedBenefit: 'Tỏa sáng rực rỡ trong mắt mọi thành viên khi trò chuyện, bình luận hay hiển thị trên thẻ hồ sơ vũ trụ.',
+    iconName: 'Crown',
+    badge: 'Dragon Aura'
+  },
+  {
+    id: 'lite_store_discount_50_percent',
+    title: 'Haevy Lite: Giảm 50% Toàn Bộ Trang Sức & Nhận Rương Bách Bảo Miễn Phí Mỗi Tuần',
+    category: 'haevy_lite',
+    tierRequired: 'vip',
+    shortDesc: 'Ưu đãi nửa giá cho mọi vật phẩm trang phục, khung ảnh và hoạt ảnh mở đầu',
+    detailedBenefit: 'Tặng ngay 1 Rương Bách Bảo Haevy Lite vào mỗi thứ Hai đầu tuần chứa nhiều vật phẩm trang sức phiên bản giới hạn.',
+    iconName: 'Gift',
+    badge: 'Giảm 50% Shop'
+  },
+  {
+    id: 'lite_cosmic_entrance_fx_vip',
+    title: 'Haevy Lite: Hoạt Ảnh Mở Đầu Cổng Vũ Trụ Portal VIP Khi Vào Phòng Chat',
+    category: 'haevy_lite',
+    tierRequired: 'vip',
+    shortDesc: 'Hiệu ứng xuất hiện bùng nổ ngôi sao và hào quang dải ngân hà khi bạn online',
+    detailedBenefit: 'Tất cả bạn bè trong phòng chat đều nhìn thấy hoạt ảnh xuất hiện hoành tráng chào đón bạn bước vào không gian số.',
+    iconName: 'Zap',
+    badge: 'Entrance FX VIP'
   }
 ];
 

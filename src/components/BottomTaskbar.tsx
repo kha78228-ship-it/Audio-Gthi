@@ -51,10 +51,22 @@ import {
   Sun,
   Camera,
   BrainCircuit,
-  GitFork
+  GitFork,
+  ChevronDown,
+  ChevronUp,
+  Radio,
+  Orbit,
+  Tv,
+  ShoppingBag,
+  SlidersHorizontal,
+  Moon,
+  GraduationCap,
+  FlaskConical,
+  Video
 } from 'lucide-react';
 import { Track, ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useModeBadges } from '../context/ModeBadgeContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { HaevyGamesSubTab } from './HaevyGamesView';
@@ -78,10 +90,18 @@ interface BottomTaskbarProps {
   onSelectGamesSubTab?: (subTab: HaevyGamesSubTab) => void;
   studioSubTab?: 'page1' | 'page2' | 'page3';
   onSelectStudioSubTab?: (subTab: 'page1' | 'page2' | 'page3') => void;
-  vipSubTab?: 'page1' | 'page2' | 'page3' | 'page4';
-  onSelectVipSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4') => void;
+  vipSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
+  onSelectVipSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
   haevyAISubTab?: 'overview' | 'chat' | 'updates' | 'troubleshoot' | 'modes';
   onSelectHaevyAISubTab?: (subTab: 'overview' | 'chat' | 'updates' | 'troubleshoot' | 'modes') => void;
+  spiritualSubTab?: 'tarot' | 'tuvi' | 'astrology' | 'soundscapes' | 'crystal_oracle' | 'couple_spiritual';
+  onSelectSpiritualSubTab?: (subTab: 'tarot' | 'tuvi' | 'astrology' | 'soundscapes' | 'crystal_oracle' | 'couple_spiritual') => void;
+  familyTreeSubTab?: 'tree' | 'records' | 'anniversaries' | 'ancestors';
+  onSelectFamilyTreeSubTab?: (subTab: 'tree' | 'records' | 'anniversaries' | 'ancestors') => void;
+  haevyLiteSubTab?: 'shop' | 'customize' | 'topup_and_ads';
+  onSelectHaevyLiteSubTab?: (subTab: 'shop' | 'customize' | 'topup_and_ads') => void;
+  eduSubTab?: 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz';
+  onSelectEduSubTab?: (subTab: 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz') => void;
   currentTrack: Track | null;
   isPlaying: boolean;
   progress: number;
@@ -130,6 +150,14 @@ export function BottomTaskbar({
   onSelectVipSubTab,
   haevyAISubTab = 'overview',
   onSelectHaevyAISubTab,
+  spiritualSubTab = 'tarot',
+  onSelectSpiritualSubTab,
+  familyTreeSubTab = 'tree',
+  onSelectFamilyTreeSubTab,
+  haevyLiteSubTab = 'shop',
+  onSelectHaevyLiteSubTab,
+  eduSubTab = 'assistant',
+  onSelectEduSubTab,
   currentTrack,
   isPlaying,
   progress,
@@ -155,9 +183,16 @@ export function BottomTaskbar({
   onToggleRepeat,
   onOpenSmartShuffleModal,
 }: BottomTaskbarProps) {
-  const { user } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const { getBadgeForMode, getBadgeForSubTab, markModeAsViewed, totalBadgesCount } = useModeBadges();
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [isPlayerStripCollapsed, setIsPlayerStripCollapsed] = useState(false);
+
+  // If in profile mode, do not render audio taskbar
+  if (currentMode === 'profile') {
+    return null;
+  }
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return '0:00';
@@ -214,23 +249,41 @@ export function BottomTaskbar({
     return () => unsubReq();
   }, [user]);
 
+  // Hide entire taskbar when user avatar menu is open
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  useEffect(() => {
+    const handleUserMenu = (e: any) => {
+      setIsUserMenuOpen(Boolean(e.detail));
+    };
+    window.addEventListener('haevy:user-menu-opened', handleUserMenu);
+    return () => {
+      window.removeEventListener('haevy:user-menu-opened', handleUserMenu);
+    };
+  }, []);
+
+  // If user action panel is open, completely hide bottom taskbar
+  if (isUserMenuOpen) {
+    return null;
+  }
+
   // Dynamic bottom dock tabs corresponding to the active mode
   const getDockNavItems = () => {
     if (activeTab === 'vip' || activeTab === 'topup') {
       return [
-        { id: 'page1', label: 'Đặc Quyền VIP', icon: Crown, isModeSubTab: true },
+        { id: 'page1', label: 'Đặc Quyền', icon: Crown, isModeSubTab: true },
         { id: 'page2', label: 'Nạp VIP', icon: Zap, isModeSubTab: true },
-        { id: 'page3', label: 'Nạp Xu Haevy', icon: Coins, isModeSubTab: true },
-        { id: 'page4', label: 'Tặng Bạn Bè', icon: Gift, isModeSubTab: true },
+        { id: 'page3', label: 'Nạp Xu', icon: Coins, isModeSubTab: true },
+        { id: 'page4', label: 'Tặng Bạn', icon: Gift, isModeSubTab: true },
+        { id: 'page5', label: 'AI VIP', icon: BrainCircuit, isModeSubTab: true },
       ];
     }
 
     switch (currentMode) {
       case 'audio':
         return [
-          { id: 'home', label: 'Trang Chủ', icon: Compass, isModeSubTab: false },
-          { id: 'library', label: 'Kho Audio', icon: Library, isModeSubTab: false },
-          { id: 'community', label: 'Thảo Luận', icon: Users, isModeSubTab: false },
+          { id: 'home', label: 'Trang Chủ', icon: Compass, isModeSubTab: false, badge: getBadgeForSubTab('audio', 'home') || undefined },
+          { id: 'library', label: 'Kho Audio', icon: Library, isModeSubTab: false, badge: getBadgeForSubTab('audio', 'library') || undefined },
+          { id: 'community', label: 'Thảo Luận', icon: Users, isModeSubTab: false, badge: getBadgeForSubTab('audio', 'community') || undefined },
           { id: 'player', label: 'Phát Nhạc', icon: Headphones, isModeSubTab: false },
         ];
       case 'messages':
@@ -239,20 +292,21 @@ export function BottomTaskbar({
             id: 'chat', 
             label: 'Trang Chat', 
             icon: MessageSquare, 
-            badge: unreadCount > 0 ? unreadCount : undefined,
+            badge: (getBadgeForSubTab('messages', 'chat') || unreadCount) > 0 ? (getBadgeForSubTab('messages', 'chat') || unreadCount) : undefined,
             isModeSubTab: true 
           },
           { 
             id: 'feed', 
             label: 'Trang Tin Ảnh', 
             icon: ImageIcon,
+            badge: getBadgeForSubTab('messages', 'feed') || undefined,
             isModeSubTab: true 
           },
           { 
             id: 'friends', 
             label: 'Kết Bạn', 
             icon: Users,
-            badge: pendingRequestsCount > 0 ? pendingRequestsCount : undefined,
+            badge: (getBadgeForSubTab('messages', 'friends') || pendingRequestsCount) > 0 ? (getBadgeForSubTab('messages', 'friends') || pendingRequestsCount) : undefined,
             isModeSubTab: true 
           },
         ];
@@ -262,24 +316,28 @@ export function BottomTaskbar({
             id: 'page1', 
             label: 'Yêu Thương 💕', 
             icon: Heart, 
+            badge: getBadgeForSubTab('couple', 'page1') || undefined,
             isModeSubTab: true 
           },
           { 
             id: 'page2', 
             label: 'Chu Kỳ 🌸', 
             icon: Droplets, 
+            badge: getBadgeForSubTab('couple', 'page2') || undefined,
             isModeSubTab: true 
           },
           { 
             id: 'page3', 
             label: 'Lịch & Nhật Ký 📅', 
             icon: Calendar, 
+            badge: getBadgeForSubTab('couple', 'page3') || undefined,
             isModeSubTab: true 
           },
           { 
             id: 'page4', 
             label: 'Kỷ Niệm ✨', 
             icon: Sparkles, 
+            badge: getBadgeForSubTab('couple', 'page4') || undefined,
             isModeSubTab: true 
           },
         ];
@@ -289,12 +347,14 @@ export function BottomTaskbar({
             id: 'page1', 
             label: 'Tổng Quan', 
             icon: PieChart, 
+            badge: getBadgeForSubTab('finance', 'page1') || undefined,
             isModeSubTab: true 
           },
           { 
             id: 'page2', 
             label: 'Ngân Sách & Nợ', 
             icon: Scale, 
+            badge: getBadgeForSubTab('finance', 'page2') || undefined,
             isModeSubTab: true 
           },
           { 
@@ -308,12 +368,14 @@ export function BottomTaskbar({
             id: 'page4', 
             label: 'Quỹ Gia Đình', 
             icon: Home, 
+            badge: getBadgeForSubTab('finance', 'page4') || undefined,
             isModeSubTab: true 
           },
           { 
             id: 'page5', 
             label: 'Tính Lãi & Toán', 
             icon: Calculator, 
+            badge: getBadgeForSubTab('finance', 'page5') || undefined,
             isModeSubTab: true 
           },
         ];
@@ -321,23 +383,23 @@ export function BottomTaskbar({
         return [
           { id: 'page1', label: 'Tổng Quan', icon: Activity, isModeSubTab: true },
           { id: 'page2', label: 'Đặc Quyền', icon: Crown, isModeSubTab: true },
-          { id: 'page3', label: 'Duyệt Tác Giả', icon: ShieldCheck, isModeSubTab: true },
+          { id: 'page3', label: 'Duyệt Tác Giả', icon: ShieldCheck, badge: getBadgeForSubTab('admin', 'page3') || undefined, isModeSubTab: true },
           { id: 'page4', label: 'Nuôi Admin', icon: Coins, isModeSubTab: true },
           { id: 'page5', label: 'Sửa Home', icon: Sliders, isModeSubTab: true },
           { id: 'page6', label: '×2 Đám Đông', icon: Zap, isModeSubTab: true },
-          { id: 'page7', label: 'Sự Kiện', icon: Calendar, isModeSubTab: true },
+          { id: 'page7', label: 'Sự Kiện', icon: Calendar, badge: getBadgeForSubTab('admin', 'page7') || undefined, isModeSubTab: true },
         ];
       case 'studio':
         return [
-          { id: 'page1', label: 'Tổng Quan', icon: ShieldCheck, isModeSubTab: true },
+          { id: 'page1', label: 'Tổng Quan', icon: ShieldCheck, badge: getBadgeForSubTab('studio', 'page1') || undefined, isModeSubTab: true },
           { id: 'page2', label: 'Tính Năng', icon: Mic, isModeSubTab: true },
-          { id: 'page3', label: 'Kho Tác Phẩm', icon: Layers, isModeSubTab: true },
+          { id: 'page3', label: 'Kho Tác Phẩm', icon: Layers, badge: getBadgeForSubTab('studio', 'page3') || undefined, isModeSubTab: true },
         ];
       case 'games':
         return [
           { id: 'home', label: 'Trang Game 🎮', icon: Gamepad2, isModeSubTab: true },
-          { id: 'quests', label: 'Nhiệm Vụ 📜', icon: Flame, isModeSubTab: true },
-          { id: 'leaderboard', label: 'Bảng Xếp Hạng 🏆', icon: Trophy, isModeSubTab: true },
+          { id: 'quests', label: 'Nhiệm Vụ 📜', icon: Flame, badge: getBadgeForSubTab('games', 'quests') || undefined, isModeSubTab: true },
+          { id: 'leaderboard', label: 'Bảng Xếp Hạng 🏆', icon: Trophy, badge: getBadgeForSubTab('games', 'leaderboard') || undefined, isModeSubTab: true },
         ];
       case 'morning':
       case 'space':
@@ -346,19 +408,40 @@ export function BottomTaskbar({
         ];
       case 'haevy_ai':
         return [
-          { id: 'overview', label: 'Trợ Lý Hub 🧠', icon: BrainCircuit, isModeSubTab: true },
-          { id: 'chat', label: 'Tâm Sự 💖', icon: Heart, isModeSubTab: true },
-          { id: 'updates', label: 'Cập Nhật 🚀', icon: Sparkles, isModeSubTab: true },
+          { id: 'overview', label: 'Trợ Lý Hub 🧠', icon: BrainCircuit, badge: getBadgeForSubTab('haevy_ai', 'overview') || undefined, isModeSubTab: true },
+          { id: 'chat', label: 'Tâm Sự 💖', icon: Heart, badge: getBadgeForSubTab('haevy_ai', 'chat') || undefined, isModeSubTab: true },
+          { id: 'updates', label: 'Cập Nhật 🚀', icon: Sparkles, badge: getBadgeForSubTab('haevy_ai', 'updates') || undefined, isModeSubTab: true },
           { id: 'troubleshoot', label: 'Cứu Hộ 🛠️', icon: ShieldCheck, isModeSubTab: true },
           { id: 'modes', label: 'Lệnh Chế Độ ⚡', icon: Zap, isModeSubTab: true },
         ];
       case 'spiritual':
         return [
-          { id: 'spiritual', label: 'Tâm Linh Vũ Trụ 🔮', icon: Sparkles, isModeSubTab: false },
+          { id: 'tarot', label: 'Tarot 3D 🔮', icon: Sparkles, badge: getBadgeForSubTab('spiritual', 'tarot') || undefined, isModeSubTab: true },
+          { id: 'tuvi', label: 'Tử Vi 2026 📜', icon: Sun, isModeSubTab: true },
+          { id: 'astrology', label: 'Bản Đồ Sao 🌌', icon: Compass, isModeSubTab: true },
+          { id: 'soundscapes', label: 'Sóng Âm 🎧', icon: Radio, isModeSubTab: true },
+          { id: 'couple_spiritual', label: 'Duyên Số 💖', icon: Heart, isModeSubTab: true },
         ];
       case 'family_tree':
         return [
-          { id: 'family_tree', label: 'Gia Phả Dòng Họ 👑', icon: GitFork, isModeSubTab: false },
+          { id: 'tree', label: 'Cây Gia Phả 👑', icon: GitFork, isModeSubTab: true },
+          { id: 'records', label: 'Sắc Phong 📜', icon: BookOpen, isModeSubTab: true },
+          { id: 'anniversaries', label: 'Lịch Giỗ 📅', icon: Calendar, badge: getBadgeForSubTab('family_tree', 'anniversaries') || undefined, isModeSubTab: true },
+          { id: 'ancestors', label: 'Tiền Nhân 👥', icon: Users, isModeSubTab: true },
+        ];
+      case 'haevy_lite':
+        return [
+          { id: 'shop', label: '1. Shop Bán 🛍️', icon: ShoppingBag, badge: getBadgeForSubTab('haevy_lite', 'shop') || undefined, isModeSubTab: true },
+          { id: 'customize', label: '2. Tùy Chỉnh 🎨', icon: SlidersHorizontal, isModeSubTab: true },
+          { id: 'topup_and_ads', label: '3. Nạp Xu & QC 🪙', icon: Coins, badge: getBadgeForSubTab('haevy_lite', 'topup_and_ads') || undefined, isModeSubTab: true },
+        ];
+      case 'edu':
+        return [
+          { id: 'assistant', label: 'AI Gia Sư 🤖', icon: BrainCircuit, isModeSubTab: true },
+          { id: 'labs', label: 'Lab Ảo 🔬', icon: FlaskConical, isModeSubTab: true },
+          { id: 'roadmap', label: 'Lộ Trình 📚', icon: BookOpen, isModeSubTab: true },
+          { id: 'quiz', label: 'Quiz Nhanh 🎯', icon: Zap, isModeSubTab: true },
+          { id: 'video', label: 'Video 🎬', icon: Video, isModeSubTab: true },
         ];
       default:
         return [
@@ -372,6 +455,7 @@ export function BottomTaskbar({
   const navItems = getDockNavItems();
 
   const handleTabClick = (item: { id: string; isModeSubTab: boolean; isCircularPlus?: boolean }) => {
+    markModeAsViewed(currentMode, item.id);
     if (item.isCircularPlus) {
       haptics.medium();
     } else {
@@ -380,7 +464,7 @@ export function BottomTaskbar({
     if (activeTab === 'vip' || activeTab === 'topup') {
       if (item.isModeSubTab) {
         if (onSelectVipSubTab) {
-          onSelectVipSubTab(item.id as 'page1' | 'page2' | 'page3' | 'page4');
+          onSelectVipSubTab(item.id as 'page1' | 'page2' | 'page3' | 'page4' | 'page5');
         }
       } else {
         onSelectTab(item.id as ActiveTab);
@@ -448,6 +532,42 @@ export function BottomTaskbar({
       } else {
         onSelectTab(item.id as ActiveTab);
       }
+    } else if (currentMode === 'spiritual') {
+      if (item.isModeSubTab) {
+        onSelectTab('spiritual');
+        if (onSelectSpiritualSubTab) {
+          onSelectSpiritualSubTab(item.id as any);
+        }
+      } else {
+        onSelectTab(item.id as ActiveTab);
+      }
+    } else if (currentMode === 'family_tree') {
+      if (item.isModeSubTab) {
+        onSelectTab('family_tree');
+        if (onSelectFamilyTreeSubTab) {
+          onSelectFamilyTreeSubTab(item.id as any);
+        }
+      } else {
+        onSelectTab(item.id as ActiveTab);
+      }
+    } else if (currentMode === 'haevy_lite') {
+      if (item.isModeSubTab) {
+        onSelectTab('haevy_lite');
+        if (onSelectHaevyLiteSubTab) {
+          onSelectHaevyLiteSubTab(item.id as 'shop' | 'customize' | 'topup_and_ads');
+        }
+      } else {
+        onSelectTab(item.id as ActiveTab);
+      }
+    } else if (currentMode === 'edu') {
+      if (item.isModeSubTab) {
+        onSelectTab('edu' as any);
+        if (onSelectEduSubTab) {
+          onSelectEduSubTab(item.id as any);
+        }
+      } else {
+        onSelectTab(item.id as ActiveTab);
+      }
     } else {
       onSelectTab(item.id as ActiveTab);
     }
@@ -459,7 +579,58 @@ export function BottomTaskbar({
       className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-800/90 shadow-[0_-10px_35px_rgba(0,0,0,0.85)] transition-all"
     >
       {/* Mini Player Strip (Docked directly above the bottom navigation tabs) */}
-      {currentTrack && activeTab !== 'player' && (
+      {currentTrack && activeTab !== 'player' && isPlayerStripCollapsed && (
+        <div 
+          id="mini-player-strip-collapsed"
+          className="border-b border-zinc-800/80 px-3 sm:px-6 py-1.5 bg-gradient-to-r from-zinc-900/95 via-zinc-950/95 to-zinc-900/95 flex items-center justify-between gap-2 text-xs animate-fadeIn"
+        >
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={onTogglePlay}
+              className="p-1 rounded-full bg-amber-400 text-zinc-950 hover:bg-amber-300 transition shrink-0 cursor-pointer shadow-sm active:scale-95"
+              title={isPlaying ? 'Tạm dừng' : 'Phát'}
+            >
+              {isPlaying ? <Pause size={12} className="fill-zinc-950" /> : <Play size={12} className="fill-zinc-950 ml-0.5" />}
+            </button>
+            <span className="font-bold text-white text-xs truncate max-w-[160px] sm:max-w-xs">
+              {currentTrack.title}
+            </span>
+            <span className="text-zinc-500 text-[11px] truncate hidden xs:inline">
+              • {currentTrack.artist}
+            </span>
+            <div className="flex-1 max-w-xs hidden md:block h-1 bg-zinc-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-amber-400 rounded-full transition-all"
+                style={{ width: `${duration > 0 ? (progress / duration) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsPlayerStripCollapsed(false)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 hover:text-white transition text-[11px] font-semibold cursor-pointer"
+              title="Mở rộng bảng phát nhạc"
+            >
+              <ChevronUp size={13} />
+              <span className="hidden sm:inline">Mở rộng</span>
+            </button>
+            {onCloseTrack && (
+              <button
+                type="button"
+                onClick={onCloseTrack}
+                className="p-1 text-zinc-400 hover:text-rose-300 transition cursor-pointer"
+                title="Tắt nhạc"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {currentTrack && activeTab !== 'player' && !isPlayerStripCollapsed && (
         <div 
           id="mini-player-strip"
           className="border-b border-zinc-800/60 px-3 sm:px-6 py-2 bg-gradient-to-r from-zinc-900/95 via-zinc-950/95 to-zinc-900/95"
@@ -656,6 +827,19 @@ export function BottomTaskbar({
                 />
               </div>
 
+              {/* Collapse Mini-Player Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.light();
+                  setIsPlayerStripCollapsed(true);
+                }}
+                className="p-1.5 sm:p-2 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 rounded-xl transition-all cursor-pointer"
+                title="Thu nhỏ thanh phát nhạc (Để xem trọn vẹn màn hình)"
+              >
+                <ChevronDown size={14} className="sm:w-[15px] sm:h-[15px]" />
+              </button>
+
               {/* Full Player Button */}
               <button
                 type="button"
@@ -708,6 +892,14 @@ export function BottomTaskbar({
             ? activeTab === 'studio' && studioSubTab === item.id
             : currentMode === 'haevy_ai'
             ? activeTab === 'haevy_ai' && (haevyAISubTab === item.id || (!haevyAISubTab && item.id === 'overview'))
+            : currentMode === 'spiritual'
+            ? activeTab === 'spiritual' && (spiritualSubTab === item.id || (!spiritualSubTab && item.id === 'tarot'))
+            : currentMode === 'family_tree'
+            ? activeTab === 'family_tree' && (familyTreeSubTab === item.id || (!familyTreeSubTab && item.id === 'tree'))
+            : currentMode === 'haevy_lite'
+            ? activeTab === 'haevy_lite' && (haevyLiteSubTab === item.id || (!haevyLiteSubTab && item.id === 'shop'))
+            : currentMode === 'edu'
+            ? activeTab === 'edu' && (eduSubTab === item.id || (!eduSubTab && item.id === 'assistant'))
             : activeTab === item.id;
 
           // Special Circular Plus Button for Finance "Thêm Chi Tiêu"
@@ -744,21 +936,23 @@ export function BottomTaskbar({
               className={`relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 px-2.5 sm:px-4 rounded-2xl transition-all cursor-pointer min-w-0 flex-1 ${
                 isActive
                   ? currentMode === 'finance'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 font-black shadow-lg shadow-emerald-500/10 scale-[1.02]'
+                    ? 'bg-emerald-500/20 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 dark:border-emerald-500/50 font-black shadow-lg shadow-emerald-500/10 scale-[1.02]'
                     : currentMode === 'couple'
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 font-black shadow-lg shadow-rose-500/10 scale-[1.02]'
+                    ? 'bg-rose-500/20 dark:bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/40 dark:border-rose-500/50 font-black shadow-lg shadow-rose-500/10 scale-[1.02]'
                     : currentMode === 'studio'
-                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50 font-black shadow-lg shadow-purple-500/10 scale-[1.02]'
+                    ? 'bg-purple-500/20 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-500/40 dark:border-purple-500/50 font-black shadow-lg shadow-purple-500/10 scale-[1.02]'
                     : currentMode === 'haevy_ai'
-                    ? 'bg-purple-500/25 text-purple-200 border border-purple-400/60 font-black shadow-lg shadow-purple-900/40 scale-[1.02]'
+                    ? 'bg-purple-500/20 dark:bg-purple-500/25 text-purple-800 dark:text-purple-200 border border-purple-500/40 dark:border-purple-400/60 font-black shadow-lg shadow-purple-900/40 scale-[1.02]'
                     : currentMode === 'family_tree'
-                    ? 'bg-amber-500/25 text-amber-200 border border-amber-400/60 font-black shadow-lg shadow-amber-900/40 scale-[1.02]'
+                    ? 'bg-amber-500/20 dark:bg-amber-500/25 text-amber-800 dark:text-amber-200 border border-amber-500/40 dark:border-amber-400/60 font-black shadow-lg shadow-amber-900/40 scale-[1.02]'
                     : currentMode === 'games'
-                    ? 'bg-indigo-600/25 text-indigo-300 border border-indigo-500/50 font-black shadow-lg shadow-indigo-500/10 scale-[1.02]'
+                    ? 'bg-indigo-600/20 dark:bg-indigo-600/25 text-indigo-800 dark:text-indigo-300 border border-indigo-500/40 dark:border-indigo-500/50 font-black shadow-lg shadow-indigo-500/10 scale-[1.02]'
                     : (currentMode === 'morning' || currentMode === 'space')
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 font-black shadow-lg shadow-cyan-500/10 scale-[1.02]'
-                    : 'bg-zinc-800/95 text-amber-300 border border-amber-500/40 font-black shadow-lg shadow-amber-500/10 scale-[1.02]'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/70'
+                    ? 'bg-cyan-500/20 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/40 dark:border-cyan-500/50 font-black shadow-lg shadow-cyan-500/10 scale-[1.02]'
+                    : currentMode === 'haevy_lite'
+                    ? 'bg-purple-500/20 dark:bg-purple-500/25 text-purple-800 dark:text-purple-200 border border-purple-500/40 dark:border-purple-400/60 font-black shadow-lg shadow-purple-900/40 scale-[1.02]'
+                    : 'bg-amber-500/15 dark:bg-zinc-800/95 text-amber-800 dark:text-amber-300 border border-amber-500/40 font-black shadow-lg shadow-amber-500/10 scale-[1.02]'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-900/70'
               }`}
             >
               {/* Active Indicator Glow Pill */}
@@ -776,6 +970,8 @@ export function BottomTaskbar({
                     ? 'bg-indigo-400 shadow-[0_0_10px_#818cf8]'
                     : (currentMode === 'morning' || currentMode === 'space')
                     ? 'bg-cyan-400 shadow-[0_0_10px_#22d3ee]'
+                    : currentMode === 'haevy_lite'
+                    ? 'bg-purple-400 shadow-[0_0_10px_#c084fc]'
                     : 'bg-amber-400 shadow-[0_0_10px_#f59e0b]'
                 }`} />
               )}

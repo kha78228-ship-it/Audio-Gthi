@@ -27,6 +27,7 @@ import {
 import { Track, ActiveTab } from '../types';
 import { FEATURED_PLAYLISTS, GENRE_LIST } from '../data';
 import { useAuth } from '../context/AuthContext';
+import { HomeFriendsMessageSection } from './home/HomeFriendsMessageSection';
 import { 
   Skeleton, 
   SkeletonHero, 
@@ -422,6 +423,16 @@ export function HomeView({
           )}
         </section>
       )}
+
+      {/* Haevy Message & Bạn Bè Trang Chủ (Combo Hoạt Ảnh Vũ Trụ & Xu Haevy Lite) */}
+      <HomeFriendsMessageSection
+        onOpenChatWithUser={(uid) => {
+          onSelectTab('messages');
+        }}
+        onGoToMessages={() => onSelectTab('messages')}
+        onGoToFriends={() => onSelectTab('messages')}
+        onOpenAuth={onOpenAuth}
+      />
 
       {/* Admin Pinned Tracks Showcase (Ghim Bởi Admin) */}
       {pinnedTracks.length > 0 && (

@@ -53,9 +53,10 @@ interface HaevySpiritualViewProps {
   onEarnCoins?: (amount: number, reason: string) => void;
   initialSubTab?: SpiritualSubTab;
   onNavigateToMode?: (mode: string, subTab?: string) => void;
+  onSubTabChange?: (tab: SpiritualSubTab) => void;
 }
 
-export function HaevySpiritualView({ onEarnCoins, initialSubTab, onNavigateToMode }: HaevySpiritualViewProps) {
+export function HaevySpiritualView({ onEarnCoins, initialSubTab, onNavigateToMode, onSubTabChange }: HaevySpiritualViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<SpiritualSubTab>(initialSubTab || 'tarot');
   const [isAmbientPlaying, setIsAmbientPlaying] = useState(false);
   const [dailyClaimed, setDailyClaimed] = useState(false);
@@ -322,6 +323,9 @@ export function HaevySpiritualView({ onEarnCoins, initialSubTab, onNavigateToMod
                 onClick={() => {
                   haptics.impact('light');
                   setActiveSubTab(tab.id);
+                  if (onSubTabChange) {
+                    onSubTabChange(tab.id);
+                  }
                 }}
                 className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 whitespace-nowrap transition-all duration-300 transform active:scale-95 cursor-pointer ${
                   isActive

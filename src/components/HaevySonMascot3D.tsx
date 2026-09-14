@@ -38,6 +38,7 @@ import {
   Sliders,
   Move,
   LayoutGrid,
+  Layers,
   ChevronDown,
   ChevronUp,
   Share2,
@@ -1952,7 +1953,7 @@ export const HaevySonMascot3D: React.FC<HaevySonMascot3DProps> = ({
         gestureAuraFlash ? 'animate-gesture-flash' : ''
       } ${
         isFullscreenMode || isStandaloneFullscreen 
-          ? 'fixed inset-0 z-50 h-screen w-screen' 
+          ? 'fixed inset-0 z-50 h-[100dvh] h-full w-full max-w-full overflow-hidden' 
           : 'rounded-3xl border border-amber-500/40 shadow-2xl'
       }`}
       style={
@@ -2164,13 +2165,28 @@ export const HaevySonMascot3D: React.FC<HaevySonMascot3DProps> = ({
             {onBackToPortal && (
               <button
                 onClick={onBackToPortal}
-                className="flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-700/90 text-white text-xs sm:text-sm font-extrabold backdrop-blur-xl shadow-2xl transition-all active:scale-95 group hover:border-amber-400"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-700/90 text-white text-xs sm:text-sm font-extrabold backdrop-blur-xl shadow-2xl transition-all active:scale-95 group hover:border-amber-400"
                 title="Thoát Mục 2 & Trở về Cổng Không Gian"
               >
                 <ArrowLeft size={16} className="text-amber-400 group-hover:-translate-x-1 transition-transform" />
                 <span>Thoát Mục 2</span>
               </button>
             )}
+
+            {/* Ecosystem Mode Switcher Button */}
+            <button
+              id="mascot-modes-btn"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('haevy-open-quick-mode-switcher'));
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black text-xs sm:text-sm font-black backdrop-blur-xl shadow-xl shadow-amber-500/25 border border-amber-300/80 transition-all active:scale-95 cursor-pointer ring-1 ring-amber-400/40"
+              title="Chuyển đổi qua các chế độ trong Hệ Sinh Thái Haevy (Audio, AI Hub, VIP, Games,...)"
+            >
+              <Layers size={15} className="text-black shrink-0" />
+              <span>Chế Độ</span>
+            </button>
 
             <div className="hidden md:flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-zinc-950/85 border border-zinc-800 backdrop-blur-xl text-xs font-bold text-zinc-200 shadow-xl">
               <span className="text-amber-400">🐲</span>

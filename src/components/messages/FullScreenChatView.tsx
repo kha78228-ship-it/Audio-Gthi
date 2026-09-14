@@ -54,6 +54,8 @@ import {
 import { FullEmotionEmojiPicker } from './FullEmotionEmojiPicker';
 import { useAuth } from '../../context/AuthContext';
 import { Conversation, ChatMessage, ConversationParticipant, Track, ActiveCallSession } from '../../types';
+import { CosmicAvatarFX } from '../haevyLite/CosmicAvatarFX';
+import { getChatBorder, getNameBorder, getNameFont } from '../haevyLite/themeBundles';
 import { useUserPresence } from '../../services/presenceService';
 import { 
   sendChatMessage, 
@@ -79,6 +81,7 @@ import { E2EESecurityModal } from './E2EESecurityModal';
 import { E2EEUnlockModal } from './E2EEUnlockModal';
 import { 
   collection, 
+  doc,
   query, 
   orderBy, 
   onSnapshot, 
@@ -101,7 +104,16 @@ export function FullScreenChatView({
   onOpenAuth,
   onNavigateToMode
 }: FullScreenChatViewProps) {
-  const { user, accountId, isVip, isAuthorVerified, authorStageName } = useAuth();
+  const { 
+    user, 
+    accountId, 
+    isVip, 
+    isAuthorVerified, 
+    authorStageName,
+    activeChatBorder,
+    activeAvatarFrame,
+    activeNameBorder
+  } = useAuth();
 
   // Messages state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -195,12 +207,61 @@ export function FullScreenChatView({
       photoURL: details.photoURL || '',
       isVip: Boolean(details.isVip),
       isAuthorVerified: Boolean(details.isAuthorVerified),
-      authorStageName: details.authorStageName || details.stageName || ''
+      authorStageName: details.authorStageName || details.stageName || '',
+      activeAvatarFrame: details.activeAvatarFrame || details.activeThemeBundle,
+      activeChatBorder: details.activeChatBorder,
+      activeNameBorder: details.activeNameBorder,
+      activeNameFont: details.activeNameFont,
+      activeThemeBundle: details.activeThemeBundle
+    } as ConversationParticipant & {
+      activeAvatarFrame?: string;
+      activeChatBorder?: string;
+      activeNameBorder?: string;
+      activeNameFont?: string;
+      activeThemeBundle?: string;
     };
   };
 
   const recipient = getRecipient();
   const { isOnline: isRecipientOnline, statusDetails: recipientPresenceDetails } = useUserPresence(recipient.uid);
+
+  // Live profile of the recipient to reflect newly purchased/equipped cosmetic frames/borders instantly
+  const [recipientLiveProfile, setRecipientLiveProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (!recipient.uid) return;
+    try {
+      const uRef = doc(db, 'users', recipient.uid);
+      const unsub = onSnapshot(uRef, (snap) => {
+        if (snap.exists()) {
+          setRecipientLiveProfile(snap.data());
+        }
+      }, (err) => {
+        console.warn('Recipient profile sync notice:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      // ignore
+    }
+  }, [recipient.uid]);
+
+  const theirAvatarFrame = recipientLiveProfile?.activeAvatarFrame !== undefined 
+    ? recipientLiveProfile.activeAvatarFrame 
+    : (recipient as any).activeAvatarFrame;
+  const theirChatBorderId = recipientLiveProfile?.activeChatBorder !== undefined 
+    ? recipientLiveProfile.activeChatBorder 
+    : ((recipient as any).activeChatBorder || (recipient as any).activeThemeBundle);
+  const theirNameBorderId = recipientLiveProfile?.activeNameBorder !== undefined 
+    ? recipientLiveProfile.activeNameBorder 
+    : (recipient as any).activeNameBorder;
+  const theirNameFontId = recipientLiveProfile?.activeNameFont !== undefined 
+    ? recipientLiveProfile.activeNameFont 
+    : (recipient as any).activeNameFont;
+
+  const myChatBorder = getChatBorder(activeChatBorder);
+  const theirChatBorder = getChatBorder(theirChatBorderId);
+  const recipientNameBorder = getNameBorder(theirNameBorderId);
+  const recipientNameFont = getNameFont(theirNameFontId);
 
   // 1. Subscribe to conversation messages
   useEffect(() => {
@@ -875,26 +936,22 @@ export function FullScreenChatView({
 
           {/* Recipient Avatar */}
           <div className="relative shrink-0">
-            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-2xl overflow-hidden bg-zinc-800 border-2 border-zinc-700/80 shadow-md flex items-center justify-center">
-              {recipient.photoURL ? (
-                <img src={recipient.photoURL} alt={recipient.displayName} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white font-black text-xs sm:text-sm">
-                  {recipient.displayName?.charAt(0) || 'U'}
-                </div>
-              )}
-            </div>
-            {/* VIP Crown if VIP */}
-            {recipient.isVip && (
-              <Crown size={12} className="absolute -top-1.5 -right-1 text-amber-400 fill-amber-400 drop-shadow-md" />
-            )}
+            <CosmicAvatarFX
+              photoURL={recipientLiveProfile?.photoURL || recipient.photoURL}
+              displayName={recipientLiveProfile?.displayName || recipient.displayName}
+              avatarFrameId={theirAvatarFrame}
+              isCurrentUser={false}
+              isVip={recipientLiveProfile?.isVip !== undefined ? Boolean(recipientLiveProfile.isVip) : recipient.isVip}
+              size="sm"
+              showBadge={false}
+            />
             {/* Online Green Indicator or Offline Dot */}
             {isRecipientOnline ? (
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center" title="Đang trực tuyến">
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-950 shadow-[0_0_8px_rgba(16,185,129,0.8)] flex items-center justify-center z-10" title="Đang trực tuyến">
                 <span className="w-1.5 h-1.5 rounded-full bg-white" />
               </span>
             ) : (
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-zinc-600 border-2 border-zinc-950 shadow-sm flex items-center justify-center" title="Ngoại tuyến">
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-zinc-600 border-2 border-zinc-950 shadow-sm flex items-center justify-center z-10" title="Ngoại tuyến">
                 <span className="w-1 h-1 rounded-full bg-zinc-400" />
               </span>
             )}
@@ -902,10 +959,29 @@ export function FullScreenChatView({
 
           {/* Recipient Name & Online Info */}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <h2 className="text-xs sm:text-base font-black text-white truncate max-w-[110px] xs:max-w-[150px] sm:max-w-[260px]">
-                {recipient.displayName}
-              </h2>
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+              {recipientNameBorder ? (
+                <div className={`px-2 py-0.5 rounded-xl border flex items-center gap-1.5 shadow-sm ${recipientNameBorder.nameplateBorderClass} ${recipientNameBorder.nameplateBgClass}`}>
+                  <span className="text-xs">{recipientNameBorder.nameplateIcon}</span>
+                  <h2 
+                    className={`text-xs sm:text-sm font-black truncate max-w-[120px] xs:max-w-[170px] sm:max-w-[260px] ${recipientNameFont?.fontGlowClass || recipientNameBorder.nameplateTextClass}`}
+                    style={recipientNameFont ? { fontFamily: recipientNameFont.fontFamilyName } : undefined}
+                  >
+                    {recipient.displayName}
+                  </h2>
+                </div>
+              ) : recipientNameFont ? (
+                <h2 
+                  className={`text-xs sm:text-base font-black truncate max-w-[110px] xs:max-w-[150px] sm:max-w-[260px] ${recipientNameFont.fontGlowClass || 'text-white'}`}
+                  style={{ fontFamily: recipientNameFont.fontFamilyName }}
+                >
+                  {recipient.displayName}
+                </h2>
+              ) : (
+                <h2 className="text-xs sm:text-base font-black text-white truncate max-w-[110px] xs:max-w-[150px] sm:max-w-[260px]">
+                  {recipient.displayName}
+                </h2>
+              )}
               {recipient.isVip && (
                 <span className="text-[8px] sm:text-[9px] bg-amber-400/20 text-amber-300 font-black px-1.5 py-0.5 rounded-full border border-amber-400/40 shrink-0">
                   VIP
@@ -1114,6 +1190,15 @@ export function FullScreenChatView({
               );
             }
 
+            const currentBorder = isMe ? myChatBorder : theirChatBorder;
+            const bubbleStyleClass = isMe
+              ? currentBorder
+                ? `${currentBorder.bubbleBgClass} ${currentBorder.bubbleBorderClass} ${currentBorder.bubbleShadowClass} ${currentBorder.bubbleTextGlowClass} text-white rounded-br-md`
+                : 'bg-gradient-to-r from-sky-600 to-blue-600 text-white rounded-br-md shadow-sky-600/10'
+              : currentBorder
+                ? `${currentBorder.bubbleBgClass} ${currentBorder.bubbleBorderClass} ${currentBorder.bubbleShadowClass} text-zinc-100 rounded-bl-md`
+                : 'bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-bl-md';
+
             return (
               <div
                 key={msg.id}
@@ -1121,14 +1206,16 @@ export function FullScreenChatView({
               >
                 {/* Left: Sender avatar for incoming messages */}
                 {!isMe && (
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl overflow-hidden bg-zinc-800 border border-zinc-700/80 shrink-0 mb-1 shadow-md">
-                    {msg.senderPhoto ? (
-                      <img src={msg.senderPhoto} alt={msg.senderName} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-zinc-700 flex items-center justify-center text-xs text-zinc-300 font-bold">
-                        {msg.senderName?.charAt(0) || 'U'}
-                      </div>
-                    )}
+                  <div className="shrink-0 mb-1">
+                    <CosmicAvatarFX
+                      photoURL={msg.senderPhoto || recipientLiveProfile?.photoURL || recipient.photoURL}
+                      displayName={msg.senderName || recipientLiveProfile?.displayName || recipient.displayName}
+                      avatarFrameId={theirAvatarFrame}
+                      isCurrentUser={false}
+                      isVip={recipientLiveProfile?.isVip !== undefined ? Boolean(recipientLiveProfile.isVip) : recipient.isVip}
+                      size="xs"
+                      showBadge={false}
+                    />
                   </div>
                 )}
 
@@ -1141,11 +1228,7 @@ export function FullScreenChatView({
                     </span>
                   )}
 
-                  <div className={`p-3 sm:p-4 rounded-3xl relative group shadow-xl transition-all break-words ${
-                    isMe
-                      ? 'bg-gradient-to-r from-sky-600 to-blue-600 text-white rounded-br-md shadow-sky-600/10'
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-bl-md'
-                  }`}>
+                  <div className={`p-3 sm:p-4 rounded-3xl relative group shadow-xl transition-all break-words ${bubbleStyleClass}`}>
                     {/* 1. Image Attachment */}
                     {msg.imageUrl && (
                       <div className="mb-2 rounded-2xl overflow-hidden bg-black/40 border border-white/10 relative group/img max-w-sm">
@@ -1524,14 +1607,16 @@ export function FullScreenChatView({
 
                 {/* Right: Sender avatar for own messages */}
                 {isMe && (
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl overflow-hidden bg-zinc-800 border border-sky-500/40 shrink-0 mb-1 shadow-md">
-                    {user?.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-tr from-sky-600 to-blue-600 flex items-center justify-center text-xs text-white font-bold">
-                        {user?.displayName?.charAt(0) || 'Tôi'}
-                      </div>
-                    )}
+                  <div className="shrink-0 mb-1">
+                    <CosmicAvatarFX
+                      photoURL={user?.photoURL}
+                      displayName={user?.displayName || 'Tôi'}
+                      avatarFrameId={activeAvatarFrame}
+                      isCurrentUser={true}
+                      isVip={isVip}
+                      size="xs"
+                      showBadge={false}
+                    />
                   </div>
                 )}
               </div>

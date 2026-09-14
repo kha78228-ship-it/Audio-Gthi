@@ -436,7 +436,7 @@ export function FriendsTab({
                                 <img src={targetUser.photoURL} alt="" className="w-full h-full object-cover rounded-[14px]" />
                               ) : (
                                 <div className="w-full h-full rounded-[14px] bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">
-                                  {targetUser.displayName.charAt(0)}
+                                  {targetUser.displayName?.charAt(0) || 'U'}
                                 </div>
                               )}
                             </div>
@@ -530,7 +530,7 @@ export function FriendsTab({
                             <img src={sugUser.photoURL} alt="" className="w-full h-full object-cover rounded-[14px]" />
                           ) : (
                             <div className="w-full h-full rounded-[14px] bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">
-                              {sugUser.displayName.charAt(0)}
+                              {sugUser.displayName?.charAt(0) || 'U'}
                             </div>
                           )}
                         </div>
@@ -613,7 +613,7 @@ export function FriendsTab({
                           <img src={req.senderPhoto} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-zinc-400 font-bold">
-                            {req.senderName.charAt(0)}
+                            {req.senderName?.charAt(0) || 'U'}
                           </div>
                         )}
                       </div>
@@ -682,7 +682,7 @@ export function FriendsTab({
                           <img src={req.receiverPhoto} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-zinc-400 font-bold text-xs">
-                            {req.receiverName.charAt(0)}
+                            {req.receiverName?.charAt(0) || 'U'}
                           </div>
                         )}
                       </div>
@@ -749,7 +749,7 @@ export function FriendsTab({
                             <img src={friendData.photoURL} alt="" className="w-full h-full object-cover rounded-[14px]" />
                           ) : (
                             <div className="w-full h-full rounded-[14px] bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">
-                              {name.charAt(0)}
+                              {name?.charAt(0) || 'U'}
                             </div>
                           )}
                         </div>

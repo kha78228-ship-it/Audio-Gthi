@@ -16,11 +16,13 @@ import {
   FileQuestion, 
   ArrowLeft,
   LifeBuoy,
-  Check
+  Check,
+  Bot
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { HaevySupportAiView } from './account/HaevySupportAiView';
 
 interface HaevySupportViewProps {
   onBackToPortal?: () => void;
@@ -28,8 +30,9 @@ interface HaevySupportViewProps {
 }
 
 export function HaevySupportView({ onBackToPortal, onOpenAuth }: HaevySupportViewProps) {
-  const { user, accountId } = useAuth();
+  const { user, accountId, isVip } = useAuth();
   
+  const [activeSupportTab, setActiveSupportTab] = useState<'ai_chat' | 'ticket_faq'>('ai_chat');
   const [topic, setTopic] = useState('Tài khoản & Đăng nhập');
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
@@ -154,8 +157,50 @@ export function HaevySupportView({ onBackToPortal, onOpenAuth }: HaevySupportVie
         </div>
       </div>
 
-      {/* Main Support Grid: Send Ticket & FAQs */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Support Mode Selector */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 w-full sm:w-fit shadow-xl">
+        <button
+          onClick={() => setActiveSupportTab('ai_chat')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+            activeSupportTab === 'ai_chat'
+              ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-sky-600 text-white shadow-lg shadow-indigo-600/30'
+              : 'text-zinc-400 hover:text-white hover:bg-zinc-850'
+          }`}
+        >
+          <Bot size={16} className={activeSupportTab === 'ai_chat' ? 'text-amber-300' : 'text-zinc-400'} />
+          <span>Trợ Lý Haevy Support AI (Trực Tuyến 24/7)</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        </button>
+
+        <button
+          onClick={() => setActiveSupportTab('ticket_faq')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+            activeSupportTab === 'ticket_faq'
+              ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+              : 'text-zinc-400 hover:text-white hover:bg-zinc-850'
+          }`}
+        >
+          <MessageSquare size={15} />
+          <span>Gửi Phiếu Hỗ Trợ & FAQ</span>
+        </button>
+      </div>
+
+      {/* 1. Live AI Support Chat Session */}
+      {activeSupportTab === 'ai_chat' && (
+        <div className="animate-in fade-in duration-300">
+          <HaevySupportAiView
+            user={user}
+            accountId={accountId}
+            isVip={isVip}
+            isFullScreen={false}
+            initialTab="chat"
+          />
+        </div>
+      )}
+
+      {/* 2. Main Support Grid: Send Ticket & FAQs */}
+      {activeSupportTab === 'ticket_faq' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-300">
         
         {/* Left Column: Submit Support Ticket Form (7 cols) */}
         <div className="lg:col-span-7 p-5 sm:p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 shadow-xl space-y-4">
@@ -299,6 +344,7 @@ export function HaevySupportView({ onBackToPortal, onOpenAuth }: HaevySupportVie
         </div>
 
       </div>
+      )}
 
     </div>
   );

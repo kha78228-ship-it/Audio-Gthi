@@ -41,10 +41,15 @@ import {
   Sun,
   Camera,
   BrainCircuit,
-  GitFork
+  GitFork,
+  Orbit,
+  Tv,
+  GraduationCap,
+  FlaskConical
 } from 'lucide-react';
 import { ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useModeBadges } from '../context/ModeBadgeContext';
 import { AdminChainLockOverlay } from './admin/AdminChainLockOverlay';
 import { HaevySpaceLogo } from './HaevySpaceLogo';
 
@@ -80,6 +85,7 @@ export function HaevyEcosystemDrawer({
   onOpenInstallPwa
 }: HaevyEcosystemDrawerProps) {
   const { user, isVip, isAdmin, audioPoints, accountId, logout } = useAuth();
+  const { getBadgeForMode, getBadgeForSubTab, markModeAsViewed } = useModeBadges();
   const [copiedId, setCopiedId] = useState(false);
   const [showAdminChainLock, setShowAdminChainLock] = useState(false);
   const [pendingAdminTab, setPendingAdminTab] = useState<ActiveTab | undefined>(undefined);
@@ -261,29 +267,6 @@ export function HaevyEcosystemDrawer({
       highlights: ['Đa Ví Tiền Tệ', 'Sổ Thu Chi Admin', 'Ngân Sách 50/30/20', 'Biểu Đồ Dòng Tiền']
     },
     {
-      id: 'admin',
-      name: 'Haevy Admin',
-      englishName: 'System & Audit Control',
-      subtitle: 'Trung Tâm Quản Trị Máy Chủ & Kiểm Toán',
-      description: 'Chế độ tối cao dành cho Quản trị viên: Cấp đặc quyền VIP, xét duyệt tác giả eKYC, quản lý kho bài hát và phát thông báo khẩn cấp hệ thống.',
-      icon: ShieldCheck,
-      badge: isAdmin ? 'Đặc Quyền Quản Trị' : 'Chế Độ Admin',
-      badgeColor: 'bg-yellow-400/20 text-yellow-300 border-yellow-400/40',
-      themeGradient: 'from-amber-500/20 via-yellow-950/40 to-zinc-950',
-      accentColor: 'text-yellow-400',
-      borderColor: 'border-yellow-400/40 hover:border-yellow-300',
-      activeBorderColor: 'border-yellow-400 ring-2 ring-yellow-400/40 shadow-yellow-500/20',
-      iconBg: 'bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600 text-black',
-      defaultTab: 'admin',
-      subPages: [
-        { title: 'Trang 1: Tổng Quan Hệ Thống', desc: 'Báo cáo tổng thể server, người dùng, bài hát & audit logs', icon: ShieldCheck, tabKey: 'admin' },
-        { title: 'Trang 2: Các Đặc Quyền Admin', desc: 'Tạo mã giới thiệu 6 ký tự & mã VIP ẩn danh', icon: Crown, tabKey: 'admin' },
-        { title: 'Trang 3: Xét Duyệt Tác Giả', desc: 'Kiểm duyệt bài hát phát hành & eKYC nghệ sĩ', icon: Award, tabKey: 'admin' },
-        { title: 'Trang 4: Nuôi Admin & Gói VIP', desc: 'Xét duyệt nạp xu audio, gói VIP và ủng hộ quản trị', icon: Coins, tabKey: 'admin' }
-      ],
-      highlights: ['Tổng Quan Hệ Thống', 'Đặc Quyền Mã VIP', 'Duyệt eKYC & Bài Hát', 'Nuôi Admin & Nạp Xu']
-    },
-    {
       id: 'studio',
       name: 'Haevy Studio',
       englishName: 'AI Studio & Creator Hub',
@@ -393,10 +376,58 @@ export function HaevyEcosystemDrawer({
         { title: 'Phê Duyệt & Phân Quyền', desc: 'Trưởng họ toàn quyền, con cháu gửi đề xuất bổ sung', icon: ShieldCheck, tabKey: 'family_tree' }
       ],
       highlights: ['Sơ Đồ Cây Thu Phóng', 'Lịch Giỗ Âm-Dương Tự Động', 'Tư Liệu & Sắc Phong', 'Kiến Trúc Graph & Closure Table O(1)']
+    },
+    {
+      id: 'haevy_lite',
+      name: 'Xu Haevy Lite',
+      englishName: 'Haevy Lite Coins & Cosmic Theme Bundles',
+      subtitle: 'Đổi Combo Vũ Trụ, Avatar Động 3D & Xem QC Nhận Xu',
+      description: 'Hệ thống Xu Haevy Lite độc quyền: Xem quảng cáo 30s tích lũy +50 Xu mỗi lượt, nạp Xu thanh toán tức thì, mở khóa combo vũ trụ bao gồm hào quang avatar xoay quỹ đạo, hiệu ứng cổng chào khi vào trang cá nhân và nhạc nền không gian.',
+      icon: Orbit,
+      badge: 'Combo Vũ Trụ 🌌',
+      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+      themeGradient: 'from-purple-950/40 via-indigo-950/40 to-zinc-950',
+      accentColor: 'text-purple-400',
+      borderColor: 'border-purple-500/30 hover:border-purple-400',
+      activeBorderColor: 'border-purple-400 ring-2 ring-purple-400/40 shadow-purple-500/20',
+      iconBg: 'bg-gradient-to-br from-purple-500 via-indigo-600 to-pink-600 text-white',
+      defaultTab: 'haevy_lite',
+      subPages: [
+        { title: 'Kho Combo Chủ Đề', desc: 'Mở khóa Combo Vũ Trụ, Cyber Neon & Hoàng Gia', icon: Sparkles, tabKey: 'haevy_lite' },
+        { title: 'Xem Quảng Cáo 30s', desc: 'Nhận ngay +50 Xu Haevy Lite miễn phí mỗi lượt', icon: Tv, tabKey: 'haevy_lite' },
+        { title: 'Nạp Xu Trực Tuyến', desc: 'Gói nạp ưu đãi qua VietQR, MoMo và ZaloPay', icon: Coins, tabKey: 'haevy_lite' },
+        { title: 'Avatar & Cổng Chào FX', desc: 'Xem trước hiệu ứng avatar động và hoạt cảnh vào profile', icon: Orbit, tabKey: 'haevy_lite' }
+      ],
+      highlights: ['Xem QC 30s +50 Xu', 'Avatar Vũ Trụ Quỹ Đạo', 'Cổng Chào Profile FX', 'Gói Nạp Tức Thì']
+    },
+    {
+      id: 'edu',
+      name: 'Haevy Edu',
+      englishName: 'STEM Virtual Labs & First Principles Learning',
+      subtitle: 'Phòng Thí Nghiệm Ảo STEM, AI Gia Sư & Lộ Trình Bản Chất Logic',
+      description: 'Chế độ học tập và nghiên cứu thực nghiệm đa ngành: Phòng lab ảo Vật lý (con lắc, mạch điện, quang học), Hóa học (chuẩn độ, phản ứng), Sinh học (kính hiển vi, di truyền) và AI đọc tài liệu thiết lập lộ trình tránh học vẹt.',
+      icon: GraduationCap,
+      badge: 'STEM & AI Gia Sư 🎓',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+      themeGradient: 'from-emerald-950/40 via-teal-950/40 to-zinc-950',
+      accentColor: 'text-emerald-400',
+      borderColor: 'border-emerald-500/30 hover:border-emerald-400',
+      activeBorderColor: 'border-emerald-400 ring-2 ring-emerald-400/40 shadow-emerald-500/20',
+      iconBg: 'bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 text-slate-950',
+      defaultTab: 'edu' as any,
+      subPages: [
+        { title: 'AI Hỗ Trợ Học Tập', desc: 'Hỏi đáp First Principles, Socratic & bóc tách logic sâu', icon: BrainCircuit, tabKey: 'edu' as any },
+        { title: 'Phòng Thí Nghiệm Ảo', desc: 'Thí nghiệm con lắc, mạch điện, chuẩn độ axit bazo trực quan', icon: FlaskConical, tabKey: 'edu' as any },
+        { title: 'Đọc File & Lộ Trình', desc: 'Trích xuất tài liệu, tóm tắt cô đọng & xây dựng lộ trình', icon: BookOpen, tabKey: 'edu' as any },
+        { title: 'Sổ Tay Nghiên Cứu', desc: 'Ghi chép công thức, nhật ký thực nghiệm & sơ đồ tư duy', icon: Layers, tabKey: 'edu' as any }
+      ],
+      highlights: ['Phòng Lab HTML5 Canvas', 'AI Gia Sư First Principles', 'Đọc File & Lộ Trình', 'Thí Nghiệm Tương Tác']
     }
   ];
 
   const handleModeSelection = (modeId: EcosystemMode, targetTab?: ActiveTab | 'studio_tts' | 'studio_publish') => {
+    markModeAsViewed(modeId, typeof targetTab === 'string' ? targetTab : undefined);
+
     if (modeId === 'admin') {
       setPendingAdminTab((targetTab as ActiveTab) || 'admin');
       setShowAdminChainLock(true);
@@ -670,9 +701,17 @@ export function HaevyEcosystemDrawer({
                     )}
 
                     <div className="flex flex-col items-end gap-1.5">
-                      <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${mode.badgeColor}`}>
-                        {mode.badge}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {getBadgeForMode(mode.id) > 0 && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500 text-white shadow-md shadow-rose-500/40 animate-pulse flex items-center gap-1">
+                            <Bell size={10} className="fill-white" />
+                            <span>{getBadgeForMode(mode.id)} mới</span>
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${mode.badgeColor}`}>
+                          {mode.badge}
+                        </span>
+                      </div>
                       {isModeActive && (
                         <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 shadow-sm">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -705,6 +744,7 @@ export function HaevyEcosystemDrawer({
                       {mode.subPages.map((page, idx) => {
                         const PageIcon = page.icon;
                         const isSubActive = isModeActive && activeTab === page.tabKey;
+                        const subCount = getBadgeForSubTab(mode.id, page.tabKey);
 
                         return (
                           <div
@@ -721,9 +761,16 @@ export function HaevyEcosystemDrawer({
                                 <PageIcon size={14} />
                               </div>
                               <div className="min-w-0">
-                                <h6 className="text-xs font-bold truncate leading-tight">
-                                  {page.title}
-                                </h6>
+                                <div className="flex items-center gap-1.5">
+                                  <h6 className="text-xs font-bold truncate leading-tight">
+                                    {page.title}
+                                  </h6>
+                                  {subCount > 0 && (
+                                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-500 text-white shadow-sm animate-pulse">
+                                      {subCount}
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-[10px] text-zinc-400 truncate">
                                   {page.desc}
                                 </p>

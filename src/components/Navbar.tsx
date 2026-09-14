@@ -39,16 +39,23 @@ import {
   LayoutGrid,
   Boxes,
   BrainCircuit,
-  GitFork
+  GitFork,
+  Orbit,
+  GraduationCap,
+  Search,
+  Command
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { ActiveTab, EcosystemMode } from '../types';
+import { useModeBadges } from '../context/ModeBadgeContext';
+import { ActiveTab, EcosystemMode, Track } from '../types';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { HaevyAllModesInfoModal } from './HaevyAllModesInfoModal';
 import { HaevyUserDropdownMenu } from './HaevyUserDropdownMenu';
+import { CosmicAvatarFX } from './haevyLite/CosmicAvatarFX';
 import { NotificationsModal } from './NotificationsModal';
 import { HaevySpaceLogo } from './HaevySpaceLogo';
+import { GoogleOmnibarModal } from './common/GoogleOmnibarModal';
 
 interface NavbarProps {
   currentMode: EcosystemMode;
@@ -66,6 +73,9 @@ interface NavbarProps {
   onOpenInstallPwa?: () => void;
   onToggleVoiceListen?: () => void;
   isVoiceListening?: boolean;
+  onUserMenuToggle?: (isOpen: boolean) => void;
+  tracks?: Track[];
+  onPlayTrack?: (track: Track) => void;
 }
 
 export function Navbar({ 
@@ -83,7 +93,10 @@ export function Navbar({
   isFullscreen = false,
   onOpenInstallPwa,
   onToggleVoiceListen,
-  isVoiceListening = false
+  isVoiceListening = false,
+  onUserMenuToggle,
+  tracks = [],
+  onPlayTrack
 }: NavbarProps) {
   const { 
     user, 
@@ -95,15 +108,37 @@ export function Navbar({
     vipTier, 
     isAuthorVerified, 
     systemAnnouncements,
-    logout 
+    logout,
+    userProfile,
+    displayName: authDisplayName,
+    photoURL: authPhotoURL,
+    authStatus,
+    isAuthenticated
   } = useAuth();
+
+  const effectiveDisplayName = userProfile?.displayName || authDisplayName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'Thành viên');
+  const effectivePhotoURL = userProfile?.photoURL || authPhotoURL || user?.photoURL || null;
+  const { totalBadgesCount, getBadgeForMode } = useModeBadges();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isEcosystemDrawerOpen, setIsEcosystemDrawerOpen] = useState(false);
   const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
+  const [isOmnibarOpen, setIsOmnibarOpen] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [pendingFriendCount, setPendingFriendCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Global Ctrl + K / Cmd + K shortcut to open Google Omnibar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsOmnibarOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -114,6 +149,10 @@ export function Navbar({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    onUserMenuToggle?.(dropdownOpen);
+  }, [dropdownOpen, onUserMenuToggle]);
 
   // Listen for unread messages & conversations
   useEffect(() => {
@@ -177,7 +216,7 @@ export function Navbar({
     }
   };
 
-  const calculatedTotalUnread = unreadMessagesCount + pendingFriendCount + getUnreadAnnouncementsCount();
+  const calculatedTotalUnread = unreadMessagesCount + pendingFriendCount + getUnreadAnnouncementsCount() + totalBadgesCount;
   const totalNotifications = externalUnreadCount !== undefined ? externalUnreadCount : calculatedTotalUnread;
 
   const handleOpenNotifications = () => {
@@ -298,6 +337,8 @@ export function Navbar({
         return { name: 'Hồ Sơ Cá Nhân', icon: UserIcon, tag: 'Profile', color: 'from-blue-400 to-indigo-500', badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/40' };
       case 'audio_library':
         return { name: 'Kho Audio', icon: Library, tag: 'Kho Nhạc', color: 'from-amber-400 to-yellow-400', badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
+      case 'haevy_lite':
+        return { name: 'Xu Haevy Lite', icon: Orbit, tag: 'Combo Vũ Trụ 🌌', color: 'from-purple-400 via-pink-400 to-indigo-400', badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40' };
       case 'morning':
       case 'space':
       default:
@@ -309,9 +350,10 @@ export function Navbar({
   const ModeIcon = modeInfo.icon;
 
   const handleOpenDrawer = () => {
-    setIsEcosystemDrawerOpen(true);
     if (onOpenEcosystemDrawer) {
       onOpenEcosystemDrawer();
+    } else {
+      setIsEcosystemDrawerOpen(true);
     }
   };
 
@@ -320,8 +362,8 @@ export function Navbar({
       {/* Brand & Logo with Mode Switcher Trigger */}
       <div 
         onClick={handleOpenDrawer}
-        className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer group shrink min-w-0 select-none"
-        title="Bấm để mở toàn màn hình 6 Chế Độ"
+        className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer group shrink-0 select-none"
+        title="Bấm để mở bảng đồng bộ 13 Phân Hệ Hệ Sinh Thái Haevy (Alt + M)"
       >
         {currentMode === 'couple' ? (
           <>
@@ -331,8 +373,8 @@ export function Navbar({
                 <Heart size={16} className="fill-rose-500 text-rose-300 animate-bounce relative z-10 sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 I Love <span className="bg-gradient-to-r from-rose-400 via-pink-400 to-red-400 bg-clip-text text-transparent">Haevy</span>
               </span>
             </div>
@@ -345,8 +387,8 @@ export function Navbar({
                 <Wallet size={16} className="text-emerald-300 animate-pulse relative z-10 sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">Finance</span>
               </span>
             </div>
@@ -359,8 +401,8 @@ export function Navbar({
                 <MessageSquare size={16} className="text-sky-300 fill-indigo-500/30 animate-pulse relative z-10 sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-indigo-400 via-sky-400 to-blue-400 bg-clip-text text-transparent">Message</span>
               </span>
             </div>
@@ -373,8 +415,8 @@ export function Navbar({
                 <BrainCircuit size={17} className="text-purple-300 animate-pulse relative z-10 sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">AI</span>
               </span>
             </div>
@@ -386,8 +428,8 @@ export function Navbar({
                 <ShieldCheck size={17} className="text-amber-400 animate-pulse sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent">Admin</span>
               </span>
             </div>
@@ -399,8 +441,8 @@ export function Navbar({
                 <Sparkles size={16} className="text-purple-300 animate-pulse relative z-10 sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">Studio</span>
               </span>
             </div>
@@ -412,8 +454,8 @@ export function Navbar({
                 <Gamepad2 size={16} className="text-indigo-300 animate-pulse relative z-10 sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-indigo-400 via-violet-300 to-purple-400 bg-clip-text text-transparent">Games</span>
               </span>
             </div>
@@ -426,8 +468,8 @@ export function Navbar({
                 <Sparkles size={14} className="text-purple-300 animate-pulse relative z-10" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-xs sm:text-base font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-xs sm:text-base font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">Spiritual 🔮</span>
               </span>
             </div>
@@ -439,8 +481,8 @@ export function Navbar({
                 <Headphones size={16} className="text-emerald-400 animate-pulse relative z-10 sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">Support</span>
               </span>
             </div>
@@ -452,9 +494,36 @@ export function Navbar({
                 <UserIcon size={16} className="text-blue-400 animate-pulse relative z-10 sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Hồ Sơ <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">Haevy</span>
+              </span>
+            </div>
+          </>
+        ) : currentMode === 'haevy_lite' ? (
+          <>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-br from-purple-500 via-indigo-600 to-pink-600 p-[1px] shadow-lg shadow-purple-500/25 group-hover:scale-105 transition-all shrink-0">
+              <div className="w-full h-full bg-zinc-950 rounded-xl sm:rounded-2xl flex items-center justify-center relative overflow-hidden">
+                <Orbit size={18} className="text-purple-400 animate-spin-slow relative z-10 sm:scale-125" />
+              </div>
+            </div>
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
+                Xu Lite & <span className="bg-gradient-to-r from-purple-400 via-pink-300 to-indigo-400 bg-clip-text text-transparent">Combo Vũ Trụ 🌌</span>
+              </span>
+            </div>
+          </>
+        ) : currentMode === 'edu' ? (
+          <>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 p-[1px] shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition-all shrink-0">
+              <div className="w-full h-full bg-zinc-950 rounded-xl sm:rounded-2xl flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-emerald-500/15 animate-pulse" />
+                <GraduationCap size={17} className="text-emerald-300 animate-pulse relative z-10 sm:scale-125" />
+              </div>
+            </div>
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
+                Haevy <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">Edu 🎓</span>
               </span>
             </div>
           </>
@@ -466,8 +535,8 @@ export function Navbar({
                 <GitFork size={17} className="text-amber-300 animate-pulse relative z-10 sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent">Family Tree</span>
               </span>
             </div>
@@ -482,8 +551,8 @@ export function Navbar({
                 <Crown size={17} className="fill-amber-400 text-amber-300 relative z-10 animate-bounce sm:scale-125" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent">VIP</span>
               </span>
             </div>
@@ -499,13 +568,41 @@ export function Navbar({
                 <span className="w-[2.5px] sm:w-[3px] h-2 sm:h-2.5 bg-gradient-to-t from-amber-500 to-amber-400 rounded-full" />
               </div>
             </div>
-            <div className="flex items-center min-w-0">
-              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
+            <div className="flex items-center shrink-0">
+              <span className="text-sm sm:text-lg font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors whitespace-nowrap">
                 Haevy <span className="bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">Audio</span>
               </span>
             </div>
           </>
         )}
+
+        {/* Interactive Mode Switcher indicator */}
+        <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900/90 border border-zinc-800/90 text-[10px] text-zinc-400 group-hover:border-amber-500/50 group-hover:text-amber-300 transition-all ml-1 shadow-sm">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-semibold">Đồng bộ</span>
+          <ChevronDown size={11} className="group-hover:translate-y-0.5 transition-transform" />
+        </div>
+      </div>
+
+      {/* Google Universal Omnibar Search Pill (Desktop & Tablet) */}
+      <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-2 hidden sm:block">
+        <button
+          type="button"
+          id="navbar-google-omnibar-pill"
+          onClick={() => setIsOmnibarOpen(true)}
+          className="w-full flex items-center justify-between gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800/90 border border-zinc-800 hover:border-amber-500/40 text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer shadow-sm group"
+          title="Tìm kiếm thông minh toàn hệ sinh thái (Ctrl + K)"
+        >
+          <div className="flex items-center gap-2 truncate">
+            <Search size={14} className="text-zinc-500 group-hover:text-amber-400 transition-colors shrink-0" />
+            <span className="text-xs text-zinc-500 group-hover:text-zinc-300 truncate font-medium">
+              Tìm kiếm thông minh toàn hệ sinh thái...
+            </span>
+          </div>
+          <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-mono text-zinc-500 bg-zinc-800/80 border border-zinc-700/60 rounded">
+            <Command size={9} />K
+          </kbd>
+        </button>
       </div>
 
       {/* Desktop Quick Nav Bar (Visible on lg/xl screens) */}
@@ -637,15 +734,29 @@ export function Navbar({
           </button>
         )}
 
-        {/* Smartphone Ecosystem Mode Switcher Button (Nút điện thoại) - Miniaturized */}
+        {/* Ecosystem Mode Switcher Button (Đồng bộ chuyển phân hệ Haevy) */}
         <button
           id="navbar-ecosystem-modes-btn"
-          onClick={handleOpenDrawer}
-          className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg sm:rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-500/40 text-amber-400 hover:text-amber-300 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 group"
-          title="Chuyển đổi các chế độ trong Hệ Sinh Thái Haevy"
+          onClick={() => {
+            if (onOpenEcosystemDrawer) {
+              onOpenEcosystemDrawer();
+            } else {
+              window.dispatchEvent(new CustomEvent('haevy-open-quick-mode-switcher'));
+            }
+          }}
+          className="relative h-7 sm:h-8 px-2 sm:px-2.5 flex items-center gap-1.5 rounded-lg sm:rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-500/50 text-amber-400 hover:text-amber-300 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 group"
+          title={`Đồng bộ chuyển chế độ Hệ Sinh Thái Haevy (Alt + M)${totalBadgesCount > 0 ? ` (${totalBadgesCount} thông báo)` : ''}`}
           aria-label="Chế độ hệ sinh thái"
         >
-          <Smartphone size={13} className="text-amber-400 group-hover:scale-110 transition-transform" />
+          <Layers size={13} className="text-amber-400 group-hover:rotate-12 transition-transform shrink-0" />
+          <span className="hidden md:inline text-[11px] font-bold text-zinc-300 group-hover:text-white whitespace-nowrap">
+            Phân hệ
+          </span>
+          {totalBadgesCount > 0 && (
+            <span className="min-w-[14px] h-[14px] px-0.5 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center shadow-md shadow-rose-500/40 animate-pulse border border-zinc-950">
+              {totalBadgesCount > 99 ? '99+' : totalBadgesCount}
+            </span>
+          )}
         </button>
 
         {/* Notification Bell Button right beside Avatar - Miniaturized */}
@@ -679,24 +790,15 @@ export function Navbar({
               }`}
               title="Xem thông tin Haevy VIP, Haevy Hỗ Trợ & Trang Cá Nhân"
             >
-              {/* Avatar Icon */}
-              <div className="relative shrink-0 w-5 h-5 sm:w-6 sm:h-6">
-                {user.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt={user.displayName || 'Avatar'}
-                    className="w-full h-full rounded-full object-cover ring-1 ring-zinc-700 group-hover:scale-105 transition-transform"
-                  />
-                ) : (
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-600 via-zinc-800 to-zinc-900 flex items-center justify-center text-white font-bold ring-1 ring-zinc-700 text-[9px] sm:text-[10px]">
-                    {user.displayName?.charAt(0) || 'H'}
-                  </div>
-                )}
-                {isVip && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-black shadow-sm ring-1 ring-black">
-                    <Crown size={7} fill="currentColor" />
-                  </div>
-                )}
+              {/* Avatar Icon with Cosmic / Haevy Lite Avatar Frame */}
+              <div className="relative shrink-0 flex items-center justify-center">
+                <CosmicAvatarFX
+                  photoURL={effectivePhotoURL}
+                  displayName={effectiveDisplayName}
+                  isVip={isVip}
+                  size="xxs"
+                  showBadge={isVip}
+                />
               </div>
 
               {/* Compact Points - Always clearly visible without wrapping or overflow */}
@@ -761,6 +863,16 @@ export function Navbar({
         onClose={() => setIsNotificationsModalOpen(false)}
         onSelectTab={onSelectTab}
         onSelectMode={onSelectMode}
+      />
+
+      {/* Google Universal Omnibar Modal */}
+      <GoogleOmnibarModal
+        isOpen={isOmnibarOpen}
+        onClose={() => setIsOmnibarOpen(false)}
+        tracks={tracks}
+        onPlayTrack={onPlayTrack}
+        onSelectMode={onSelectMode}
+        onSelectTab={onSelectTab}
       />
     </header>
   );

@@ -6,7 +6,6 @@ import {
   Check,
   Eye,
   ArrowRight,
-  Gift,
   Moon,
   Compass,
   MessageSquare,
@@ -16,10 +15,10 @@ import {
   Heart,
   BrainCircuit,
   Sparkles,
-  GitFork
+  GitFork,
+  GraduationCap
 } from 'lucide-react';
 import { EcosystemMode, ActiveTab } from '../types';
-import { useAuth } from '../context/AuthContext';
 import { haptics } from '../utils/haptics';
 
 interface HaevyAllModesInfoModalProps {
@@ -35,26 +34,11 @@ export function HaevyAllModesInfoModal({
   onClose,
   onSelectMode,
   onSelectDemoModal,
-  onClaimGift
 }: HaevyAllModesInfoModalProps) {
-  const { addAudioPoints } = useAuth();
   const [allModesFilter, setAllModesFilter] = useState<'all' | 'spiritual' | 'audio' | 'creative' | 'social' | 'utility'>('all');
   const [allModesSearch, setAllModesSearch] = useState('');
-  const [claimedLocalGift, setClaimedLocalGift] = useState(false);
 
   if (!isOpen) return null;
-
-  const handleClaim = () => {
-    haptics.rewardClaim();
-    if (onClaimGift) {
-      onClaimGift();
-    } else {
-      if (!claimedLocalGift) {
-        addAudioPoints(500, 'Quà tặng Đại Lễ Hệ Sinh Thái Haevy', 'bonus');
-        setClaimedLocalGift(true);
-      }
-    }
-  };
 
   const MODES_DATA = [
     {
@@ -184,24 +168,6 @@ export function HaevyAllModesInfoModal({
       demoKey: 'finance_demo',
     },
     {
-      id: 'admin' as EcosystemMode,
-      name: 'Haevy Admin',
-      category: 'utility',
-      categoryName: 'Quản trị Hệ thống',
-      icon: ShieldCheck,
-      color: 'from-red-500 to-rose-600',
-      glow: 'border-red-500/30 hover:border-red-400/60',
-      badge: 'Bảo Mật & Phân Quyền',
-      badgeBg: 'bg-red-500/20 text-red-300 border-red-500/30',
-      tagline: 'Bảng quản trị toàn diện: Duyệt audio, kiểm duyệt nội dung & quản lý người dùng.',
-      highlights: [
-        'Phê duyệt nội dung âm thanh và sách nói nhanh chóng',
-        'Quản lý người dùng, phân quyền Admin & Super Admin',
-        'Thống kê doanh thu xu và hiệu suất toàn hệ thống'
-      ],
-      demoKey: 'admin_demo',
-    },
-    {
       id: 'couple' as EcosystemMode,
       name: 'I Love Haevy',
       category: 'social',
@@ -236,6 +202,24 @@ export function HaevyAllModesInfoModal({
         'Phân quyền Trưởng tộc (Admin) bảo mật & Hòm thư con cháu đóng góp ý kiến'
       ],
       demoKey: 'family_tree_demo',
+    },
+    {
+      id: 'edu' as EcosystemMode,
+      name: 'Haevy Edu',
+      category: 'utility',
+      categoryName: 'Học tập & Nghiên cứu',
+      icon: GraduationCap,
+      color: 'from-emerald-500 via-teal-500 to-cyan-500',
+      glow: 'border-emerald-500/30 hover:border-emerald-400/60',
+      badge: 'STEM Virtual Labs & AI Gia Sư 🎓',
+      badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+      tagline: 'Phòng thí nghiệm ảo STEM (Vật lý, Hóa học, Sinh học), AI đọc tài liệu & Gia sư First Principles.',
+      highlights: [
+        'AI Gia Sư First Principles & Socratic: Hiểu sâu bản chất logic, phản xạ phản biện',
+        'Phòng Lab ảo HTML5 Canvas tương tác: Con lắc đơn, mạch điện, chuẩn độ axit bazơ',
+        'Đọc trích xuất tài liệu, tóm tắt cô đọng & thiết lập lộ trình học cá nhân hóa'
+      ],
+      demoKey: 'edu_demo',
     }
   ];
 
@@ -436,26 +420,6 @@ export function HaevyAllModesInfoModal({
             })}
           </div>
         </div>
-
-        {/* Modal Bottom Call to Action */}
-        <div className="p-3 sm:p-4 bg-gradient-to-r from-amber-950/50 via-zinc-900 to-amber-950/50 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2 text-center sm:text-left">
-            <Gift size={18} className="text-amber-400 shrink-0 animate-bounce" />
-            <span className="text-xs text-amber-200 font-semibold">
-              Nhận ngay <strong>500 Xu Đại Lễ</strong> để mở khóa trải nghiệm toàn quyền trên tất cả các phân hệ!
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              handleClaim();
-              onClose();
-            }}
-            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:opacity-90 text-zinc-950 font-black text-xs shadow-lg shadow-amber-400/20 transition-all cursor-pointer whitespace-nowrap active:scale-95"
-          >
-            Nhận 500 Xu & Bắt Đầu
-          </button>
-        </div>
-
       </div>
     </div>
   );

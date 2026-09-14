@@ -29,11 +29,35 @@ export function useVoiceCommander({
   const recognitionRef = useRef<any>(null);
   const isListeningRef = useRef(false);
   const debounceTimerRef = useRef<any>(null);
+  const errorTimeoutRef = useRef<any>(null);
+
+  const clearError = useCallback(() => {
+    setErrorMessage(null);
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+    }
+  }, []);
+
+  const setTimedErrorMessage = useCallback((msg: string) => {
+    setErrorMessage(msg);
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    errorTimeoutRef.current = setTimeout(() => {
+      setErrorMessage(null);
+    }, 6000);
+  }, []);
 
   // Keep ref in sync with state
   useEffect(() => {
     isListeningRef.current = isListening;
   }, [isListening]);
+
+  // Clean up error timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    };
+  }, []);
 
   // Check SpeechRecognition support on mount
   useEffect(() => {
@@ -93,12 +117,12 @@ export function useVoiceCommander({
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) {
       setIsSupported(false);
-      setErrorMessage('Trình duyệt chưa hỗ trợ Web Speech API. Hãy dùng Google Chrome hoặc Microsoft Edge.');
+      setTimedErrorMessage('Trình duyệt chưa hỗ trợ Web Speech API. Hãy dùng Google Chrome hoặc Microsoft Edge.');
       triggerHaptic('error');
       return;
     }
 
-    setErrorMessage(null);
+    clearError();
     setTranscript('');
     setLastMatchedCommand(null);
 
@@ -149,12 +173,12 @@ export function useVoiceCommander({
         recognition.onerror = (event: any) => {
           console.warn('SpeechRecognition error:', event.error);
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            setErrorMessage('Vui lòng cấp quyền Micro trong trình duyệt để dùng giọng nói.');
+            setTimedErrorMessage('Vui lòng cấp quyền Micro trong trình duyệt để dùng giọng nói.');
             setIsListening(false);
             isListeningRef.current = false;
             playVoiceAudioCue('error');
           } else if (event.error === 'network') {
-            setErrorMessage('Lỗi mạng nhận diện giọng nói.');
+            setTimedErrorMessage('Lỗi mạng nhận diện giọng nói.');
           } else if (event.error === 'no-speech') {
             // Keep listening quietly
           }
@@ -214,6 +238,14 @@ export function useVoiceCommander({
     }
   }, [executeCommand]);
 
+  // Cleanly dismiss HUD immediately and clear any error/matched states
+  const dismissHUD = useCallback(() => {
+    stopListening();
+    clearError();
+    setLastMatchedCommand(null);
+    setTranscript('');
+  }, [stopListening, clearError]);
+
   return {
     isListening,
     transcript,
@@ -223,6 +255,8 @@ export function useVoiceCommander({
     startListening,
     stopListening,
     toggleListening,
-    simulateCommand
+    simulateCommand,
+    clearError,
+    dismissHUD
   };
 }

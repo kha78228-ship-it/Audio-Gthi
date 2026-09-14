@@ -14,6 +14,7 @@ import {
   Wallet, 
   Mic, 
   Layers, 
+  ArrowUp,
   ArrowRight, 
   CheckCircle2, 
   Zap, 
@@ -53,7 +54,8 @@ import {
   Shapes,
   Search,
   LifeBuoy,
-  GitFork
+  GitFork,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { HaevyAllModesInfoModal } from './HaevyAllModesInfoModal';
@@ -107,13 +109,25 @@ export function HaevyEcosystemLandingView({
 }: HaevyEcosystemLandingViewProps) {
   const { user, isVip, audioPoints, addAudioPoints, accountId, logout, upcomingEvents, claimEventReward } = useAuth();
   
-  // Real-time Event Countdown Timer
-  const [timeLeft, setTimeLeft] = useState({
-    days: 3,
-    hours: 11,
-    minutes: 59,
-    seconds: 50
+  // Compact UI layout mode state (persisted)
+  const [isCompactMode, setIsCompactMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('haevy_landing_compact_mode') === 'true';
+    } catch {
+      return false;
+    }
   });
+
+  const toggleCompactMode = () => {
+    haptics.selection();
+    setIsCompactMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('haevy_landing_compact_mode', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const [claimToast, setClaimToast] = useState<string | null>(null);
   const [hasClaimedGift, setHasClaimedGift] = useState(false);
@@ -130,24 +144,38 @@ export function HaevyEcosystemLandingView({
   const [allModesFilter, setAllModesFilter] = useState<'all' | 'creative' | 'audio' | 'social' | 'utility'>('all');
   const [allModesSearch, setAllModesSearch] = useState('');
 
-  // Countdown timer interval
+  // Primary Section Tab to eliminate excessive scrolling and streamline viewport
+  type LandingSectionTab = 'pillars' | 'events' | 'tech_stats' | 'faq' | 'all';
+  const [activeSectionTab, setActiveSectionTab] = useState<LandingSectionTab>('pillars');
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  // Monitor scroll depth to toggle floating back-to-top dock button
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev.seconds > 0) {
-          return { ...prev, seconds: prev.seconds - 1 };
-        } else if (prev.minutes > 0) {
-          return { ...prev, minutes: 59, seconds: 59 };
-        } else if (prev.hours > 0) {
-          return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        } else if (prev.days > 0) {
-          return { ...prev, days: prev.days - 1, hours: 23, minutes: 59, seconds: 59 };
-        }
-        return prev;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 320);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleSelectSectionTab = (tab: LandingSectionTab) => {
+    haptics.selection();
+    setActiveSectionTab(tab);
+    // Smoothly reposition view near the tab bar if scrolled past
+    if (typeof window !== 'undefined' && window.scrollY > 160) {
+      const el = document.getElementById('ecosystem-nav-tabs');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  };
+
+  const scrollToTop = () => {
+    haptics.light();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Close profile dropdown on window click
   useEffect(() => {
@@ -163,7 +191,7 @@ export function HaevyEcosystemLandingView({
     return () => window.removeEventListener('click', handleClickOutside);
   }, [userProfileDropdown]);
 
-  // Claim festival gift handler
+  // Claim welcome gift handler
   const handleClaimFestivalGift = () => {
     if (!user) {
       haptics.light();
@@ -173,17 +201,17 @@ export function HaevyEcosystemLandingView({
 
     if (hasClaimedGift) {
       haptics.warning();
-      setClaimToast('🎁 Bạn đã nhận quà Đại Lễ hôm nay rồi! Hãy tiếp tục khám phá các phân hệ nhé.');
+      setClaimToast('🎁 Bạn đã nhận gói quà chào mừng hôm nay rồi! Hãy tiếp tục khám phá các phân hệ nhé.');
       setTimeout(() => setClaimToast(null), 3000);
       return;
     }
 
     const bonusAmount = 500;
-    addAudioPoints(bonusAmount, '🎁 Quà Tặng Đại Lễ Hệ Sinh Thái Haevy', 'bonus');
+    addAudioPoints(bonusAmount, '🎁 Quà Tặng Tân Thủ Hệ Sinh Thái Haevy', 'bonus');
     setHasClaimedGift(true);
     haptics.rewardClaim();
     playCelebrationChime();
-    setClaimToast(`🎉 Chúc mừng! Bạn đã nhận thành công +${bonusAmount} Xu Haevy Đại Lễ!`);
+    setClaimToast(`🎉 Chúc mừng! Bạn đã nhận thành công +${bonusAmount} Xu Haevy Chào Mừng!`);
     setTimeout(() => setClaimToast(null), 4000);
   };
 
@@ -365,26 +393,6 @@ export function HaevyEcosystemLandingView({
       demoType: 'finance_demo'
     },
     {
-      id: 'admin',
-      category: 'utility',
-      badge: 'QUẢN TRỊ HỆ THỐNG',
-      title: 'Haevy Admin',
-      subTitle: 'Bảng điều khiển quản trị, Duyệt audio & Quản lý người dùng',
-      icon: ShieldCheck,
-      color: 'from-red-500 to-rose-600',
-      borderColor: 'border-red-500/40 hover:border-red-400',
-      bgGlow: 'bg-red-500/10',
-      textColor: 'text-red-300',
-      description: 'Trung tâm quản trị toàn diện hệ thống Haevy: Phân quyền tài khoản, kiểm duyệt nội dung audio, thống kê dòng tiền xu và theo dõi chỉ số nền tảng.',
-      highlights: [
-        'Phê duyệt nội dung âm thanh và sách nói nhanh chóng',
-        'Quản lý người dùng, phân quyền Admin & Super Admin',
-        'Thống kê doanh thu xu và hiệu suất nền tảng'
-      ],
-      stats: 'Bảo Mật Cao Cấp',
-      demoType: 'admin_demo'
-    },
-    {
       id: 'spiritual',
       category: 'spiritual',
       badge: 'TÂM LINH VŨ TRỤ 🔮',
@@ -443,6 +451,26 @@ export function HaevyEcosystemLandingView({
       ],
       stats: 'Graph & Closure Table O(1)',
       demoType: 'family_tree_demo'
+    },
+    {
+      id: 'edu',
+      category: 'utility',
+      badge: 'HỌC TẬP & NGHIÊN CỨU 🎓',
+      title: 'Haevy Edu',
+      subTitle: 'Phòng Lab Thử Nghiệm Vật Lý, Hóa Học, Sinh Học & Lộ Trình First Principles',
+      icon: GraduationCap,
+      color: 'from-emerald-500 via-teal-500 to-cyan-500',
+      borderColor: 'border-emerald-500/50 hover:border-emerald-400',
+      bgGlow: 'bg-emerald-500/20',
+      textColor: 'text-emerald-300',
+      description: 'Phòng thí nghiệm ảo đa ngành tương tác: Con lắc đơn, quang hình học, chuẩn độ axit bazơ, bảng tuần hoàn, kính hiển vi tế bào, di truyền Men-đen và AI đọc tài liệu thiết lập lộ trình học tránh học vẹt, tạo video bài giảng trực quan.',
+      highlights: [
+        'Phòng Lab ảo Vật lý, Hóa học & Sinh học HTML5 Canvas',
+        'AI đọc tài liệu, bóc tách bản chất logic & thiết lập lộ trình',
+        'Trình tạo video bài giảng trực quan tự động với thuyết minh AI'
+      ],
+      stats: 'First Principles STEM Lab',
+      demoType: 'edu_demo'
     }
   ];
 
@@ -450,15 +478,15 @@ export function HaevyEcosystemLandingView({
   const faqs = [
     {
       q: 'Hệ sinh thái Haevy gồm những phân hệ cốt lõi nào?',
-      a: 'Hệ sinh thái Haevy gồm các phân hệ toàn diện: Haevy Spiritual (Tarot 3D, Tử Vi 2026 & Chiêm Tinh), Haevy Audio (Kho truyện & âm thanh Hi-Fi), Haevy Space (Bảng vẽ 3D & AR), Haevy AI Master (Trợ lý thông minh), Haevy Message (Nhắn tin & bạn bè), Haevy Studio (AI Voice sáng tác), Haevy Finance (Sổ thu chi 6 hũ), Haevy Admin (Quản trị hệ thống) và I Love Haevy (Không gian cặp đôi).'
+      a: 'Hệ sinh thái Haevy gồm các phân hệ toàn diện: Haevy Spiritual (Tarot 3D, Tử Vi 2026 & Chiêm Tinh), Haevy Audio (Kho truyện & âm thanh Hi-Fi), Haevy Space (Bảng vẽ 3D & AR), Haevy AI Master (Trợ lý thông minh), Haevy Message (Nhắn tin & bạn bè), Haevy Studio (AI Voice sáng tác), Haevy Finance (Sổ thu chi 6 hũ) và I Love Haevy (Không gian cặp đôi).'
     },
     {
       q: 'Làm thế nào để truy cập Haevy VIP và Haevy Support?',
       a: 'Bạn chỉ cần bấm vào hình đại diện (Avatar) ở góc trên bên phải màn hình để mở menu tài khoản có sẵn Haevy VIP và Haevy Support, hoặc bấm vào nút 4 hình vuông để xem toàn bộ danh mục chế độ hệ sinh thái.'
     },
     {
-      q: 'Làm thế nào để nhận quà tặng 500 Xu Đại Lễ?',
-      a: 'Bạn chỉ cần đăng nhập tài khoản Haevy (hoặc tạo tài khoản mới miễn phí trong 10 giây). Sau đó bấm vào nút "Nhận Quà 500 Xu Ngay" trên banner Đại Lễ. Xu sẽ được cộng tức thì vào ví tài khoản của bạn.'
+      q: 'Làm thế nào để nhận quà tặng 500 Xu Tân Thủ?',
+      a: 'Bạn chỉ cần đăng nhập tài khoản Haevy (hoặc tạo tài khoản mới miễn phí trong 10 giây). Sau đó bấm vào nút "Nhận Thưởng 500 Xu Tân Thủ". Xu sẽ được cộng tức thì vào ví tài khoản của bạn.'
     },
     {
       q: 'Không gian vẽ 3D Haevy Space có yêu cầu kính VR không?',
@@ -485,7 +513,7 @@ export function HaevyEcosystemLandingView({
       {/* ========================================================================= */}
       {/* TOP HEADER: BRAND, NAV ANCHORS, AUTH (LOGIN / AVATAR + XU), NOTIFICATIONS & FULLSCREEN */}
       {/* ========================================================================= */}
-      <header className="w-full max-w-7xl px-2.5 sm:px-6 py-2.5 sm:py-3.5 mt-1 sm:mt-4 mb-3 sm:mb-4 flex items-center justify-between gap-1.5 sm:gap-3 bg-zinc-950/90 backdrop-blur-2xl border border-zinc-800/80 rounded-2xl sm:rounded-3xl shadow-2xl sticky top-1 sm:top-2 z-40">
+      <header className={`w-full max-w-7xl px-2.5 sm:px-6 py-2.5 sm:py-3.5 mt-1 sm:mt-4 mb-3 sm:mb-4 flex items-center justify-between gap-1.5 sm:gap-3 bg-zinc-950/90 backdrop-blur-2xl border border-zinc-800/80 rounded-2xl sm:rounded-3xl shadow-2xl sticky top-1 sm:top-2 transition-all ${userProfileDropdown ? 'z-[100]' : 'z-40'}`}>
         
         {/* Left: Ecosystem Logo */}
         <div 
@@ -517,13 +545,13 @@ export function HaevyEcosystemLandingView({
         <nav className="hidden lg:flex items-center gap-6 text-xs font-bold text-zinc-300">
           <button 
             onClick={() => {
-              const el = document.getElementById('festival-banner-section');
+              const el = document.getElementById('ecosystem-hero-section');
               el?.scrollIntoView({ behavior: 'smooth' });
             }}
             className="hover:text-amber-400 transition-colors flex items-center gap-1"
           >
             <Gift size={13} className="text-amber-400" />
-            <span>Đại Lễ Ưu Đãi</span>
+            <span>Quà Tân Thủ</span>
           </button>
           <button 
             onClick={() => {
@@ -658,7 +686,7 @@ export function HaevyEcosystemLandingView({
 
           {/* User Account Controls: If Logged In -> Avatar + Coins; If Not -> Login Button */}
           {user ? (
-            <div id="user-profile-menu-container" className="relative shrink-0">
+            <div id="user-profile-menu-container" className="relative shrink-0 z-50">
               <div 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -738,193 +766,320 @@ export function HaevyEcosystemLandingView({
       )}
 
       {/* ========================================================================= */}
-      {/* 🇻🇳 HERO GRAND FESTIVAL BANNER (THEME ĐẠI LỄ RỘN RÀNG - NGÀN QUÀ TẶNG BẠN) */}
+      {/* 🧭 STICKY SECTION SEGMENTED NAVIGATION BAR (CHỐNG VUỐT THỪA THÃI & TINH GỌN) */}
       {/* ========================================================================= */}
-      <section id="festival-banner-section" className="w-full max-w-7xl px-2.5 sm:px-6 mb-6 sm:mb-12">
-        <div className="relative w-full rounded-2xl sm:rounded-[36px] overflow-hidden bg-gradient-to-br from-[#800707] via-[#a81010] to-[#450202] border-2 border-amber-500/50 shadow-2xl p-4 sm:p-8 md:p-12 text-white">
-          
-          {/* Decorative Gold & Silk Ambient Wave Effects */}
-          <div className="absolute top-0 right-0 w-64 sm:w-[600px] h-64 sm:h-[600px] bg-gradient-to-bl from-yellow-500/25 via-amber-500/15 to-transparent rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-48 sm:w-[400px] h-48 sm:h-[400px] bg-red-950/80 rounded-full blur-2xl pointer-events-none" />
+      <div id="ecosystem-nav-tabs" className="sticky top-12 sm:top-14 z-30 w-full max-w-7xl px-2 sm:px-6 mb-3 sm:mb-4">
+        <div className="bg-zinc-950/90 backdrop-blur-xl border border-zinc-800/90 rounded-2xl p-1 sm:p-1.5 shadow-2xl flex items-center justify-between gap-1 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1 min-w-max">
+            
+            {/* Tab 1: 12+ Pillars */}
+            <button
+              onClick={() => handleSelectSectionTab('pillars')}
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                activeSectionTab === 'pillars'
+                  ? 'bg-amber-400 text-zinc-950 font-black shadow-md shadow-amber-400/20'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900/90'
+              }`}
+            >
+              <Layers size={14} className={activeSectionTab === 'pillars' ? 'text-zinc-950' : 'text-amber-400'} />
+              <span>12+ Phân Hệ</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeSectionTab === 'pillars' ? 'bg-black/20 text-zinc-950 font-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {ecosystemPillars.length}
+              </span>
+            </button>
 
-          {/* Top Mini Tagline */}
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4 relative z-10 w-full">
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border border-amber-400/40 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-wider max-w-full">
-              <Sparkles size={12} className="text-yellow-400 shrink-0" />
-              <span className="break-word-safe">Đại Lễ Hệ Sinh Thái Haevy – Tặng Đến 50% Xu VIP</span>
-            </div>
+            {/* Tab 2: Live Events */}
+            <button
+              onClick={() => handleSelectSectionTab('events')}
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                activeSectionTab === 'events'
+                  ? 'bg-amber-400 text-zinc-950 font-black shadow-md shadow-amber-400/20'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900/90'
+              }`}
+            >
+              <Gift size={14} className={activeSectionTab === 'events' ? 'text-zinc-950' : 'text-amber-400'} />
+              <span>Sự Kiện & Thưởng</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeSectionTab === 'events' ? 'bg-black/20 text-zinc-950 font-black' : 'bg-emerald-500/20 text-emerald-400 font-bold'
+              }`}>
+                {upcomingEvents ? upcomingEvents.filter(e => e.status !== 'ended' && e.status !== 'draft').length : 0}
+              </span>
+            </button>
 
+            {/* Tab 3: Tech & Live Stats */}
+            <button
+              onClick={() => handleSelectSectionTab('tech_stats')}
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                activeSectionTab === 'tech_stats'
+                  ? 'bg-amber-400 text-zinc-950 font-black shadow-md shadow-amber-400/20'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900/90'
+              }`}
+            >
+              <Cpu size={14} className={activeSectionTab === 'tech_stats' ? 'text-zinc-950' : 'text-cyan-400'} />
+              <span>Hạ Tầng & Chỉ Số</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeSectionTab === 'tech_stats' ? 'bg-black/20 text-zinc-950 font-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                Live
+              </span>
+            </button>
+
+            {/* Tab 4: FAQ */}
+            <button
+              onClick={() => handleSelectSectionTab('faq')}
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                activeSectionTab === 'faq'
+                  ? 'bg-amber-400 text-zinc-950 font-black shadow-md shadow-amber-400/20'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900/90'
+              }`}
+            >
+              <HelpCircle size={14} className={activeSectionTab === 'faq' ? 'text-zinc-950' : 'text-purple-400'} />
+              <span>Hỏi Đáp FAQ</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeSectionTab === 'faq' ? 'bg-black/20 text-zinc-950 font-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {faqs.length}
+              </span>
+            </button>
+
+            {/* Tab 5: All Sections */}
+            <button
+              onClick={() => handleSelectSectionTab('all')}
+              className={`px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
+                activeSectionTab === 'all'
+                  ? 'bg-zinc-800 text-white border border-zinc-700 font-black'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+              title="Xem dạng cuộn toàn bộ các phần"
+            >
+              <Sliders size={13} />
+              <span>Xem Toàn Bộ</span>
+            </button>
+          </div>
+
+          {/* Quick Action in Sticky Bar */}
+          <div className="hidden md:flex items-center gap-2 pl-2 border-l border-zinc-800">
             <button
               onClick={() => {
-                const el = document.getElementById('ecosystem-pillars-section');
-                el?.scrollIntoView({ behavior: 'smooth' });
+                haptics.medium();
+                setIsAllModesPanelOpen(true);
               }}
-              className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-zinc-950 text-[11px] sm:text-xs font-black hover:opacity-90 transition-all shadow-md flex items-center gap-1 active:scale-95 shrink-0"
+              className="px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-amber-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
             >
-              <Flame size={12} className="fill-zinc-950" />
-              <span>SĂN DEAL NGAY</span>
+              <LayoutGrid size={13} className="text-amber-400" />
+              <span>12+ Chế Độ</span>
             </button>
           </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center relative z-10">
+      {/* ========================================================================= */}
+      {/* 🚀 STREAMLINED ECOSYSTEM HERO HUB (TỶ LỆ HỢP LÝ - CHỐNG CUỘN QUÁ MỨC) */}
+      {/* ========================================================================= */}
+      {(activeSectionTab === 'pillars' || activeSectionTab === 'all') && (
+        <section id="ecosystem-hero-section" className="w-full max-w-7xl px-2.5 sm:px-6 mb-4 sm:mb-6">
+          <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-950 to-indigo-950/70 border border-zinc-800 shadow-2xl p-3.5 sm:p-6 md:p-7 text-white">
             
-            {/* Left Col: Main Typography & Event Offer (7 cols) */}
-            <div className="lg:col-span-7 space-y-3.5 sm:space-y-6 text-left">
-              
-              <div className="space-y-1">
-                <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight uppercase leading-tight font-serif text-white break-word-safe">
-                  ĐẠI LỄ <span className="font-sans italic font-normal text-amber-300">rộn ràng</span>
-                  <br />
-                  <span className="bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent drop-shadow-md">
-                    NGÀN QUÀ
-                  </span> tặng bạn
-                </h1>
-                <p className="text-xs sm:text-base md:text-lg text-amber-100/90 font-medium break-word-safe">
-                  Lễ lớn – Giá nhỏ – Hốt ngay kẻo lỡ! Trải nghiệm trọn bộ 7 phân hệ Haevy đỉnh cao.
-                </p>
+            {/* Ambient Cosmic Glows */}
+            <div className="absolute top-0 right-0 w-64 sm:w-96 h-64 sm:h-96 bg-gradient-to-bl from-indigo-500/15 via-purple-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-40 sm:w-72 h-40 sm:h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Top Mini Tagline & Quick Shortcut */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 sm:mb-3 relative z-10 w-full">
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-900/90 backdrop-blur-md border border-amber-400/40 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-wider max-w-full shadow-sm">
+                <Sparkles size={12} className="text-amber-400 shrink-0" />
+                <span className="break-word-safe">HỆ SINH THÁI SỐ TOÀN NĂNG HAEVY • PHIÊN BẢN 2026</span>
               </div>
 
-              {/* Event Discount Badge Card */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-black/45 backdrop-blur-md border border-amber-400/50 shadow-xl w-full max-w-full">
-                <div className="sm:border-r border-amber-400/30 sm:pr-4 pb-2 sm:pb-0 border-b sm:border-b-0">
-                  <span className="text-[9px] sm:text-[10px] font-black text-amber-300 uppercase tracking-wider block">
-                    SỐ LƯỢNG CÓ HẠN
-                  </span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[11px] sm:text-xs text-zinc-300">GIẢM ĐẾN</span>
-                    <span className="text-xl sm:text-3xl font-black text-amber-400">50%</span>
-                  </div>
-                </div>
-
-                {/* Countdown timer */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-200">
-                    <Clock size={11} className="shrink-0" />
-                    <span>Thời gian diễn ra sự kiện:</span>
-                  </div>
-                  <div className="flex items-center gap-1 sm:gap-1.5 font-mono text-[11px] sm:text-sm font-black">
-                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg bg-red-950/90 border border-amber-500/40 text-amber-300">
-                      {String(timeLeft.days).padStart(2, '0')}N
-                    </span>
-                    <span>:</span>
-                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg bg-red-950/90 border border-amber-500/40 text-amber-300">
-                      {String(timeLeft.hours).padStart(2, '0')}H
-                    </span>
-                    <span>:</span>
-                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg bg-red-950/90 border border-amber-500/40 text-amber-300">
-                      {String(timeLeft.minutes).padStart(2, '0')}P
-                    </span>
-                    <span>:</span>
-                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md sm:rounded-lg bg-red-950/90 border border-amber-500/40 text-amber-300">
-                      {String(timeLeft.seconds).padStart(2, '0')}S
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-1 sm:pt-2 w-full">
-                <button
-                  onClick={handleClaimFestivalGift}
-                  className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-zinc-950 font-black text-xs sm:text-base shadow-xl shadow-amber-400/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer text-center"
-                >
-                  <Gift size={16} className="fill-zinc-950 shrink-0" />
-                  <span className="truncate">{hasClaimedGift ? 'ĐÃ NHẬN 500 XU ĐẠI LỄ' : 'NHẬN QUÀ 500 XU NGAY'}</span>
-                </button>
-
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    const el = document.getElementById('ecosystem-pillars-section');
-                    el?.scrollIntoView({ behavior: 'smooth' });
+                    haptics.selection();
+                    setIsAllModesPanelOpen(true);
                   }}
-                  className="w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-black/40 hover:bg-black/60 text-white font-bold text-xs sm:text-sm border border-amber-400/40 hover:border-amber-300 transition-all flex items-center justify-center gap-1.5 active:scale-95 text-center"
+                  className="px-2.5 sm:px-3 py-1 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-[10px] sm:text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                  title="Xem danh mục tất cả chế độ"
                 >
-                  <span>Khám phá 7 Phân Hệ</span>
-                  <ChevronRight size={15} className="shrink-0" />
+                  <LayoutGrid size={12} className="text-amber-400" />
+                  <span>Danh Mục 12+ Chế Độ</span>
                 </button>
               </div>
-
             </div>
 
-            {/* Right Col: Festive 3D Golden Star & Gift Box Graphic (5 cols) */}
-            <div className="lg:col-span-5 flex flex-col items-center justify-center relative w-full">
-              <div className="relative w-full max-w-[340px] aspect-auto sm:aspect-square flex items-center justify-center">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-center relative z-10">
+              
+              {/* Left Col: Main Typography & Value Props (7 cols) */}
+              <div className="lg:col-span-7 space-y-3 sm:space-y-4 text-left">
                 
-                {/* Glowing Vietnamese Star Symbol */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-30 animate-pulse pointer-events-none">
-                  <Star size={200} className="text-yellow-400 fill-yellow-400" />
+                <div className="space-y-1">
+                  <h1 className="text-xl sm:text-3xl md:text-4xl font-black tracking-tight uppercase leading-tight font-serif text-white break-word-safe">
+                    KẾT NỐI TRÍ TUỆ & SÁNG TẠO
+                    <br />
+                    <span className="bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent drop-shadow-sm font-sans font-black">
+                      KHÔNG GIỚI HẠN
+                    </span>
+                  </h1>
+                  <p className="text-xs sm:text-sm text-zinc-300 font-medium leading-relaxed break-word-safe">
+                    Một tài khoản duy nhất kết nối liền mạch 12+ phân hệ số: Trợ lý Haevy AI thấu cảm, âm thanh Spatial Hi-Fi Lossless, quản lý tài chính 6 hũ, phả hệ gia tộc và không gian 3D AR.
+                  </p>
                 </div>
 
-                {/* Main 3D Gift Box Card */}
-                <div className="relative z-10 w-full p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-b from-amber-950/80 via-red-950/90 to-black border-2 border-amber-400/60 shadow-2xl text-center space-y-3 sm:space-y-4 backdrop-blur-xl">
-                  <div className="w-14 h-14 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center text-white shadow-2xl shadow-red-500/50 ring-2 sm:ring-4 ring-amber-400/40 animate-bounce">
-                    <Gift size={28} className="text-amber-200 sm:w-10 sm:h-10" />
+                {/* Compact Key Highlights Strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 py-0.5">
+                  <div className="flex items-center gap-1.5 p-1.5 sm:p-2 rounded-xl bg-zinc-900/80 border border-zinc-800 text-[11px] font-bold text-zinc-200">
+                    <ShieldCheck size={13} className="text-emerald-400 shrink-0" />
+                    <span className="truncate">An Ninh 6 Lớp</span>
                   </div>
+                  <div className="flex items-center gap-1.5 p-1.5 sm:p-2 rounded-xl bg-zinc-900/80 border border-zinc-800 text-[11px] font-bold text-zinc-200">
+                    <Headphones size={13} className="text-indigo-400 shrink-0" />
+                    <span className="truncate">Spatial Hi-Fi Audio</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 p-1.5 sm:p-2 rounded-xl bg-zinc-900/80 border border-zinc-800 text-[11px] font-bold text-zinc-200 col-span-2 sm:col-span-1">
+                    <BrainCircuit size={13} className="text-purple-400 shrink-0" />
+                    <span className="truncate">Haevy AI Thấu Cảm</span>
+                  </div>
+                </div>
 
-                  <div className="space-y-1">
-                    <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[9px] sm:text-[10px] font-black uppercase tracking-wider border border-amber-400/40">
-                      GÓI QUÀ ĐẠI LỄ TÂN THỦ
-                    </span>
-                    <h3 className="text-base sm:text-xl font-black text-amber-200 break-word-safe">
-                      TẶNG 500 XU & TRẢI NGHIỆM 3D
-                    </h3>
-                    <p className="text-[11px] sm:text-xs text-zinc-300 break-word-safe">
-                      Đăng ký tài khoản miễn phí để nhận ngay xu thưởng, mở khóa toàn bộ không gian 3D và kho audio.
-                    </p>
-                  </div>
+                {/* Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 pt-0.5 w-full">
+                  <button
+                    onClick={handleClaimFestivalGift}
+                    className="px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-zinc-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-400/20 hover:opacity-95 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Gift size={14} className="fill-zinc-950 shrink-0" />
+                    <span className="truncate">{hasClaimedGift ? 'ĐÃ NHẬN 500 XU CHÀO MỪNG' : 'NHẬN THƯỞNG 500 XU TÂN THỦ'}</span>
+                  </button>
 
                   <button
-                    onClick={user ? handleClaimFestivalGift : () => onOpenAuth('signup')}
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-zinc-950 font-black text-xs uppercase tracking-wider shadow-lg hover:opacity-90 active:scale-95 transition-all"
+                    onClick={() => {
+                      const el = document.getElementById('ecosystem-pillars-section');
+                      el?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="px-3 sm:px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs sm:text-sm border border-zinc-700 hover:border-zinc-500 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                   >
-                    {user ? 'Bấm Nhận Quà Ngay' : 'Đăng Ký Nhận Quà Ngay'}
+                    <span>Xem 12+ Phân Hệ</span>
+                    <ChevronRight size={13} className="shrink-0" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      haptics.modeSwitch();
+                      if (onSelectMode) onSelectMode('haevy_ai');
+                    }}
+                    className="px-3 py-2 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 font-bold text-xs sm:text-sm border border-purple-500/40 hover:border-purple-400 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                  >
+                    <BrainCircuit size={13} className="text-purple-400 shrink-0" />
+                    <span>Mở Haevy AI</span>
                   </button>
                 </div>
+
               </div>
+
+              {/* Right Col: Interactive Quick Launch Matrix (5 cols) */}
+              <div className="lg:col-span-5 w-full">
+                <div className="p-3 sm:p-3.5 rounded-2xl bg-zinc-950/80 border border-zinc-800 shadow-xl space-y-2">
+                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-1.5">
+                    <span className="text-[11px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Zap size={13} className="text-amber-400" />
+                      Truy Cập Nhanh Trụ Cột
+                    </span>
+                    <span className="text-[10px] text-zinc-500 font-mono">1-Chạm Mở Ngay</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Quick Pill 1: Haevy AI */}
+                    <div
+                      onClick={() => {
+                        haptics.modeSwitch();
+                        if (onSelectMode) onSelectMode('haevy_ai');
+                      }}
+                      className="p-2 sm:p-2.5 rounded-xl bg-zinc-900/90 hover:bg-purple-950/40 border border-zinc-800 hover:border-purple-500/50 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs shrink-0">
+                          <BrainCircuit size={13} />
+                        </div>
+                        <span className="text-xs font-black text-white group-hover:text-purple-300 transition-colors truncate">Haevy AI</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 line-clamp-1">Trợ lý thấu cảm & học sâu</p>
+                    </div>
+
+                    {/* Quick Pill 2: Haevy Audio */}
+                    <div
+                      onClick={() => {
+                        haptics.modeSwitch();
+                        if (onSelectMode) onSelectMode('audio');
+                      }}
+                      className="p-2 sm:p-2.5 rounded-xl bg-zinc-900/90 hover:bg-indigo-950/40 border border-zinc-800 hover:border-indigo-500/50 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs shrink-0">
+                          <Moon size={13} />
+                        </div>
+                        <span className="text-xs font-black text-white group-hover:text-indigo-300 transition-colors truncate">Haevy Audio</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 line-clamp-1">Sóng não & sách nói Hi-Fi</p>
+                    </div>
+
+                    {/* Quick Pill 3: Family Tree */}
+                    <div
+                      onClick={() => {
+                        haptics.modeSwitch();
+                        if (onSelectMode) onSelectMode('family_tree');
+                      }}
+                      className="p-2 sm:p-2.5 rounded-xl bg-zinc-900/90 hover:bg-amber-950/40 border border-zinc-800 hover:border-amber-500/50 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xs shrink-0">
+                          <GitFork size={13} />
+                        </div>
+                        <span className="text-xs font-black text-white group-hover:text-amber-300 transition-colors truncate">Gia Phả O(1)</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 line-clamp-1">Phả hệ dòng họ & ngày giỗ</p>
+                    </div>
+
+                    {/* Quick Pill 4: Finance */}
+                    <div
+                      onClick={() => {
+                        haptics.modeSwitch();
+                        if (onSelectMode) onSelectMode('finance');
+                      }}
+                      className="p-2 sm:p-2.5 rounded-xl bg-zinc-900/90 hover:bg-emerald-950/40 border border-zinc-800 hover:border-emerald-500/50 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs shrink-0">
+                          <Wallet size={13} />
+                        </div>
+                        <span className="text-xs font-black text-white group-hover:text-emerald-300 transition-colors truncate">Tài Chính 6 Hũ</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 line-clamp-1">Quản lý thu chi & ngân sách</p>
+                    </div>
+                  </div>
+
+                  {/* Bottom Status Row */}
+                  <div className="pt-1.5 border-t border-zinc-800/80 flex items-center justify-between text-[10px] text-zinc-400">
+                    <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      12+ Phân hệ sẵn sàng
+                    </span>
+                    <span className="font-mono text-zinc-500">Haevy Ecosystem v2.6</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
           </div>
-
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 📜 VINTAGE PARCHMENT SUB-BANNER: GIỚI THIỆU TỔNG QUAN HỆ SINH THÁI */}
-      {/* ========================================================================= */}
-      <section className="w-full max-w-7xl px-2.5 sm:px-6 mb-6 sm:mb-10">
-        <div className="w-full rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#d8c39e] via-[#ebd9b8] to-[#d8c39e] text-zinc-950 p-3.5 sm:p-6 shadow-xl border border-amber-700/30 flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4 text-center md:text-left">
-          
-          <div className="space-y-1">
-            <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-amber-900/80 flex items-center justify-center md:justify-start gap-1">
-              <Award size={13} className="text-amber-800" />
-              ĐẶC QUYỀN HỆ SINH THÁI
-            </span>
-            <h2 className="text-lg sm:text-2xl font-black text-zinc-900 font-serif tracking-tight break-word-safe">
-              Nhận Ưu Đãi Đặc Biệt Trong Đại Lễ
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-700 max-w-2xl font-medium break-word-safe">
-              Không cần cài đặt nhiều ứng dụng phức tạp. Một tài khoản Haevy duy nhất đưa bạn qua 7 phân hệ sáng tạo, học tập, thư giãn và giải trí hoàn hảo.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
-            <button
-              onClick={() => setSelectedDemoModal('space_demo')}
-              className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-amber-300 font-black text-xs shadow-lg transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer text-center"
-            >
-              <Sparkles size={14} className="text-amber-400 shrink-0" />
-              <span>Xem Thử Phòng Vẽ 3D</span>
-            </button>
-          </div>
-
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ========================================================================= */}
       {/* 🎪 DYNAMIC ECOSYSTEM EVENTS SHOWCASE (REWARD STYLES & HOSTING MODES) */}
       {/* ========================================================================= */}
-      {upcomingEvents && upcomingEvents.filter(e => e.status !== 'ended' && e.status !== 'draft').length > 0 && (
-        <section id="ecosystem-live-events-showcase" className="w-full max-w-7xl px-2.5 sm:px-6 mb-6 sm:mb-10">
+      {(activeSectionTab === 'events' || activeSectionTab === 'all') && upcomingEvents && upcomingEvents.filter(e => e.status !== 'ended' && e.status !== 'draft').length > 0 && (
+        <section id="ecosystem-live-events-showcase" className="w-full max-w-7xl px-2.5 sm:px-6 mb-5 sm:mb-8">
           <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-900/90 via-zinc-950/95 to-black border-2 border-amber-500/40 shadow-2xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2">
@@ -933,7 +1088,7 @@ export function HaevyEcosystemLandingView({
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                    <span>Sự Kiện & Đại Lễ Đang Diễn Ra</span>
+                    <span>Sự Kiện & Hoạt Động Đang Diễn Ra</span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
                       {upcomingEvents.filter(e => e.status !== 'ended' && e.status !== 'draft').length} Sự Kiện
                     </span>
@@ -1084,306 +1239,373 @@ export function HaevyEcosystemLandingView({
       )}
 
       {/* ========================================================================= */}
-      {/* 🧭 FILTER TABS & SEARCH SECTION */}
+      {/* 🧭 FILTER TABS, SEARCH & COMPACT TOGGLE SECTION */}
       {/* ========================================================================= */}
-      <section id="ecosystem-pillars-section" className="w-full max-w-7xl px-2.5 sm:px-6 mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+      {(activeSectionTab === 'pillars' || activeSectionTab === 'all') && (
+        <>
+        <section id="ecosystem-pillars-section" className="w-full max-w-7xl px-2.5 sm:px-6 mb-4 sm:mb-6">
+        <div className="flex flex-col gap-3 pb-3 border-b border-zinc-800">
           
-          <div>
-            <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2 break-word-safe">
-              <Layers size={20} className="text-amber-400 shrink-0" />
-              <span>Các Phân Hệ Cốt Lõi Trong Hệ Sinh Thái Haevy</span>
-            </h2>
-            <p className="text-xs text-zinc-400 break-word-safe">
-              Khám phá các phân hệ trụ cột hoặc bấm nút 4 ô vuông góc trên để xem toàn bộ danh mục chế độ.
-            </p>
-          </div>
+          {/* Header & Density Toggle Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2 break-word-safe">
+                <Layers size={20} className="text-amber-400 shrink-0" />
+                <span>Các Phân Hệ Cốt Lõi Trong Hệ Sinh Thái Haevy</span>
+              </h2>
+              <p className="text-xs text-zinc-400 break-word-safe">
+                Khám phá các phân hệ trụ cột, tìm kiếm nhanh hoặc chuyển đổi giao diện gọn gàng theo nhu cầu.
+              </p>
+            </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-1.5 bg-zinc-950/80 p-1 rounded-2xl border border-zinc-800 overflow-x-auto no-scrollbar w-full sm:w-auto max-w-full touch-pan-x">
-            {[
-              { id: 'all', label: 'Tất Cả Phân Hệ' },
-              { id: 'spiritual', label: '🔮 Tâm Linh & Tử Vi' },
-              { id: 'audio', label: '🎧 Audio Sách Nói' },
-              { id: 'creative', label: '🎨 Sáng Tạo & 3D AR' },
-              { id: 'community', label: '👥 Kết Nối & Cặp Đôi' },
-              { id: 'utility', label: '⚙️ Quản Trị & Tài Chính' }
-            ].map(cat => (
+            {/* Density & Display Toggle */}
+            <div className="flex items-center gap-2 shrink-0">
               <button
-                key={cat.id}
-                onClick={() => {
-                  haptics.selection();
-                  setActiveCategoryFilter(cat.id as any);
-                }}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
-                  activeCategoryFilter === cat.id
-                    ? 'bg-amber-400 text-zinc-950 font-black shadow-md'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                onClick={toggleCompactMode}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                  isCompactMode 
+                    ? 'bg-amber-400 text-zinc-950 border-amber-400 shadow-md font-black'
+                    : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-700'
                 }`}
+                title={isCompactMode ? 'Chuyển sang xem đầy đủ' : 'Chuyển sang giao diện nhỏ gọn'}
               >
-                {cat.label}
+                <Sliders size={13} className={isCompactMode ? 'text-zinc-950' : 'text-amber-400'} />
+                <span>{isCompactMode ? 'Giao Diện Gọn Gàng' : 'Giao Diện Đầy Đủ'}</span>
               </button>
-            ))}
+            </div>
+          </div>
+
+          {/* Search & Category Filter Bar */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm phân hệ (AI, Audio, Gia Phả, 3D, Tài Chính)..."
+                className="w-full pl-9 pr-8 py-2 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400/80 transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-0.5 rounded-md"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 bg-zinc-950/80 p-1 rounded-2xl border border-zinc-800 overflow-x-auto no-scrollbar w-full md:w-auto max-w-full touch-pan-x">
+              {[
+                { id: 'all', label: 'Tất Cả' },
+                { id: 'spiritual', label: '🔮 Tâm Linh' },
+                { id: 'audio', label: '🎧 Audio' },
+                { id: 'creative', label: '🎨 Sáng Tạo & 3D' },
+                { id: 'community', label: '👥 Kết Nối' },
+                { id: 'utility', label: '⚙️ Quản Trị' }
+              ].map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    haptics.selection();
+                    setActiveCategoryFilter(cat.id as any);
+                  }}
+                  className={`px-2.5 sm:px-3 py-1 rounded-xl text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+                    activeCategoryFilter === cat.id
+                      ? 'bg-amber-400 text-zinc-950 font-black shadow-md'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
 
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 🌌 BENTO GRID: 7 FLAGSHIP ECOSYSTEM PILLARS CARDS */}
+      {/* 🌌 BENTO GRID: 7 FLAGSHIP ECOSYSTEM PILLARS CARDS (HỖ TRỢ CHẾ ĐỘ GỌN GÀNG) */}
       {/* ========================================================================= */}
       <section className="w-full max-w-7xl px-2.5 sm:px-6 mb-8 sm:mb-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {filteredPillars.map((pillar) => {
-            const Icon = pillar.icon;
-            return (
-              <div
-                key={pillar.id}
-                onClick={() => {
-                  haptics.medium();
-                  setSelectedDemoModal(pillar.demoType);
-                }}
-                className={`group relative rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-900/90 via-zinc-950/90 to-black border-2 ${pillar.borderColor} p-4 sm:p-6 shadow-2xl transition-all duration-300 flex flex-col justify-between cursor-pointer active:scale-[0.99] overflow-hidden hover:shadow-xl`}
-              >
-                {/* Ambient glow */}
-                <div className={`absolute top-0 right-0 w-48 h-48 ${pillar.bgGlow} rounded-full blur-3xl group-hover:scale-125 transition-all pointer-events-none`} />
+        {filteredPillars.length === 0 ? (
+          <div className="p-8 rounded-2xl bg-zinc-950 border border-zinc-800 text-center space-y-2">
+            <p className="text-sm font-bold text-zinc-400">Không tìm thấy phân hệ nào phù hợp với từ khóa "{searchQuery}"</p>
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setActiveCategoryFilter('all');
+              }}
+              className="px-3 py-1.5 rounded-xl bg-zinc-800 text-amber-300 text-xs font-bold hover:bg-zinc-700"
+            >
+              Đặt lại bộ lọc
+            </button>
+          </div>
+        ) : (
+          <div className={
+            isCompactMode
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5"
+              : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+          }>
+            {filteredPillars.map((pillar) => {
+              const Icon = pillar.icon;
+              return (
+                <div
+                  key={pillar.id}
+                  onClick={() => {
+                    haptics.medium();
+                    setSelectedDemoModal(pillar.demoType);
+                  }}
+                  className={`group relative rounded-xl sm:rounded-2xl bg-gradient-to-b from-zinc-900/90 via-zinc-950/90 to-black border ${pillar.borderColor} ${
+                    isCompactMode ? 'p-3.5 sm:p-4' : 'p-4 sm:p-6'
+                  } shadow-xl transition-all duration-300 flex flex-col justify-between cursor-pointer active:scale-[0.99] overflow-hidden hover:shadow-2xl hover:border-amber-400/50`}
+                >
+                  {/* Ambient glow */}
+                  <div className={`absolute top-0 right-0 w-36 h-36 ${pillar.bgGlow} rounded-full blur-3xl group-hover:scale-125 transition-all pointer-events-none`} />
 
-                <div>
-                  {/* Top Card Bar */}
-                  <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${pillar.color} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform p-2 sm:p-2.5 shrink-0`}>
-                      <Icon size={20} className="sm:w-6 sm:h-6" />
-                    </div>
-                    <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 text-[9px] sm:text-[10px] font-black tracking-wider uppercase shrink-0">
-                      {pillar.badge}
-                    </span>
-                  </div>
-
-                  {/* Title & SubTitle */}
-                  <h3 className="text-base sm:text-xl font-black text-white group-hover:text-amber-300 transition-colors mb-1 break-word-safe">
-                    {pillar.title}
-                  </h3>
-                  <p className={`text-xs font-bold ${pillar.textColor} mb-2.5 leading-snug break-word-safe`}>
-                    {pillar.subTitle}
-                  </p>
-
-                  <p className="text-xs text-zinc-300 leading-relaxed mb-3 sm:mb-4 break-word-safe">
-                    {pillar.description}
-                  </p>
-
-                  {/* Key Highlights */}
-                  <div className="space-y-1.5 mb-4 sm:mb-5">
-                    {pillar.highlights.map((h, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs text-zinc-300 break-word-safe">
-                        <CheckCircle2 size={13} className="text-amber-400 shrink-0 mt-0.5" />
-                        <span>{h}</span>
+                  <div>
+                    {/* Top Card Bar */}
+                    <div className={`flex items-center justify-between gap-2 ${isCompactMode ? 'mb-2' : 'mb-3 sm:mb-4'}`}>
+                      <div className={`${isCompactMode ? 'w-8 h-8 rounded-lg p-1.5' : 'w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl p-2 sm:p-2.5'} bg-gradient-to-br ${pillar.color} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform shrink-0`}>
+                        <Icon size={isCompactMode ? 16 : 20} className={isCompactMode ? '' : 'sm:w-6 sm:h-6'} />
                       </div>
-                    ))}
+                      <span className="px-2 py-0.5 rounded-full bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 text-[9px] font-black tracking-wider uppercase shrink-0">
+                        {pillar.badge}
+                      </span>
+                    </div>
+
+                    {/* Title & SubTitle */}
+                    <h3 className={`${isCompactMode ? 'text-sm sm:text-base' : 'text-base sm:text-xl'} font-black text-white group-hover:text-amber-300 transition-colors mb-0.5 break-word-safe`}>
+                      {pillar.title}
+                    </h3>
+                    <p className={`text-[11px] font-bold ${pillar.textColor} ${isCompactMode ? 'mb-1.5' : 'mb-2.5'} leading-snug break-word-safe`}>
+                      {pillar.subTitle}
+                    </p>
+
+                    <p className={`text-xs text-zinc-300 leading-relaxed ${isCompactMode ? 'line-clamp-2 mb-2 text-[11px]' : 'mb-3 sm:mb-4'} break-word-safe`}>
+                      {pillar.description}
+                    </p>
+
+                    {/* Key Highlights */}
+                    <div className={`space-y-1 ${isCompactMode ? 'mb-2.5' : 'mb-4 sm:mb-5'}`}>
+                      {(isCompactMode ? pillar.highlights.slice(0, 1) : pillar.highlights).map((h, i) => (
+                        <div key={i} className="flex items-start gap-1.5 text-[11px] text-zinc-300 break-word-safe">
+                          <CheckCircle2 size={12} className="text-amber-400 shrink-0 mt-0.5" />
+                          <span className={isCompactMode ? 'line-clamp-1' : ''}>{h}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Bottom Action Footer */}
-                <div className="pt-3 border-t border-zinc-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                  <span className="text-[11px] font-mono text-zinc-500 font-bold hidden sm:block">
-                    {pillar.stats}
-                  </span>
+                  {/* Bottom Action Footer */}
+                  <div className={`pt-2.5 border-t border-zinc-800/80 flex items-center justify-between gap-1.5`}>
+                    <span className="text-[10px] font-mono text-zinc-500 font-bold hidden sm:block truncate max-w-[100px]">
+                      {pillar.stats}
+                    </span>
 
-                  <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        haptics.medium();
-                        setSelectedDemoModal(pillar.demoType);
-                      }}
-                      className="flex-1 sm:flex-initial px-2.5 py-1.5 rounded-xl bg-zinc-800/90 hover:bg-zinc-700 text-zinc-300 text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                      title="Xem giới thiệu & demo tương tác"
-                    >
-                      <Eye size={12} className="text-amber-400 shrink-0" />
-                      <span>Xem Demo</span>
-                    </button>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        haptics.modeSwitch();
-                        if (onSelectMode) {
-                          onSelectMode(pillar.id);
-                        } else {
+                    <div className="flex items-center gap-1 w-full sm:w-auto justify-end">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          haptics.medium();
                           setSelectedDemoModal(pillar.demoType);
-                        }
-                      }}
-                      className="flex-1 sm:flex-initial px-3 sm:px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-zinc-950 text-xs font-black shadow-md shadow-amber-400/20 transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95"
-                    >
-                      <span>Vào Sử Dụng</span>
-                      <ArrowRight size={13} className="shrink-0" />
-                    </button>
+                        }}
+                        className="px-2 py-1 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-zinc-300 text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shrink-0"
+                        title="Xem giới thiệu & demo tương tác"
+                      >
+                        <Eye size={11} className="text-amber-400 shrink-0" />
+                        <span>Demo</span>
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          haptics.modeSwitch();
+                          if (onSelectMode) {
+                            onSelectMode(pillar.id);
+                          } else {
+                            setSelectedDemoModal(pillar.demoType);
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-zinc-950 text-[11px] font-black shadow-md shadow-amber-400/20 transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 shrink-0"
+                      >
+                        <span>Mở</span>
+                        <ArrowRight size={11} className="shrink-0" />
+                      </button>
+                    </div>
                   </div>
+
                 </div>
-
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* ⚡ TECH STACK & ARCHITECTURE SHOWCASE */}
-      {/* ========================================================================= */}
-      <section id="tech-stack-section" className="w-full max-w-7xl px-2.5 sm:px-6 mb-8 sm:mb-12">
-        <div className="w-full rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-900 to-zinc-950 border border-zinc-800 p-4 sm:p-10 shadow-2xl">
-          
-          <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8 space-y-2">
-            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] sm:text-xs font-black uppercase tracking-wider border border-emerald-500/40">
-              CÔNG NGHỆ TIÊN PHONG
-            </span>
-            <h2 className="text-xl sm:text-3xl font-black text-white break-word-safe">
-              Nền Tảng Công Nghệ Đa Chiều Của Haevy
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 break-word-safe">
-              Kết hợp sức mạnh tính toán vật lý thời gian thực, trí tuệ nhân tạo học sâu và điện toán đám mây tốc độ cao.
-            </p>
+              );
+            })}
           </div>
+        )}
+      </section>
+      </>
+      )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* ========================================================================= */}
+      {/* ⚡ UNIFIED TECH STACK & LIVE STATS BENTO (TINH GỌN & CÂN ĐỐI TỶ LỆ) */}
+      {/* ========================================================================= */}
+      {(activeSectionTab === 'tech_stats' || activeSectionTab === 'all') && (
+        <section id="tech-stack-section" className="w-full max-w-7xl px-2.5 sm:px-6 mb-6 sm:mb-10">
+          <div className="w-full rounded-2xl sm:rounded-3xl bg-gradient-to-b from-zinc-900 to-zinc-950 border border-zinc-800 p-4 sm:p-7 shadow-2xl space-y-6">
             
-            <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
-                <PenTool size={18} />
-              </div>
-              <h4 className="font-bold text-sm text-white break-word-safe">3D Dynamic Equations</h4>
-              <p className="text-xs text-zinc-400 leading-relaxed break-word-safe">
-                Phương trình lực đè độ cong (Curvature Force) và mô hình lò xo giảm chấn tái tạo chiều sâu nét vẽ 3D tự nhiên.
+            {/* Section Header */}
+            <div className="text-center max-w-2xl mx-auto space-y-1.5">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] sm:text-xs font-black uppercase tracking-wider border border-emerald-500/40">
+                HẠ TẦNG KỸ THUẬT & SỐ LIỆU MINH BẠCH
+              </span>
+              <h2 className="text-lg sm:text-2xl font-black text-white break-word-safe">
+                Nền Tảng Công Nghệ Đa Chiều & Cộng Đồng Haevy
+              </h2>
+              <p className="text-xs sm:text-sm text-zinc-400 break-word-safe">
+                Kết hợp sức mạnh tính toán vật lý thời gian thực, AI học sâu và điện toán đám mây tốc độ cao.
               </p>
             </div>
 
-            <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                <BrainCircuit size={18} />
+            {/* Live Stats Row */}
+            <div className="rounded-xl sm:rounded-2xl bg-zinc-950/90 border border-zinc-800/90 p-3 sm:p-5 grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 text-center">
+              <div className="space-y-0.5 p-1.5">
+                <span className="text-lg sm:text-2xl lg:text-3xl font-black text-amber-400 font-mono">
+                  25,000+
+                </span>
+                <p className="text-[10px] sm:text-xs text-zinc-400 font-medium">Thành Viên Tích Cực</p>
               </div>
-              <h4 className="font-bold text-sm text-white break-word-safe">Gemini 3.5 AI Processor</h4>
-              <p className="text-xs text-zinc-400 leading-relaxed break-word-safe">
-                Mô hình xử lý tài liệu tối ưu về tốc độ và chi phí, mổ xẻ nguyên lý logic sâu sắc và chống thói quen học vẹt.
-              </p>
+
+              <div className="space-y-0.5 p-1.5">
+                <span className="text-lg sm:text-2xl lg:text-3xl font-black text-cyan-400 font-mono">
+                  1,200+
+                </span>
+                <p className="text-[10px] sm:text-xs text-zinc-400 font-medium">Tác Phẩm Vẽ 3D AR</p>
+              </div>
+
+              <div className="space-y-0.5 p-1.5">
+                <span className="text-lg sm:text-2xl lg:text-3xl font-black text-rose-400 font-mono">
+                  50,000+
+                </span>
+                <p className="text-[10px] sm:text-xs text-zinc-400 font-medium">Giờ Trải Nghiệm & Nghe</p>
+              </div>
+
+              <div className="space-y-0.5 p-1.5">
+                <span className="text-lg sm:text-2xl lg:text-3xl font-black text-emerald-400 font-mono">
+                  10,000,000+
+                </span>
+                <p className="text-[10px] sm:text-xs text-zinc-400 font-medium">Xu Đã Trao Thưởng</p>
+              </div>
             </div>
 
-            <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                <Volume2 size={18} />
+            {/* Tech Pillar 4-Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+              
+              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-1.5">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                  <PenTool size={16} />
+                </div>
+                <h4 className="font-bold text-xs sm:text-sm text-white break-word-safe">3D Dynamic Equations</h4>
+                <p className="text-[11px] text-zinc-400 leading-relaxed break-word-safe">
+                  Phương trình lực đè độ cong (Curvature Force) và mô hình lò xo giảm chấn tái tạo chiều sâu nét vẽ 3D tự nhiên.
+                </p>
               </div>
-              <h4 className="font-bold text-sm text-white break-word-safe">Web Audio Spatial DSP</h4>
-              <p className="text-xs text-zinc-400 leading-relaxed break-word-safe">
-                Bộ xử lý tín hiệu số tổng hợp sóng não Alpha (432Hz) và Delta (0.5-4Hz) chuẩn Hi-Fi trực tiếp trên trình duyệt.
-              </p>
+
+              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-1.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <BrainCircuit size={16} />
+                </div>
+                <h4 className="font-bold text-xs sm:text-sm text-white break-word-safe">Gemini 3.5 AI Processor</h4>
+                <p className="text-[11px] text-zinc-400 leading-relaxed break-word-safe">
+                  Mô hình xử lý tài liệu tối ưu về tốc độ và chi phí, mổ xẻ nguyên lý logic sâu sắc và chống thói quen học vẹt.
+                </p>
+              </div>
+
+              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-1.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                  <Volume2 size={16} />
+                </div>
+                <h4 className="font-bold text-xs sm:text-sm text-white break-word-safe">Web Audio Spatial DSP</h4>
+                <p className="text-[11px] text-zinc-400 leading-relaxed break-word-safe">
+                  Bộ xử lý tín hiệu số tổng hợp sóng não Alpha (432Hz) và Delta (0.5-4Hz) chuẩn Hi-Fi trực tiếp trên trình duyệt.
+                </p>
+              </div>
+
+              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-1.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={16} />
+                </div>
+                <h4 className="font-bold text-xs sm:text-sm text-white break-word-safe">Cloud Firestore & eKYC</h4>
+                <p className="text-[11px] text-zinc-400 leading-relaxed break-word-safe">
+                  Bảo vệ dữ liệu người dùng đa thiết bị, đồng bộ tức thời thời gian thực và xác thực bản quyền tác giả chính thức.
+                </p>
+              </div>
+
             </div>
 
-            <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-2">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
-                <ShieldCheck size={18} />
-              </div>
-              <h4 className="font-bold text-sm text-white break-word-safe">Cloud Firestore & eKYC</h4>
-              <p className="text-xs text-zinc-400 leading-relaxed break-word-safe">
-                Bảo vệ dữ liệu người dùng đa thiết bị, đồng bộ tức thời thời gian thực và xác thực bản quyền tác giả chính thức.
-              </p>
-            </div>
-
           </div>
-
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 📊 LIVE STATS & COMMUNITY TRUST */}
-      {/* ========================================================================= */}
-      <section className="w-full max-w-7xl px-2.5 sm:px-6 mb-8 sm:mb-12">
-        <div className="w-full rounded-2xl sm:rounded-3xl bg-zinc-950 border border-zinc-800/80 p-4 sm:p-8 shadow-2xl grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 text-center">
-          
-          <div className="space-y-1 p-2">
-            <span className="text-xl sm:text-3xl lg:text-4xl font-black text-amber-400 font-mono break-all sm:break-normal">
-              25,000+
-            </span>
-            <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">Thành Viên Tích Cực</p>
-          </div>
-
-          <div className="space-y-1 p-2">
-            <span className="text-xl sm:text-3xl lg:text-4xl font-black text-cyan-400 font-mono break-all sm:break-normal">
-              1,200+
-            </span>
-            <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">Tác Phẩm Vẽ 3D AR</p>
-          </div>
-
-          <div className="space-y-1 p-2">
-            <span className="text-xl sm:text-3xl lg:text-4xl font-black text-rose-400 font-mono break-all sm:break-normal">
-              50,000+
-            </span>
-            <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">Giờ Trải Nghiệm & Nghe</p>
-          </div>
-
-          <div className="space-y-1 p-2">
-            <span className="text-xl sm:text-3xl lg:text-4xl font-black text-emerald-400 font-mono break-all sm:break-normal">
-              10,000,000+
-            </span>
-            <p className="text-[11px] sm:text-xs text-zinc-400 font-medium">Xu Haevy Đã Trao Thưởng</p>
-          </div>
-
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ========================================================================= */}
       {/* ❓ FREQUENTLY ASKED QUESTIONS (FAQ) */}
       {/* ========================================================================= */}
-      <section id="faq-section" className="w-full max-w-4xl px-2.5 sm:px-6 mb-12 sm:mb-16">
-        <div className="text-center mb-6 sm:mb-8 space-y-2">
-          <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-black uppercase tracking-wider border border-purple-500/40">
-            HỎI ĐÁP & HƯỚNG DẪN
-          </span>
-          <h2 className="text-xl sm:text-3xl font-black text-white break-word-safe">
-            Câu Hỏi Thường Gặp Về Hệ Sinh Thái Haevy
-          </h2>
-        </div>
+      {(activeSectionTab === 'faq' || activeSectionTab === 'all') && (
+        <section id="faq-section" className="w-full max-w-4xl px-2.5 sm:px-6 mb-8 sm:mb-12">
+          <div className="text-center mb-4 sm:mb-6 space-y-1.5">
+            <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-black uppercase tracking-wider border border-purple-500/40">
+              HỎI ĐÁP & HƯỚNG DẪN
+            </span>
+            <h2 className="text-lg sm:text-2xl font-black text-white break-word-safe">
+              Câu Hỏi Thường Gặp Về Hệ Sinh Thái Haevy
+            </h2>
+          </div>
 
-        <div className="space-y-2.5 sm:space-y-3">
-          {faqs.map((faq, idx) => (
-            <div 
-              key={idx}
-              className="rounded-xl sm:rounded-2xl bg-zinc-950 border border-zinc-800/90 overflow-hidden"
-            >
-              <button
-                onClick={() => {
-                  haptics.selection();
-                  setFaqOpenIndex(faqOpenIndex === idx ? null : idx);
-                }}
-                className="w-full p-3.5 sm:p-5 text-left flex items-center justify-between gap-2.5 hover:bg-zinc-900/50 transition-colors"
+          <div className="space-y-2 sm:space-y-2.5">
+            {faqs.map((faq, idx) => (
+              <div 
+                key={idx}
+                className="rounded-xl sm:rounded-2xl bg-zinc-950 border border-zinc-800/90 overflow-hidden"
               >
-                <span className="font-bold text-xs sm:text-base text-zinc-100 flex items-center gap-2 break-word-safe">
-                  <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500/20 text-amber-300 text-[10px] sm:text-xs font-black flex items-center justify-center shrink-0">
-                    ?
+                <button
+                  onClick={() => {
+                    haptics.selection();
+                    setFaqOpenIndex(faqOpenIndex === idx ? null : idx);
+                  }}
+                  className="w-full p-3 sm:p-4 text-left flex items-center justify-between gap-2.5 hover:bg-zinc-900/50 transition-colors"
+                >
+                  <span className="font-bold text-xs sm:text-sm text-zinc-100 flex items-center gap-2 break-word-safe">
+                    <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black flex items-center justify-center shrink-0">
+                      ?
+                    </span>
+                    {faq.q}
                   </span>
-                  {faq.q}
-                </span>
-                <span className="text-zinc-500 text-base sm:text-lg font-bold shrink-0">
-                  {faqOpenIndex === idx ? '−' : '+'}
-                </span>
-              </button>
+                  <span className="text-zinc-500 text-base sm:text-lg font-bold shrink-0">
+                    {faqOpenIndex === idx ? '−' : '+'}
+                  </span>
+                </button>
 
-              {faqOpenIndex === idx && (
-                <div className="p-3.5 sm:p-5 pt-0 text-xs sm:text-sm text-zinc-400 leading-relaxed border-t border-zinc-800/50 break-word-safe">
-                  {faq.a}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+                {faqOpenIndex === idx && (
+                  <div className="p-3 sm:p-4 pt-0 text-xs text-zinc-400 leading-relaxed border-t border-zinc-800/50 break-word-safe">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ========================================================================= */}
       {/* 🚀 QUICK JUMP FOOTER */}
       {/* ========================================================================= */}
-      <footer className="w-full max-w-7xl px-2.5 sm:px-6 pb-12 text-center text-xs text-zinc-500 space-y-3 border-t border-zinc-800 pt-8">
+      <footer className="w-full max-w-7xl px-2.5 sm:px-6 pb-12 text-center text-xs text-zinc-500 space-y-2.5 border-t border-zinc-800 pt-6">
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-zinc-400 font-bold text-xs">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-amber-400">Trang Đầu</button>
-          <button onClick={() => setSelectedDemoModal('space_demo')} className="hover:text-amber-400">Thử Vẽ 3D AR</button>
-          <button onClick={() => setSelectedDemoModal('ai_demo')} className="hover:text-amber-400">Thử Trợ Lý Học Sâu AI</button>
-          <button onClick={handleClaimFestivalGift} className="hover:text-amber-400">Nhận 500 Xu Đại Lễ</button>
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-amber-400 cursor-pointer">Trang Đầu</button>
+          <button onClick={() => setSelectedDemoModal('space_demo')} className="hover:text-amber-400 cursor-pointer">Thử Vẽ 3D AR</button>
+          <button onClick={() => setSelectedDemoModal('ai_demo')} className="hover:text-amber-400 cursor-pointer">Thử Trợ Lý AI</button>
+          <button onClick={handleClaimFestivalGift} className="hover:text-amber-400 cursor-pointer">Nhận 500 Xu Tân Thủ</button>
         </div>
         <p className="font-bold text-zinc-400 break-word-safe">
           © {new Date().getFullYear()} Haevy Ecosystem • Nền Tảng Đa Trải Nghiệm Sáng Tạo & Thư Giãn Toàn Diện
@@ -1392,6 +1614,24 @@ export function HaevyEcosystemLandingView({
           Được tối ưu cho mọi thiết bị: Máy tính cá nhân, Bảng vẽ, Điện thoại cảm ứng & Kính thực tế ảo AR.
         </p>
       </footer>
+
+      {/* ========================================================================= */}
+      {/* 🚀 FLOATING QUICK DOCK & BACK TO TOP BUTTON (CHỐNG VUỐT MỎI TAY) */}
+      {/* ========================================================================= */}
+      {showBackToTop && (
+        <div className="fixed bottom-4 right-3 sm:bottom-6 sm:right-6 z-40 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-3">
+          <button
+            onClick={() => {
+              haptics.selection();
+              scrollToTop();
+            }}
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black shadow-xl shadow-amber-400/25 border border-amber-300 flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            title="Cuộn lên đầu trang"
+          >
+            <ArrowUp size={18} className="shrink-0" />
+          </button>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 🎬 INTERACTIVE DEMO MODAL (POPUP PREVIEW RIGHT ON LANDING PAGE) */}
@@ -1549,7 +1789,7 @@ export function HaevyEcosystemLandingView({
                   }}
                   className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
                 >
-                  Nhận 500 Xu Đại Lễ & Trải Nghiệm Haevy Audio
+                  Nhận 500 Xu Thưởng & Trải Nghiệm Haevy Audio
                 </button>
               </div>
             )}
@@ -1585,7 +1825,7 @@ export function HaevyEcosystemLandingView({
                   }}
                   className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
                 >
-                  Nhận 500 Xu Đại Lễ & Bắt Đầu Sáng Tác
+                  Nhận 500 Xu Thưởng & Bắt Đầu Sáng Tác
                 </button>
               </div>
             )}
@@ -1621,7 +1861,7 @@ export function HaevyEcosystemLandingView({
                   }}
                   className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
                 >
-                  Nhận 500 Xu Đại Lễ & Kết Nối Bạn Bè
+                  Nhận 500 Xu Thưởng & Kết Nối Bạn Bè
                 </button>
               </div>
             )}
@@ -1657,7 +1897,7 @@ export function HaevyEcosystemLandingView({
                   }}
                   className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
                 >
-                  Nhận 500 Xu Đại Lễ & Ghép Cặp Tình Yêu
+                  Nhận 500 Xu Thưởng & Ghép Cặp Tình Yêu
                 </button>
               </div>
             )}
@@ -1693,43 +1933,7 @@ export function HaevyEcosystemLandingView({
                   }}
                   className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
                 >
-                  Nhận 500 Xu Đại Lễ & Quản Lý Tài Chính
-                </button>
-              </div>
-            )}
-
-            {/* ADMIN DEMO */}
-            {selectedDemoModal === 'admin_demo' && (
-              <div className="space-y-4 text-center">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center">
-                  <ShieldCheck size={28} />
-                </div>
-                <h3 className="text-lg font-black text-white">Haevy Admin & Quản Trị Hệ Thống</h3>
-                <p className="text-xs text-zinc-400 max-w-md mx-auto">
-                  Bảng điều khiển toàn diện: Phê duyệt audio, kiểm duyệt nội dung, quản lý người dùng và theo dõi doanh thu xu.
-                </p>
-                <div className="p-4 rounded-2xl bg-zinc-900 border border-red-500/30 text-left space-y-2 text-xs">
-                  <div className="flex items-center gap-2 text-red-300 font-bold">
-                    <Check size={14} className="text-red-400 shrink-0" /> 
-                    <span>Phê duyệt và kiểm duyệt nội dung audio, sách nói</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-red-300 font-bold">
-                    <Check size={14} className="text-red-400 shrink-0" /> 
-                    <span>Quản lý phân quyền tài khoản Admin và Super Admin</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-red-300 font-bold">
-                    <Check size={14} className="text-red-400 shrink-0" /> 
-                    <span>Thống kê phân tích hiệu suất và dòng tiền xu toàn sàn</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setSelectedDemoModal(null);
-                    handleClaimFestivalGift();
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-black text-xs hover:opacity-90 transition-all cursor-pointer"
-                >
-                  Nhận 500 Xu Đại Lễ & Xem Quản Trị
+                  Nhận 500 Xu Thưởng & Quản Lý Tài Chính
                 </button>
               </div>
             )}
@@ -1765,7 +1969,7 @@ export function HaevyEcosystemLandingView({
                   }}
                   className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-zinc-950 font-black text-xs hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-amber-400/20"
                 >
-                  Nhận 500 Xu Đại Lễ & Trải Nghiệm VIP
+                  Nhận 500 Xu Thưởng & Trải Nghiệm VIP
                 </button>
               </div>
             )}
@@ -1801,7 +2005,7 @@ export function HaevyEcosystemLandingView({
                   }}
                   className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 text-zinc-950 font-black text-xs hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-emerald-400/20"
                 >
-                  Nhận 500 Xu Đại Lễ & Đến Trung Tâm Hỗ Trợ
+                  Nhận 500 Xu Thưởng & Đến Trung Tâm Hỗ Trợ
                 </button>
               </div>
             )}
@@ -1841,6 +2045,45 @@ export function HaevyEcosystemLandingView({
                     className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-zinc-950 font-black text-xs hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-amber-400/20"
                   >
                     Vào Xem Cây Phả Hệ Ngay 👑
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedDemoModal === 'edu_demo' && (
+              <div className="space-y-4 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
+                  <GraduationCap size={28} />
+                </div>
+                <h3 className="text-lg font-black text-white">Haevy Edu & Phòng Thí Nghiệm STEM Ảo</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                  Phòng thí nghiệm ảo đa ngành tương tác vật lý, hóa học, sinh học, AI đọc tài liệu xây dựng lộ trình học First Principles và AI Gia Sư chuyên sâu.
+                </p>
+                <div className="p-4 rounded-2xl bg-zinc-900 border border-emerald-500/30 text-left space-y-2 text-xs">
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <Check size={14} className="text-emerald-400 shrink-0" /> 
+                    <span>AI Gia Sư First Principles & Socratic: Hiểu bản chất logic, tránh học vẹt</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <Check size={14} className="text-emerald-400 shrink-0" /> 
+                    <span>Phòng Lab ảo HTML5 Canvas: Con lắc đơn, mạch điện Kirchhoff, chuẩn độ axit bazơ</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <Check size={14} className="text-emerald-400 shrink-0" /> 
+                    <span>Đọc tài liệu PDF/văn bản, trích xuất nguyên lý cốt lõi & lập lộ trình học</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedDemoModal(null);
+                      if (onSelectMode) {
+                        onSelectMode('edu');
+                      }
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-zinc-950 font-black text-xs hover:opacity-90 transition-all cursor-pointer shadow-lg shadow-emerald-400/20"
+                  >
+                    Vào Khám Phá Haevy Edu Ngay 🎓
                   </button>
                 </div>
               </div>

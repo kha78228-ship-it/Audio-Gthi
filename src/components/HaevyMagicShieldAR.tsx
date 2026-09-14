@@ -1020,15 +1020,30 @@ export function HaevyMagicShieldAR({
       {/* 🌌 TOP NAVIGATION & TELEMETRY HUD BAR */}
       {/* ========================================================================= */}
       <div className="relative z-30 p-3 sm:p-4 flex items-center justify-between pointer-events-auto bg-gradient-to-b from-black/85 via-black/40 to-transparent">
-        {/* Left: Back to Portal + Title Badge */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Left: Back to Portal + Ecosystem Mode Switcher + Title Badge */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <button
             onClick={onBackToPortal}
-            className="p-2 sm:px-3 sm:py-2 rounded-2xl bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 text-zinc-300 hover:text-white text-xs font-bold transition-all shadow-xl active:scale-95 flex items-center gap-1.5 backdrop-blur-xl"
+            className="p-2 sm:px-3 sm:py-2 rounded-2xl bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 text-zinc-300 hover:text-white text-xs font-bold transition-all shadow-xl active:scale-95 flex items-center gap-1.5 backdrop-blur-xl shrink-0"
             title="Quay lại Cổng Chọn Không Gian Haevy Space"
           >
             <ArrowLeft size={16} className="text-amber-400" />
-            <span className="hidden sm:inline">Cổng Haevy Space</span>
+            <span className="hidden sm:inline">Cổng Space</span>
+          </button>
+
+          {/* Ecosystem Mode Switcher Button */}
+          <button
+            id="magic-ar-modes-btn"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('haevy-open-quick-mode-switcher'));
+              }
+            }}
+            className="px-2.5 py-2 sm:px-3 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black text-xs font-black transition-all shadow-xl active:scale-95 flex items-center gap-1.5 backdrop-blur-xl border border-amber-300/80 cursor-pointer shrink-0 ring-1 ring-amber-400/40"
+            title="Chuyển đổi qua các chế độ trong Hệ Sinh Thái Haevy (Audio, AI Hub, VIP, Games,...)"
+          >
+            <Layers size={14} className="text-black shrink-0" />
+            <span>Chế Độ</span>
           </button>
 
           <div className="px-3 py-1.5 rounded-2xl bg-zinc-950/90 border border-amber-500/40 shadow-xl backdrop-blur-xl flex items-center gap-2">

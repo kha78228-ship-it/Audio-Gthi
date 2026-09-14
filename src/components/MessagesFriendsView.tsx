@@ -121,7 +121,7 @@ export function MessagesFriendsView({
       )}
 
       {activeMessageTab === 'feed' && (
-        <FeedTab onOpenAuth={onOpenAuth} />
+        <FeedTab onOpenAuth={onOpenAuth} onPlayTrack={onPlayTrack} />
       )}
 
       {activeMessageTab === 'friends' && (

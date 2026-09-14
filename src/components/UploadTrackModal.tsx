@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ImageUploadPicker } from './common/ImageUploadPicker';
+import { invalidateTracksCache } from '../services/tracksQueryService';
 
 interface UploadTrackModalProps {
   isOpen: boolean;
@@ -91,6 +92,8 @@ export function UploadTrackModal({ isOpen, onClose, onTrackUploaded }: UploadTra
       setUrl('');
       setCoverUrl('');
       setIsVipOnly(false);
+      // Invalidate React Query tracks cache so it refetches in background
+      invalidateTracksCache();
       if (onTrackUploaded) onTrackUploaded();
       onClose();
     } catch (err: any) {
