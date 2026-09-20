@@ -35,8 +35,11 @@ import {
   exportRoadmapToGoogleDrive, 
   listGoogleDriveRoadmapFiles, 
   isDriveConnected, 
-  getDriveUser 
+  getDriveUser,
+  fetchGoogleDriveFileContent,
+  GoogleDriveDocumentItem
 } from '../../services/googleDriveService';
+import { GoogleDriveDocumentPickerModal } from '../google/GoogleDriveDocumentPickerModal';
 import { StemQuickQuizView } from './StemQuickQuizView';
 import { DailyStudyPlanSection } from './DailyStudyPlanSection';
 import { 
@@ -126,6 +129,7 @@ export function DocumentRoadmapView({
   const [isSavingToDrive, setIsSavingToDrive] = useState<boolean>(false);
   const [showDriveConfirmModal, setShowDriveConfirmModal] = useState<boolean>(false);
   const [showDriveFilesModal, setShowDriveFilesModal] = useState<boolean>(false);
+  const [showDrivePickerModal, setShowDrivePickerModal] = useState<boolean>(false);
   const [driveSavedFiles, setDriveSavedFiles] = useState<GoogleDriveRoadmapFile[]>([]);
   const [driveExportSuccess, setDriveExportSuccess] = useState<GoogleDriveRoadmapFile | null>(null);
   const [driveExportFileName, setDriveExportFileName] = useState<string>('');
@@ -140,6 +144,31 @@ export function DocumentRoadmapView({
     setIsDriveReady(isDriveConnected());
     setDriveUser(getDriveUser());
   }, []);
+
+  // Listen to Google Drive document selection events for Roadmap
+  useEffect(() => {
+    const handleDocEvent = (e: any) => {
+      const doc = e.detail?.doc as GoogleDriveDocumentItem | undefined;
+      if (doc && e.detail?.target === 'roadmap') {
+        setFileName(doc.name);
+        setFileContent(doc.content);
+        setSelectedPreset(null as any);
+        setDriveStatusMsg(`Đã lấy tài liệu "${doc.name}" từ Google Drive! Bấm "Phân Tích" để tạo lộ trình.`);
+        setTimeout(() => setDriveStatusMsg(null), 4000);
+      }
+    };
+    window.addEventListener('haevy-select-study-document', handleDocEvent);
+    return () => window.removeEventListener('haevy-select-study-document', handleDocEvent);
+  }, []);
+
+  const handleSelectFromDrive = (doc: GoogleDriveDocumentItem) => {
+    setFileName(doc.name);
+    setFileContent(doc.content);
+    setSelectedPreset(null as any);
+    setShowDrivePickerModal(false);
+    setDriveStatusMsg(`Đã nạp tài liệu "${doc.name}" từ Google Drive! Hãy chọn số ngày và bấm phân tích.`);
+    setTimeout(() => setDriveStatusMsg(null), 4000);
+  };
 
   const handleConnectDrive = async () => {
     setIsConnectingDrive(true);
@@ -742,11 +771,21 @@ ${dailyPlanMarkdown}
               className="hidden"
             />
             <button
+              type="button"
+              onClick={() => setShowDrivePickerModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-bold border border-amber-500/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-98"
+              title="Lấy file giáo trình từ Google Drive"
+            >
+              <HardDrive size={14} className="text-amber-400" />
+              <span>Lấy từ Google Drive</span>
+            </button>
+            <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold border border-zinc-800 flex items-center gap-1.5 transition-all"
+              className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 text-xs font-semibold border border-zinc-800 flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Upload size={14} />
-              <span>Tải File Lên</span>
+              <span>Tải File Máy</span>
             </button>
             {/* Days duration selector */}
             <div className="flex items-center gap-1 bg-zinc-900/90 border border-zinc-800 rounded-xl p-1 text-xs text-zinc-300">
@@ -1453,17 +1492,39 @@ ${dailyPlanMarkdown}
                       </p>
                     </div>
 
-                    {file.webViewLink && (
-                      <a
-                        href={file.webViewLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors"
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const content = await fetchGoogleDriveFileContent(file.id);
+                          if (content) {
+                            setFileName(file.name);
+                            setFileContent(content);
+                            setShowDriveFilesModal(false);
+                            setSelectedPreset(null as any);
+                            setDriveStatusMsg(`Đã nạp tệp "${file.name}" vào lộ trình! Bấm "Phân Tích" để bắt đầu.`);
+                            setTimeout(() => setDriveStatusMsg(null), 3500);
+                          }
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Nạp nội dung tệp này vào lộ trình học"
                       >
-                        <span>Mở Trên Drive</span>
-                        <ExternalLink size={12} />
-                      </a>
-                    )}
+                        <FolderOpen size={12} />
+                        <span>Nạp Vào Lộ Trình</span>
+                      </button>
+
+                      {file.webViewLink && (
+                        <a
+                          href={file.webViewLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                        >
+                          <span>Mở Drive</span>
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
@@ -1525,6 +1586,12 @@ ${dailyPlanMarkdown}
           </div>
         </div>
       )}
+      {/* Google Drive Document Picker Modal */}
+      <GoogleDriveDocumentPickerModal
+        isOpen={showDrivePickerModal}
+        onClose={() => setShowDrivePickerModal(false)}
+        onSelectDocumentForRoadmap={handleSelectFromDrive}
+      />
     </div>
   );
 }

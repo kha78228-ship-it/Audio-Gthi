@@ -226,9 +226,9 @@ export interface CommunityPost {
   isHidden?: boolean;
 }
 
-export type EcosystemMode = 'portal' | 'audio' | 'messages' | 'couple' | 'finance' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'vip' | 'support' | 'profile' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu';
+export type EcosystemMode = 'portal' | 'audio' | 'messages' | 'couple' | 'finance' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'vip' | 'support' | 'profile' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu' | 'maps';
 
-export type ActiveTab = 'portal' | 'home' | 'library' | 'player' | 'community' | 'messages' | 'couple' | 'finance' | 'topup' | 'vip' | 'profile' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'support' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu';
+export type ActiveTab = 'portal' | 'home' | 'library' | 'player' | 'community' | 'messages' | 'couple' | 'finance' | 'topup' | 'vip' | 'profile' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'support' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu' | 'maps';
 
 export type EduLabSubject = 'dashboard' | 'physics' | 'chemistry' | 'biology';
 export type EduSubTab = 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'lab' | 'tools';
@@ -258,7 +258,7 @@ export interface EduAiStudyMessage {
   sender: 'user' | 'assistant';
   content: string;
   timestamp: string;
-  mode?: 'first_principles' | 'socratic' | 'document_data' | 'document_analysis' | 'step_by_step';
+  mode?: 'first_principles' | 'socratic' | 'document_data' | 'document_analysis' | 'step_by_step' | 'live_search' | 'casio_fx880' | 'feynman_simple' | 'thpt_exam_tactic';
   fileAttachment?: {
     name: string;
     snippet: string;
@@ -270,6 +270,13 @@ export interface EduAiStudyMessage {
     experimentId: string;
     experimentName: string;
   };
+  groundingSources?: Array<{
+    title: string;
+    url: string;
+    snippet?: string;
+  }>;
+  searchQueries?: string[];
+  isWebGrounded?: boolean;
 }
 
 export interface EduNotebookNote {
@@ -286,6 +293,57 @@ export interface EduNotebookNote {
 
 export type EduGradeLevel = 'all' | 10 | 11 | 12;
 export type EduTextbookSeries = 'KNTT' | 'CD' | 'CTST' | 'CTGDPT_2018';
+
+export interface EduThpt2027Milestone {
+  id: string;
+  stageNumber: number;
+  title: string;
+  subtitle: string;
+  targetDate: string; // YYYY-MM-DD
+  category: 'foundation' | 'question_types' | 'casio_speed' | 'virtual_labs' | 'mock_exam' | 'final_sprint' | 'official_exam';
+  focusSummary: string;
+  keyActions: string[];
+  recommendedSubject: 'math' | 'physics' | 'chemistry' | 'biology' | 'stem_general';
+  suggestedActionType: 'open_exam' | 'open_lab' | 'open_assistant' | 'open_notebook';
+  actionTargetPayload?: {
+    subject?: string;
+    experimentId?: string;
+    presetId?: string;
+    initialQuery?: string;
+  };
+  badge: string;
+}
+
+export interface EduDailyReminderSlot {
+  id: string;
+  label: string;
+  time: string; // HH:mm (e.g. "07:30")
+  enabled: boolean;
+  topic: string;
+  actionType: 'open_assistant' | 'open_exam' | 'open_lab' | 'open_notebook';
+}
+
+export interface EduPushReminderConfig {
+  pushEnabled: boolean;
+  soundEnabled: boolean;
+  frequency: 'daily' | 'weekdays' | 'alternate_days' | 'weekends';
+  milestoneRemindersEnabled: boolean;
+  dailySlots: EduDailyReminderSlot[];
+  lastTriggeredDate?: string;
+  lastTriggeredSlots?: Record<string, string>;
+}
+
+export interface EduDispatchedNotification {
+  id: string;
+  title: string;
+  body: string;
+  timestamp: string;
+  category: 'milestone' | 'daily_slot' | 'test';
+  milestoneId?: string;
+  actionType?: 'open_assistant' | 'open_exam' | 'open_lab' | 'open_notebook';
+  actionPayload?: any;
+  isRead?: boolean;
+}
 
 export interface VirtualLabPreset {
   id: string;
@@ -408,6 +466,53 @@ export interface EduVideoScene {
   durationSec: number;
 }
 
+export type EduActivityCategory = 'lab' | 'quiz' | 'streak' | 'discovery' | 'tool' | 'bonus';
+
+export interface EduXpEvent {
+  id: string;
+  title: string;
+  xp: number;
+  category: EduActivityCategory;
+  timestamp: string;
+  badge?: string;
+}
+
+export interface EduBadge {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  unlockedAt?: string;
+  category: 'streak' | 'xp' | 'lab' | 'quiz' | 'mastery';
+  progress: number;
+  maxProgress: number;
+}
+
+export interface EduStudentProfile {
+  totalXp: number;
+  level: number;
+  levelTitle: string;
+  levelBadgeIcon: string;
+  nextLevelXp: number;
+  prevLevelXp: number;
+  streakDays: number;
+  lastActiveDate: string; // YYYY-MM-DD
+  historyDates: string[]; // Set of YYYY-MM-DD strings where user practiced
+  todayXp: number;
+  todayDate: string;
+  dailyGoalXp: number;
+  activitiesCount: {
+    labsCompleted: number;
+    quizzesCompleted: number;
+    simulationsRun: number;
+    perfectQuizzes: number;
+    parametersAdjusted: number;
+  };
+  recentXpEvents: EduXpEvent[];
+  badges: EduBadge[];
+}
+
 export interface EduVideoLesson {
   id: string;
   lessonTitle: string;
@@ -434,6 +539,7 @@ export interface HaevyAIMessage {
     type: 'audio_stats' | 'couple_anniversary' | 'finance_transaction' | 'play_music' | 'reward_points' | 'security_diagnostics' | string;
     [key: string]: any;
   };
+  actionResultSummary?: string;
   audioUrl?: string;
   isSpeaking?: boolean;
 }
@@ -954,7 +1060,7 @@ export interface UserAccountData {
 }
 
 export interface VipPackage {
-  id: 'week' | 'month' | '3month' | '6month' | 'year';
+  id: 'week' | 'month' | '3month' | '6month' | 'year' | 'centurion_sovereign';
   name: string;
   durationDays: number;
   priceVnd: number;
@@ -1172,6 +1278,22 @@ export interface AuthorGiftDonation {
   trackId?: string;
   trackTitle?: string;
   createdAt: any;
+}
+
+export interface GiftCelebrationEffect {
+  id: string;
+  giftId: string;
+  giftName: string;
+  giftEmoji: string;
+  senderName: string;
+  senderAvatar?: string;
+  recipientName: string;
+  pointsCost?: number;
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
+  message?: string;
+  trackTitle?: string;
+  comboCount?: number;
+  themeColor?: string;
 }
 
 export interface VipPrivilegeItem {
@@ -2499,6 +2621,226 @@ export interface ClosureTableEntry {
   descendantName: string;
   depth: number;
 }
+
+// =========================================================================
+// HAEVY MOOD BACKGROUND ENGINE TYPES (CHỦ ĐỀ KHÔNG GIAN THEO GIỜ & THỜI TIẾT)
+// =========================================================================
+
+export type HaevyTimePhase = 
+  | 'dawn'        // 05:00 - 06:30 Bình minh ửng hồng
+  | 'morning'     // 06:30 - 11:00 Nắng mai trong trẻo
+  | 'midday'      // 11:00 - 15:00 Trưa rực rỡ, sắc nét
+  | 'golden_hour' // 15:00 - 18:30 Chiều tà / Hoàng hôn hổ phách
+  | 'dusk'        // 18:30 - 20:00 Chạng vạng tím thẫm
+  | 'night'       // 20:00 - 23:30 Đêm sao tĩnh mịch
+  | 'midnight';   // 23:30 - 05:00 Khuya vũ trụ huyền ảo
+
+export type HaevyWeatherCondition = 
+  | 'clear'          // Trời quang đãng, trong xanh
+  | 'partly_cloudy'  // Mây rải rác, nắng nhẹ
+  | 'overcast'       // Trời nhiều mây, dịu mát
+  | 'rain'           // Mưa rơi rả rích, thanh tịnh
+  | 'storm'          // Mưa giông, sấm chớp, tĩnh lặng sâu
+  | 'fog'            // Sương mù lãng đãng
+  | 'snow';          // Tuyết rơi / lạnh buốt tinh khôi
+
+export interface HaevyMoodMesh {
+  orb1: string;
+  orb2: string;
+  orb3: string;
+  opacity: number;
+}
+
+export interface HaevyMoodPalette {
+  id: string;
+  name: string;
+  vietnameseTitle: string;
+  description: string;
+  timePhase: HaevyTimePhase;
+  weather: HaevyWeatherCondition;
+  isDaytime: boolean;
+  baseBg: string;
+  surfaceBg: string;
+  accentColor: string;
+  accentGlow: string;
+  accentRgb: string; // e.g. "245, 158, 11"
+  ambientGradient: string;
+  ambientMesh: HaevyMoodMesh;
+  badgeColor: string;
+  badgeBg: string;
+  temperatureHint: string;
+  particlesType: 'none' | 'rain' | 'stars' | 'sunbeams' | 'mist' | 'aurora';
+}
+
+export interface HaevyWeatherData {
+  temperature: number;
+  weatherCode: number;
+  condition: HaevyWeatherCondition;
+  conditionLabel: string;
+  locationName: string;
+  isDay: boolean;
+  humidity: number;
+  windSpeed: number;
+  lastUpdated: number;
+  source: 'open-meteo' | 'cached' | 'fallback';
+}
+
+export interface HaevyMoodState {
+  enabled: boolean;
+  timePhase: HaevyTimePhase;
+  weather: HaevyWeatherData | null;
+  palette: HaevyMoodPalette;
+  isAuto: boolean;
+  manualTimePhaseOverride: HaevyTimePhase | null;
+  manualWeatherOverride: HaevyWeatherCondition | null;
+  intensity: number; // 0.2 to 1.0
+}
+
+export interface SolarTimesInfo {
+  sunrise: Date | null;
+  sunset: Date | null;
+  dawn?: Date | null;
+  dusk?: Date | null;
+  goldenHour?: Date | null;
+}
+
+// =========================================================================
+// MORNING DASHBOARD MOOD & COLOR THEMES (TÂM TRẠNG & NĂNG LƯỢNG BUỔI SÁNG)
+// =========================================================================
+
+export type MorningColorThemeId = 
+  | 'solar_auto'     // Tự động đồng bộ theo chu kỳ mặt trời & thời tiết
+  | 'sunrise_gold'   // Vàng Bình Minh - Năng lượng cao & Rực rỡ ⚡
+  | 'emerald_zen'    // Xanh Lục Bảo Zen - Tĩnh tâm & Tập trung sâu 🍃
+  | 'ocean_breeze'   // Gió Biển Lam Ngọc - Tươi mới & Sảng khoái 🌊
+  | 'lavender_calm'  // Tím Oải Hương - Nhẹ nhàng & Thư thái 🪻
+  | 'rose_blossom'   // Hồng Ban Mai - Ấm áp & Lạc quan 🌸
+  | 'cosmic_focus';  // Vũ Trụ Huyền Ảo - Siêu tập trung & Tối giản 🌌
+
+export interface MorningColorThemeConfig {
+  id: MorningColorThemeId;
+  name: string;
+  vietnameseTitle: string;
+  energyLevel: string;
+  description: string;
+  accentColor: string;
+  accentRgb: string;
+  accentGlow: string;
+  cardBgGradient: string;
+  cardBorderColor: string;
+  glowOrb1: string;
+  glowOrb2: string;
+  badgeBg: string;
+  badgeText: string;
+  iconEmoji: string;
+}
+
+// ==========================================
+// HAEVY MAPS - LIVE FAMILY & LOVER TRACKING
+// ==========================================
+
+export type MapMemberRole = 
+  | 'lover'            // Người yêu 💖
+  | 'spouse'           // Vợ / Chồng / Bạn đời 💍
+  | 'family_parent'    // Bố / Mẹ 🌸
+  | 'family_child'     // Con cái 🎒
+  | 'family_sibling'   // Anh / Chị / Em 👫
+  | 'family_grandparent' // Ông / Bà 👴👵
+  | 'friend'           // Bạn thân 🚀
+  | 'self';            // Bản thân 📍
+
+export type MapMemberCategory = 'couple' | 'family' | 'friend';
+
+export interface MapMember {
+  id: string;
+  name: string;
+  role: MapMemberRole;
+  category: MapMemberCategory;
+  relationshipLabel: string; // "Bạn đời", "Người yêu", "Mẹ yêu", "Bố", "Em gái", v.v.
+  avatar: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number;
+  battery: number; // 0 - 100
+  isCharging?: boolean;
+  statusText: string;
+  activity: 'still' | 'walking' | 'driving' | 'cycling';
+  speedKmh: number;
+  lastUpdated: string;
+  currentSafeZoneId?: string;
+  isSharingLiveLocation: boolean;
+  phone?: string;
+  heartbeatsSent?: number;
+  routeHistory?: Array<{ lat: number; lng: number; time: string; address?: string }>;
+}
+
+export type SafeZoneType = 'home' | 'work' | 'school' | 'hospital' | 'gym' | 'other';
+
+export interface SafeZone {
+  id: string;
+  name: string;
+  type: SafeZoneType;
+  icon: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+  address: string;
+  color: string;
+}
+
+export interface MapHeartPing {
+  id: string;
+  senderName: string;
+  targetMemberId: string;
+  type: 'heart' | 'ring' | 'sos';
+  message: string;
+  timestamp: string;
+}
+
+// ==========================================
+// USER LEVEL & EXP PRIVILEGE SYSTEM TYPES
+// ==========================================
+
+export type LevelRewardItemType = 
+  | 'coins' 
+  | 'lite_coins' 
+  | 'avatar_frame' 
+  | 'vip_days' 
+  | 'badge' 
+  | 'chat_effect' 
+  | 'discount' 
+  | 'special';
+
+export interface LevelPrivilegeItem {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  type: LevelRewardItemType;
+  value: number | string;
+}
+
+export interface LevelMilestone {
+  level: number;
+  title: string;
+  subtitle: string;
+  requiredExp: number;
+  icon: string;
+  badgeGradient: string;
+  cardBorderColor: string;
+  glowColor: string;
+  rewards: LevelPrivilegeItem[];
+  privileges: string[];
+}
+
+export interface UserExpTransaction {
+  id: string;
+  amount: number;
+  source: 'gift_author' | 'gift_user' | 'gift_vip' | 'topup_coins' | 'purchase_vip' | 'couple_gift';
+  title: string;
+  createdAt: any;
+}
+
 
 
 

@@ -34,7 +34,8 @@ import {
   GitFork,
   Orbit,
   Moon,
-  GraduationCap
+  GraduationCap,
+  MapPin
 } from 'lucide-react';
 import { ActiveTab, EcosystemMode, Track } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -150,6 +151,16 @@ export function DesktopSidebar({
       activeBg: 'bg-rose-500/15 border-rose-500/40 text-rose-300',
       defaultTab: 'couple',
       badge: 'Love'
+    },
+    {
+      id: 'maps',
+      label: 'Haevy Maps 📍',
+      subLabel: 'Vị trí bạn đời & Gia đình GPS',
+      icon: MapPin,
+      colorClass: 'text-emerald-400',
+      activeBg: 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold shadow-lg shadow-emerald-900/30',
+      defaultTab: 'maps' as any,
+      badge: 'Live GPS'
     },
     {
       id: 'finance',

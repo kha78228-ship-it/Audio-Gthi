@@ -7,6 +7,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ModeBadgeProvider, useModeBadges } from './context/ModeBadgeContext';
+import { HaevyMoodProvider } from './context/HaevyMoodContext';
+import { GiftEffectProvider } from './context/GiftEffectContext';
+import { HaevyMoodBackground } from './components/mood/HaevyMoodBackground';
+import { HaevyMoodModal } from './components/mood/HaevyMoodModal';
+import { UserLevelPrivilegesModal } from './components/UserLevelPrivilegesModal';
+import { UserLevelUpNotificationModal } from './components/UserLevelUpNotificationModal';
+import { AuthorGiftShopModal } from './components/AuthorGiftShopModal';
 import { AuthModal } from './components/AuthModal';
 import { NotificationsModal } from './components/NotificationsModal';
 import { InstallPwaModal } from './components/InstallPwaModal';
@@ -26,6 +33,7 @@ import { HaevyAIHubView } from './components/HaevyAIHubView';
 import { HaevySpiritualView } from './components/HaevySpiritualView';
 import { HaevyFamilyTreeView } from './components/HaevyFamilyTreeView';
 import { HaevyEduView } from './components/HaevyEduView';
+import { HaevyMapsView } from './components/maps/HaevyMapsView';
 import { HaevyLiteHubView } from './components/haevyLite/HaevyLiteHubView';
 import { HaevyGamesView, HaevyGamesSubTab } from './components/HaevyGamesView';
 import { HaevyAIFloatingWidget } from './components/HaevyAIFloatingWidget';
@@ -34,7 +42,6 @@ import { CommunityView } from './components/CommunityView';
 import { BottomTaskbar } from './components/BottomTaskbar';
 import { Navbar } from './components/Navbar';
 import { DesktopSidebar } from './components/DesktopSidebar';
-import { HaevyAllModesInfoModal } from './components/HaevyAllModesInfoModal';
 import { HaevyShortcutsModal } from './components/HaevyShortcutsModal';
 import { HaevyVoiceNavigationHUD } from './components/HaevyVoiceNavigationHUD';
 import { HaevyModeTransitionOverlay } from './components/HaevyModeTransitionOverlay';
@@ -72,7 +79,8 @@ import {
   BrainCircuit,
   Keyboard,
   GitFork,
-  GraduationCap
+  GraduationCap,
+  MapPin
 } from 'lucide-react';
 
 export type HaevyMode = 
@@ -94,6 +102,7 @@ export type HaevyMode =
   | 'haevy_lite'
   | 'morning'
   | 'edu'
+  | 'maps'
   | 'profile';
 
 const MODES_CONFIG: {
@@ -116,19 +125,55 @@ const MODES_CONFIG: {
   { id: 'finance', name: 'Haevy Finance', shortName: 'Haevy Finance', icon: Wallet, color: 'from-emerald-500 to-green-600', badge: 'Thu Chi 6 Hũ' },
   { id: 'admin', name: 'Haevy Admin', shortName: 'Haevy Admin', icon: ShieldCheck, color: 'from-red-500 to-rose-600', badge: 'Quản Trị' },
   { id: 'couple', name: 'I Love Haevy', shortName: 'I Love Haevy', icon: Heart, color: 'from-rose-500 to-red-600', badge: 'Cặp Đôi' },
+  { id: 'maps', name: 'Haevy Maps (Gia Đình & Bạn Đời)', shortName: 'Haevy Maps', icon: MapPin, color: 'from-emerald-500 via-teal-500 to-sky-500', badge: 'Live GPS 📍' },
   { id: 'vip', name: 'Haevy VIP', shortName: 'Haevy VIP', icon: Crown, color: 'from-amber-400 to-yellow-500', badge: 'VIP Club' },
   { id: 'support', name: 'Haevy Support', shortName: 'Haevy Support', icon: LifeBuoy, color: 'from-emerald-400 to-teal-500', badge: 'Hỗ Trợ 24/7' }
 ];
 
 function MainApp() {
-  const { user, isVip, audioPoints, isAdmin, isSuperAdmin, addAudioPoints, shortcutsConfig } = useAuth();
+  const { 
+    user, 
+    isVip, 
+    audioPoints, 
+    isAdmin, 
+    isSuperAdmin, 
+    addAudioPoints, 
+    shortcutsConfig,
+    isLevelModalOpen,
+    setIsLevelModalOpen
+  } = useAuth();
   const { markModeAsViewed } = useModeBadges();
   const { effectiveTheme } = useTheme();
   
   // App Navigation & Active Mode State
   const [currentMode, setCurrentMode] = useState<HaevyMode>(getSavedEcosystemMode);
+  const [navDirection, setNavDirection] = useState<number>(1);
   const [isModeSwitcherOpen, setIsModeSwitcherOpen] = useState(false);
-  const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
+  const [modeSwitcherViewMode, setModeSwitcherViewMode] = useState<'quick' | 'detailed'>('quick');
+  const [isMoodModalOpen, setIsMoodModalOpen] = useState(false);
+  const [isGiftShopOpen, setIsGiftShopOpen] = useState(false);
+  const [selectedGiftAuthor, setSelectedGiftAuthor] = useState<{
+    uid: string;
+    stageName: string;
+    trackTitle?: string;
+    trackId?: string;
+  } | undefined>(undefined);
+
+  const handleSetMode = (nextMode: HaevyMode) => {
+    if (nextMode === currentMode) return;
+    let dir = 1;
+    if (nextMode === 'portal') {
+      dir = -1;
+    } else if (currentMode === 'portal') {
+      dir = 1;
+    } else {
+      const prevIdx = MODES_CONFIG.findIndex(m => m.id === currentMode);
+      const nextIdx = MODES_CONFIG.findIndex(m => m.id === nextMode);
+      dir = nextIdx >= prevIdx ? 1 : -1;
+    }
+    setNavDirection(dir);
+    setCurrentMode(nextMode);
+  };
   
   // Sub-tabs for each ecosystem mode
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -137,14 +182,16 @@ function MainApp() {
   const [financeSubTab, setFinanceSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
   const [adminSubTab, setAdminSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6' | 'page7'>('page1');
   const [studioSubTab, setStudioSubTab] = useState<'page1' | 'page2' | 'page3'>('page1');
-  const [vipSubTab, setVipSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
+  const [vipSubTab, setVipSubTab] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6'>('page1');
   const [spiritualSubTab, setSpiritualSubTab] = useState<'tarot' | 'palmistry' | 'divination' | 'numerology' | 'crystal_oracle' | 'couple_spiritual' | 'tuvi' | 'astrology' | 'soundscapes'>('tarot');
   const [haevyAISubTab, setHaevyAISubTab] = useState<'overview' | 'chat' | 'updates' | 'troubleshoot' | 'modes'>('overview');
   const [aiInitialPrompt, setAiInitialPrompt] = useState<string | null>(null);
   const [haevyLiteSubTab, setHaevyLiteSubTab] = useState<'shop' | 'customize' | 'topup_and_ads'>('shop');
   const [gamesSubTab, setGamesSubTab] = useState<HaevyGamesSubTab>('home');
   const [familyTreeSubTab, setFamilyTreeSubTab] = useState<string>('tree');
-  const [eduSubTab, setEduSubTab] = useState<'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz'>('assistant');
+  const [eduSubTab, setEduSubTab] = useState<'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam'>('assistant');
+  const [spaceSubTab, setSpaceSubTab] = useState<'portal' | 'canvas' | 'mascot' | 'magic_ar' | 'morning_dashboard'>('portal');
+  const [profileSubTab, setProfileSubTab] = useState<'posts' | 'about' | 'audio' | 'media' | 'security' | 'transactions' | 'support'>('posts');
   const [shuffleMode, setShuffleMode] = useState<'off' | 'shuffle' | 'smart_shuffle'>('smart_shuffle');
   const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
 
@@ -152,7 +199,7 @@ function MainApp() {
   const handleNavigateToMode = (mode: string, subTab?: string) => {
     markModeAsViewed(mode, subTab);
     const targetMode = (mode === 'morning' ? 'space' : mode) as HaevyMode;
-    setCurrentMode(targetMode);
+    handleSetMode(targetMode);
     switchEcosystemMode(mode as EcosystemMode, subTab);
     try {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -200,10 +247,12 @@ function MainApp() {
       if (subTab) setHaevyAISubTab(subTab as any);
     } else if (mode === 'space' || mode === 'morning') {
       setActiveTab('space');
+      if (subTab) setSpaceSubTab(subTab as any);
     } else if (mode === 'portal') {
       setActiveTab('portal');
     } else if (mode === 'profile') {
       setActiveTab('profile');
+      if (subTab) setProfileSubTab(subTab as any);
     } else if (mode === 'support') {
       setActiveTab('support');
     }
@@ -211,7 +260,7 @@ function MainApp() {
 
   // Modals state
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [authInitialTab, setAuthInitialTab] = useState<'signin' | 'signup' | 'anonymous'>('signin');
+  const [authInitialTab, setAuthInitialTab] = useState<'signin' | 'signup' | 'anonymous' | 'mcp_ai'>('signin');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isInstallPwaOpen, setIsInstallPwaOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -255,7 +304,7 @@ function MainApp() {
     }
   };
 
-  const handleOpenAuth = (tab: 'signin' | 'signup' | 'anonymous' = 'signin') => {
+  const handleOpenAuth = (tab: 'signin' | 'signup' | 'anonymous' | 'mcp_ai' = 'signin') => {
     setAuthInitialTab(tab);
     setIsAuthOpen(true);
   };
@@ -330,6 +379,8 @@ function MainApp() {
   // Map mode selection from cards & menu with ecosystem synchronization
   const handleSelectMode = (modeKey: string, initialSubTab?: string) => {
     switchEcosystemMode(modeKey as EcosystemMode, initialSubTab);
+    const targetMode = (modeKey === 'morning' ? 'space' : modeKey === 'audio_library' ? 'audio' : modeKey) as HaevyMode;
+    handleSetMode(targetMode);
     try {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
@@ -337,7 +388,6 @@ function MainApp() {
     }
 
     if (modeKey === 'haevy_ai') {
-      setCurrentMode('haevy_ai');
       setActiveTab('haevy_ai');
       if (initialSubTab) {
         setHaevyAISubTab(initialSubTab as any);
@@ -360,6 +410,9 @@ function MainApp() {
     } else if (modeKey === 'space' || modeKey === 'morning') {
       setCurrentMode('space');
       setActiveTab('space');
+      if (initialSubTab) {
+        setSpaceSubTab(initialSubTab as any);
+      }
     } else if (modeKey === 'messages') {
       setCurrentMode('messages');
       setActiveTab('messages');
@@ -402,6 +455,9 @@ function MainApp() {
     } else if (modeKey === 'profile') {
       setCurrentMode('profile');
       setActiveTab('profile');
+      if (initialSubTab) {
+        setProfileSubTab(initialSubTab as any);
+      }
     } else if (modeKey === 'audio_library') {
       setCurrentMode('audio');
       setActiveTab('library');
@@ -573,15 +629,16 @@ function MainApp() {
         setIsShortcutsModalOpen(prev => !prev);
         break;
       case 'toggle_mode_switcher':
-        setIsQuickSwitcherOpen(prev => !prev);
+        setModeSwitcherViewMode('quick');
+        setIsModeSwitcherOpen(prev => !prev);
         break;
       case 'close_modal':
         setIsShortcutsModalOpen(false);
         setIsModeSwitcherOpen(false);
-        setIsQuickSwitcherOpen(false);
         setIsAuthOpen(false);
         setIsNotificationsOpen(false);
         setIsInstallPwaOpen(false);
+        setIsMoodModalOpen(false);
         break;
       default:
         break;
@@ -597,10 +654,11 @@ function MainApp() {
         return;
       }
 
-      // Global shortcut Alt + M or Cmd + M: Quick Ecosystem Mode Switcher
+      // Global shortcut Alt + M or Cmd + M: Unified Ecosystem Mode Switcher
       if ((e.altKey && (e.key === 'm' || e.key === 'M' || e.code === 'KeyM')) || (e.ctrlKey && e.shiftKey && (e.key === 'm' || e.key === 'M'))) {
         e.preventDefault();
-        setIsQuickSwitcherOpen(prev => !prev);
+        setModeSwitcherViewMode('quick');
+        setIsModeSwitcherOpen(prev => !prev);
         return;
       }
 
@@ -620,20 +678,25 @@ function MainApp() {
       if (e.code === 'Escape') {
         setIsShortcutsModalOpen(false);
         setIsModeSwitcherOpen(false);
-        setIsQuickSwitcherOpen(false);
         setIsAuthOpen(false);
         setIsNotificationsOpen(false);
         setIsInstallPwaOpen(false);
+        setIsMoodModalOpen(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
 
     const handleOpenFullModal = () => {
+      setModeSwitcherViewMode('detailed');
       setIsModeSwitcherOpen(true);
     };
     const handleOpenQuick = () => {
-      setIsQuickSwitcherOpen(true);
+      setModeSwitcherViewMode('quick');
+      setIsModeSwitcherOpen(true);
+    };
+    const handleOpenMoodModal = () => {
+      setIsMoodModalOpen(true);
     };
     const handleSyncEvent = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -649,6 +712,7 @@ function MainApp() {
 
     window.addEventListener('haevy-open-full-ecosystem-modal', handleOpenFullModal);
     window.addEventListener('haevy-open-quick-mode-switcher', handleOpenQuick);
+    window.addEventListener('haevy-open-mood-modal', handleOpenMoodModal);
     window.addEventListener(MODE_SYNC_EVENT, handleSyncEvent);
     window.addEventListener('storage', handleStorageChange);
 
@@ -656,6 +720,7 @@ function MainApp() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('haevy-open-full-ecosystem-modal', handleOpenFullModal);
       window.removeEventListener('haevy-open-quick-mode-switcher', handleOpenQuick);
+      window.removeEventListener('haevy-open-mood-modal', handleOpenMoodModal);
       window.removeEventListener(MODE_SYNC_EVENT, handleSyncEvent);
       window.removeEventListener('storage', handleStorageChange);
     };
@@ -663,12 +728,36 @@ function MainApp() {
 
   const activeModeConfig = MODES_CONFIG.find(m => m.id === currentMode);
 
-  // Smooth, subtle fade & scale motion properties for ecosystem mode transitions (no directional jumping)
+  // Tactile 'swipe-away' exit & entry animation properties for all ecosystem mode transitions
   const getSwipeMotionProps = () => ({
-    initial: { opacity: 0, scale: 0.995, y: 6 },
-    animate: { opacity: 1, scale: 1, y: 0 },
-    exit: { opacity: 0, scale: 0.995, y: -6 },
-    transition: { duration: 0.20, ease: [0.16, 1, 0.3, 1] as const },
+    initial: { 
+      opacity: 0, 
+      x: navDirection * 36, 
+      scale: 0.985, 
+      filter: 'blur(3px)' 
+    },
+    animate: { 
+      opacity: 1, 
+      x: 0, 
+      scale: 1, 
+      filter: 'blur(0px)',
+      transition: { 
+        type: 'spring' as const, 
+        damping: 30, 
+        stiffness: 300, 
+        mass: 0.75 
+      } 
+    },
+    exit: { 
+      opacity: 0, 
+      x: -navDirection * 48, 
+      scale: 0.975, 
+      filter: 'blur(4px)',
+      transition: { 
+        duration: 0.22, 
+        ease: [0.32, 0.72, 0, 1] as const 
+      } 
+    },
   });
 
   return (
@@ -679,6 +768,11 @@ function MainApp() {
     }`}>
       
       {/* ========================================================================= */}
+      {/* HAEVY MOOD BACKGROUND ENGINE (ATMOSPHERIC CIRCADIAN & WEATHER BACKDROP)    */}
+      {/* ========================================================================= */}
+      <HaevyMoodBackground />
+
+      {/* ========================================================================= */}
       {/* TOP NAVIGATION BAR FOR MODES (RESTORING EACH MODE'S AUTHENTIC LOGO) */}
       {/* ========================================================================= */}
       {currentMode !== 'portal' && currentMode !== 'space' && currentMode !== 'haevy_ai' && (
@@ -688,7 +782,10 @@ function MainApp() {
             onSelectMode={(mode, initialTab) => {
               handleSelectMode(mode, initialTab as string);
             }}
-            onOpenEcosystemDrawer={() => setIsQuickSwitcherOpen(true)}
+            onOpenEcosystemDrawer={() => {
+              setModeSwitcherViewMode('quick');
+              setIsModeSwitcherOpen(true);
+            }}
             activeTab={activeTab}
             onSelectTab={setActiveTab}
             onOpenAuth={() => handleOpenAuth('signin')}
@@ -697,6 +794,7 @@ function MainApp() {
             onToggleFullscreen={handleToggleFullscreen}
             isFullscreen={isFullscreen}
             onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
+            onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
             onToggleVoiceListen={toggleVoiceListening}
             isVoiceListening={isVoiceListening}
             onUserMenuToggle={setIsUserMenuOpen}
@@ -709,24 +807,15 @@ function MainApp() {
       {/* Global Synchronized Mode Transition HUD */}
       <HaevyModeTransitionOverlay />
 
-      {/* Global Comprehensive All Modes Info Modal */}
-      <HaevyAllModesInfoModal
+      {/* Global Unified Synchronized Ecosystem Mode Switcher & Showcase Modal (Alt + M) */}
+      <HaevyEcosystemQuickSwitcherModal
         isOpen={isModeSwitcherOpen}
         onClose={() => setIsModeSwitcherOpen(false)}
+        currentMode={currentMode as EcosystemMode}
+        initialViewMode={modeSwitcherViewMode}
         onSelectMode={(mode, initialTab) => {
           handleSelectMode(mode, initialTab as string);
           setIsModeSwitcherOpen(false);
-        }}
-      />
-
-      {/* Global Synchronized Fast Ecosystem Quick Switcher Modal (Alt + M) */}
-      <HaevyEcosystemQuickSwitcherModal
-        isOpen={isQuickSwitcherOpen}
-        onClose={() => setIsQuickSwitcherOpen(false)}
-        currentMode={currentMode as EcosystemMode}
-        onSelectMode={(mode, initialTab) => {
-          handleSelectMode(mode, initialTab as string);
-          setIsQuickSwitcherOpen(false);
         }}
       />
 
@@ -754,10 +843,7 @@ function MainApp() {
         ) : currentMode === 'space' ? (
           <motion.main
             key="mode-space"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
+            {...getSwipeMotionProps()}
             className="w-full max-w-full flex flex-col items-center flex-1 no-swipe overflow-x-hidden select-none touch-pan-y overscroll-x-none"
             data-no-swipe="true"
           >
@@ -777,6 +863,7 @@ function MainApp() {
                 onToggleFullscreen={handleToggleFullscreen}
                 isFullscreen={isFullscreen}
                 onSelectMode={handleSelectMode}
+                activeSubTab={spaceSubTab}
               />
             </div>
           </motion.main>
@@ -928,6 +1015,10 @@ function MainApp() {
                               repeatMode={repeatMode}
                               onToggleShuffle={() => setShuffleMode(s => s === 'smart_shuffle' ? 'shuffle' : s === 'shuffle' ? 'off' : 'smart_shuffle')}
                               onToggleRepeat={() => setRepeatMode(r => r === 'off' ? 'all' : r === 'all' ? 'one' : 'off')}
+                              onOpenGiftShop={(authorData) => {
+                                setSelectedGiftAuthor(authorData);
+                                setIsGiftShopOpen(true);
+                              }}
                             />
                           )}
                         </motion.div>
@@ -1040,6 +1131,7 @@ function MainApp() {
                       <HaevySupportView
                         onBackToPortal={() => setCurrentMode('portal')}
                         onOpenAuth={() => handleOpenAuth('signin')}
+                        onSelectMode={handleSelectMode}
                       />
                     </div>
                   )}
@@ -1101,19 +1193,28 @@ function MainApp() {
 
                   {/* 14. Haevy Edu (Phòng Lab STEM & Lộ Trình First Principles) */}
                   {currentMode === 'edu' && (
-                    <div className="w-full max-w-7xl px-0 sm:px-4 py-2 pb-8 no-swipe touch-pan-y" data-no-swipe="true">
+                    <div className="w-full max-w-7xl px-0 sm:px-4 py-2 pb-36 no-swipe touch-pan-y" data-no-swipe="true">
                       <HaevyEduView
                         onBackToLanding={() => setCurrentMode('portal')}
                         activeTabControlled={eduSubTab}
                         onTabChange={setEduSubTab}
+                        onOpenHaevyAi={() => setCurrentMode('haevy_ai')}
                       />
+                    </div>
+                  )}
+
+                  {/* 15. Haevy Maps (Bản Đồ Định Vị Gia Đình & Bạn Đời) */}
+                  {currentMode === 'maps' && (
+                    <div className="w-full max-w-7xl px-0 sm:px-4 py-2 pb-32 no-swipe" data-no-swipe="true">
+                      <HaevyMapsView />
                     </div>
                   )}
 
                   {/* User Profile subview */}
                   {currentMode === 'profile' && (
-                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-12">
+                    <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
                       <UserProfileView
+                        initialTab={profileSubTab}
                         onOpenAuth={(tab) => handleOpenAuth(tab || 'signin')}
                         onGoToTopup={() => setCurrentMode('vip')}
                         onGoToHome={() => setCurrentMode('portal')}
@@ -1156,14 +1257,17 @@ function MainApp() {
         />
       )}
 
-      {/* Consolidated Bottom Taskbar with Docked Subtabs & Mini Player for All Modes */}
-      {currentMode !== 'portal' && currentMode !== 'space' && currentMode !== 'haevy_ai' && currentMode !== 'edu' && currentMode !== 'profile' && activeTab !== 'player' && !isUserMenuOpen && (
+      {/* Consolidated Bottom Taskbar with Docked Subtabs & Mini Player for All Modes (Excluding Portal & Space) */}
+      {currentMode !== 'portal' && currentMode !== 'space' && activeTab !== 'player' && !isUserMenuOpen && (
         <BottomTaskbar
           currentMode={currentMode as EcosystemMode}
           onSelectMode={(mode, initialTab) => {
             handleSelectMode(mode, initialTab as string);
           }}
-          onOpenModesSlider={() => setIsQuickSwitcherOpen(true)}
+          onOpenModesSlider={() => {
+            setModeSwitcherViewMode('quick');
+            setIsModeSwitcherOpen(true);
+          }}
           activeTab={activeTab}
           onSelectTab={setActiveTab}
           messageSubTab={messageSubTab}
@@ -1184,8 +1288,12 @@ function MainApp() {
           onSelectSpiritualSubTab={(tab) => setSpiritualSubTab(tab as any)}
           haevyLiteSubTab={haevyLiteSubTab}
           onSelectHaevyLiteSubTab={setHaevyLiteSubTab}
+          profileSubTab={profileSubTab}
+          onSelectProfileSubTab={setProfileSubTab}
           eduSubTab={eduSubTab}
           onSelectEduSubTab={setEduSubTab}
+          spaceSubTab={spaceSubTab}
+          onSelectSpaceSubTab={setSpaceSubTab}
           gamesSubTab={gamesSubTab}
           onSelectGamesSubTab={setGamesSubTab}
           familyTreeSubTab={familyTreeSubTab as any}
@@ -1303,6 +1411,43 @@ function MainApp() {
         isOpen={isAuthOpen} 
         initialTab={authInitialTab}
         onClose={() => setIsAuthOpen(false)} 
+        onSelectMode={handleSelectMode}
+      />
+
+      {/* Haevy Mood Engine Modal */}
+      <HaevyMoodModal
+        isOpen={isMoodModalOpen}
+        onClose={() => setIsMoodModalOpen(false)}
+      />
+
+      {/* User Level & EXP Privileges Modal */}
+      <UserLevelPrivilegesModal
+        isOpen={isLevelModalOpen}
+        onClose={() => setIsLevelModalOpen(false)}
+        onNavigateMode={(mode, tab) => handleSelectMode(mode as any, tab)}
+        onOpenGiftShop={() => {
+          setSelectedGiftAuthor(undefined);
+          setIsGiftShopOpen(true);
+        }}
+      />
+
+      {/* User Level Up Celebratory Notification Modal */}
+      <UserLevelUpNotificationModal
+        onOpenLevelCenter={() => setIsLevelModalOpen(true)}
+      />
+
+      {/* Author Gift Shop Modal */}
+      <AuthorGiftShopModal
+        isOpen={isGiftShopOpen}
+        onClose={() => setIsGiftShopOpen(false)}
+        onOpenAuth={() => handleOpenAuth('signin')}
+        onGoToTopup={() => {
+          setIsGiftShopOpen(false);
+          handleSelectMode('vip');
+        }}
+        currentTrack={currentTrack || undefined}
+        allTracks={tracks}
+        preselectedAuthor={selectedGiftAuthor}
       />
 
     </div>
@@ -1315,7 +1460,11 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <ModeBadgeProvider>
-            <MainApp />
+            <HaevyMoodProvider>
+              <GiftEffectProvider>
+                <MainApp />
+              </GiftEffectProvider>
+            </HaevyMoodProvider>
           </ModeBadgeProvider>
         </AuthProvider>
       </ThemeProvider>

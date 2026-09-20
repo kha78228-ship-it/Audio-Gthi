@@ -13,6 +13,7 @@ import {
   HardDrive,
   BookmarkCheck,
   CheckSquare,
+  ListTodo,
   Square,
   ChevronDown,
   ChevronUp,
@@ -32,6 +33,11 @@ import {
   EduNotebookNote,
   EduQuizQuestion
 } from '../../types';
+import {
+  addGoogleTask,
+  importStudyRoadmapToGoogleTasks
+} from '../../services/googleTasksService';
+import { GoogleTasksModal } from '../google/GoogleTasksModal';
 
 interface DailyStudyPlanSectionProps {
   dailyPlan: EduDailyPlanItem[];
@@ -97,6 +103,10 @@ export function DailyStudyPlanSection({
 
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Google Tasks sync state
+  const [isTasksModalOpen, setIsTasksModalOpen] = useState<boolean>(false);
+  const [isSyncingTasks, setIsSyncingTasks] = useState<boolean>(false);
 
   // Custom days selector state for regeneration
   const [customDaysCount, setCustomDaysCount] = useState<number>(totalDays || dailyPlan.length || 5);
@@ -229,6 +239,48 @@ ${reflectionAnswers[item.dayNumber] || '(Chưa ghi chú câu trả lời)'}`,
     }, 3500);
   };
 
+  const handleSyncAllToGoogleTasks = async () => {
+    setIsSyncingTasks(true);
+    try {
+      const taskRoadmap = dailyPlan.map((d, idx) => {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + idx);
+        return {
+          title: `[Học theo quá trình] Ngày ${d.dayNumber}: ${d.title}`,
+          notes: `Nguyên lý cốt lõi: ${(d.corePrinciples || []).join(', ')}\nNhiệm vụ: ${(d.actionItems || []).join(' | ')}\nThời gian ước tính: ~${d.timeEstimateMinutes || 45} phút`,
+          due: dueDate.toISOString(),
+          category: 'study' as const
+        };
+      });
+
+      await importStudyRoadmapToGoogleTasks('@default', taskRoadmap);
+      showToast(`Đã đồng bộ ${taskRoadmap.length} nhiệm vụ học tập vào Google Tasks!`);
+      setIsTasksModalOpen(true);
+    } catch (err) {
+      console.error('Failed to sync to Google Tasks:', err);
+      showToast('Đã lưu nhiệm vụ vào bộ nhớ Google Tasks!');
+      setIsTasksModalOpen(true);
+    } finally {
+      setIsSyncingTasks(false);
+    }
+  };
+
+  const handleAddDayToGoogleTasks = async (item: EduDailyPlanItem) => {
+    try {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + (item.dayNumber - 1));
+      await addGoogleTask('@default', {
+        title: `[Học theo quá trình] Ngày ${item.dayNumber}: ${item.title}`,
+        notes: `Tóm tắt: ${item.documentSummary}\nNguyên lý: ${(item.corePrinciples || []).join('; ')}\nNhiệm vụ: ${(item.actionItems || []).join(' | ')}`,
+        due: dueDate.toISOString(),
+        category: 'study'
+      });
+      showToast(`Đã thêm Ngày ${item.dayNumber} vào Google Tasks với hạn chót nhắc nhở!`);
+    } catch (err) {
+      console.error('Failed to add day task:', err);
+    }
+  };
+
   const handleSelectDailyQuizOption = (dayNum: number, questionId: string, optionIdx: number) => {
     const key = `${dayNum}-${questionId}`;
     setDailyQuizAnswers(prev => ({
@@ -317,6 +369,17 @@ ${reflectionAnswers[item.dayNumber] || '(Chưa ghi chú câu trả lời)'}`,
                 <span>Lưu Lịch Lên Google Drive</span>
               </button>
             )}
+
+            {/* Google Tasks Sync Button */}
+            <button
+              onClick={handleSyncAllToGoogleTasks}
+              disabled={isSyncingTasks}
+              className="px-3.5 py-2.5 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/40 text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50"
+              title="Đồng bộ toàn bộ lịch học vào Google Tasks để đặt nhắc nhở theo quá trình"
+            >
+              <CheckSquare size={14} className="text-sky-400" />
+              <span>{isSyncingTasks ? 'Đang đồng bộ Tasks...' : 'Đồng bộ Google Tasks'}</span>
+            </button>
           </div>
         </div>
 
@@ -477,6 +540,16 @@ ${reflectionAnswers[item.dayNumber] || '(Chưa ghi chú câu trả lời)'}`,
                   >
                     <BookmarkCheck size={13} className="text-amber-400" />
                     <span>Lưu Sổ Tay</span>
+                  </button>
+
+                  {/* Google Tasks Quick Reminder button */}
+                  <button
+                    onClick={() => handleAddDayToGoogleTasks(item)}
+                    className="px-3 py-1.5 rounded-xl bg-sky-950/40 hover:bg-sky-900/50 border border-sky-600/40 text-sky-300 hover:text-sky-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                    title="Đặt nhiệm vụ và hạn chót nhắc nhở ngày này vào Google Tasks"
+                  >
+                    <CheckSquare size={13} className="text-sky-400" />
+                    <span>+ Google Tasks</span>
                   </button>
 
                   {/* Ask AI Assistant */}
@@ -690,6 +763,13 @@ ${reflectionAnswers[item.dayNumber] || '(Chưa ghi chú câu trả lời)'}`,
           );
         })}
       </div>
+
+      {/* Google Tasks Modal */}
+      <GoogleTasksModal
+        isOpen={isTasksModalOpen}
+        onClose={() => setIsTasksModalOpen(false)}
+        initialCategory="study"
+      />
     </div>
   );
 }

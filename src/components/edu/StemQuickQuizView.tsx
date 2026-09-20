@@ -29,6 +29,15 @@ interface StemQuickQuizViewProps {
   onSaveToNotebook?: (title: string, principle: string) => void;
   onClose?: () => void;
   isModal?: boolean;
+  onRecordActivity?: (params: {
+    type: 'quiz_answer' | 'quiz_complete';
+    title: string;
+    xpAmount?: number;
+    category?: 'quiz';
+    isPerfectQuiz?: boolean;
+    quizScore?: number;
+    quizTotal?: number;
+  }) => void;
 }
 
 export function StemQuickQuizView({
@@ -38,7 +47,8 @@ export function StemQuickQuizView({
   onOpenAiAssistant,
   onSaveToNotebook,
   onClose,
-  isModal = false
+  isModal = false,
+  onRecordActivity
 }: StemQuickQuizViewProps) {
   // Find matching initial quiz
   const defaultQuiz = (initialSubject && initialExperimentId 
@@ -88,6 +98,8 @@ export function StemQuickQuizView({
     resetQuizState();
   };
 
+  const currentQ: EduQuizQuestion | undefined = currentQuiz.questions[currentQuestionIdx];
+
   const handleOptionClick = (idx: number) => {
     if (isAnswerSubmitted) return;
     setSelectedOption(idx);
@@ -96,6 +108,16 @@ export function StemQuickQuizView({
       ...prev,
       [currentQuestionIdx]: idx
     }));
+
+    // Check if correct answer
+    if (currentQ && currentQ.correctIndex === idx) {
+      onRecordActivity?.({
+        type: 'quiz_answer',
+        title: `Đúng câu hỏi First Principles: ${currentQuiz.moduleTitle} (#${currentQuestionIdx + 1})`,
+        xpAmount: 25,
+        category: 'quiz'
+      });
+    }
   };
 
   const handleNextQuestion = () => {
@@ -105,10 +127,28 @@ export function StemQuickQuizView({
       setIsAnswerSubmitted(false);
     } else {
       setIsQuizCompleted(true);
+      // Compute final score
+      const finalAnswers = { ...userAnswers };
+      if (selectedOption !== null) {
+        finalAnswers[currentQuestionIdx] = selectedOption;
+      }
+      const finalCorrect = Object.entries(finalAnswers).filter(([qIdx, ansIdx]) => {
+        return currentQuiz.questions[Number(qIdx)]?.correctIndex === ansIdx;
+      }).length;
+      const total = currentQuiz.questions.length;
+      const isPerfect = finalCorrect === total && total > 0;
+
+      onRecordActivity?.({
+        type: 'quiz_complete',
+        title: `Hoàn thành Quiz ${currentQuiz.moduleTitle} (${finalCorrect}/${total} câu đúng)`,
+        isPerfectQuiz: isPerfect,
+        quizScore: finalCorrect,
+        quizTotal: total,
+        xpAmount: isPerfect ? 100 : finalCorrect >= total * 0.7 ? 60 : 35,
+        category: 'quiz'
+      });
     }
   };
-
-  const currentQ: EduQuizQuestion | undefined = currentQuiz.questions[currentQuestionIdx];
 
   // Calculate score
   const totalQuestions = currentQuiz.questions.length;
@@ -538,7 +578,7 @@ export function StemQuickQuizView({
             </div>
 
             {/* Score pill */}
-            <div className="flex items-center gap-4 bg-zinc-950/80 px-6 py-3 rounded-2xl border border-zinc-800 shadow-inner">
+            <div className="flex flex-wrap items-center justify-center gap-4 bg-zinc-950/80 px-6 py-3 rounded-2xl border border-zinc-800 shadow-inner">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Điểm số</span>
                 <span className="text-2xl font-black text-emerald-400 font-mono">{scorePercent}%</span>
@@ -547,6 +587,16 @@ export function StemQuickQuizView({
               <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Số câu đúng</span>
                 <span className="text-2xl font-black text-zinc-200 font-mono">{correctCount}/{totalQuestions}</span>
+              </div>
+              <div className="w-px h-8 bg-zinc-800" />
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase tracking-wider text-amber-500 font-bold flex items-center gap-1">
+                  <Zap size={11} className="fill-amber-400 text-amber-400" />
+                  XP Thu Được
+                </span>
+                <span className="text-2xl font-black text-amber-300 font-mono">
+                  +{scorePercent === 100 ? 100 : scorePercent >= 70 ? 60 : 35} XP
+                </span>
               </div>
               <div className="w-px h-8 bg-zinc-800" />
               <div className="flex flex-col items-center">

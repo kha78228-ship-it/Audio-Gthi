@@ -199,6 +199,61 @@ export const HaevyFamilyTreeView: React.FC<HaevyFamilyTreeViewProps> = ({
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [phaTueSelectedMemberId, setPhaTueSelectedMemberId] = useState<string>('');
   const [showHeritageBanner, setShowHeritageBanner] = useState(false);
+  const [backupSuccess, setBackupSuccess] = useState(false);
+
+  // Handler: Sao lưu nhanh dữ liệu Gia Phả (Tải tệp JSON cây gia đình về thiết bị để lưu trữ an toàn)
+  const handleQuickBackupFamilyTree = () => {
+    try {
+      const backupData = {
+        appName: 'Haevy Family Tree',
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        familyTree: treeInfo,
+        members: members,
+        events: events,
+        proposals: proposals,
+        statistics: {
+          totalMembers: members.length,
+          generationsCount: members.length > 0 ? Math.max(...members.map(m => m.generation)) : 0,
+          livingMembers: members.filter(m => !m.isDeceased).length,
+          deceasedMembers: members.filter(m => m.isDeceased).length,
+          totalEvents: events.length,
+          totalProposals: proposals.length,
+          clanName: treeInfo.name,
+          ancestralHall: treeInfo.ancestralHall
+        }
+      };
+
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+
+      // Tên tệp chuẩn hoá, nhận diện rõ ngày tháng & tên dòng họ
+      const sanitizedName = (treeInfo.name || 'gia_pha')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '_')
+        .replace(/_+/g, '_');
+      const dateStr = new Date().toISOString().slice(0, 10);
+
+      anchor.href = url;
+      anchor.download = `sao_luu_gia_pha_${sanitizedName}_${dateStr}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+
+      setBackupSuccess(true);
+      setTimeout(() => {
+        setBackupSuccess(false);
+      }, 4000);
+    } catch (err) {
+      console.error('Lỗi khi sao lưu dữ liệu gia phả:', err);
+    }
+  };
 
   // Modals state
   const [selectedMemberForProfile, setSelectedMemberForProfile] = useState<FamilyMember | null>(null);
@@ -521,6 +576,27 @@ export const HaevyFamilyTreeView: React.FC<HaevyFamilyTreeViewProps> = ({
                 <span>+ Thêm Thông Tin</span>
               </button>
 
+              {/* Nút Sao lưu nhanh dữ liệu Gia Phả */}
+              <button
+                id="btn-quick-backup-family-tree"
+                onClick={handleQuickBackupFamilyTree}
+                className="px-3 py-1.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-950/40 hover:border-emerald-400 active:scale-95 cursor-pointer shrink-0"
+                title="Sao lưu nhanh dữ liệu Gia Phả (Tải tệp JSON cây gia đình về thiết bị an toàn)"
+              >
+                {backupSuccess ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="font-bold text-emerald-200">Đã Sao Lưu!</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="hidden md:inline">Sao lưu nhanh dữ liệu Gia Phả</span>
+                    <span className="md:hidden">Sao Lưu Gia Phả</span>
+                  </>
+                )}
+              </button>
+
               {/* Architecture Modal Trigger */}
               <button
                 id="btn-open-architecture-modal"
@@ -572,6 +648,38 @@ export const HaevyFamilyTreeView: React.FC<HaevyFamilyTreeViewProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Toast Notification khi Sao Lưu Dữ Liệu Thành Công */}
+          <AnimatePresence>
+            {backupSuccess && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                className="p-3 px-4 rounded-xl bg-gradient-to-r from-emerald-950/90 via-slate-900/95 to-emerald-950/90 border border-emerald-500/50 text-emerald-200 text-xs flex items-center justify-between shadow-xl shadow-emerald-950/50"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-emerald-300">Sao lưu thành công!</span>{' '}
+                    <span className="text-emerald-200/90">
+                      Tệp JSON toàn bộ cây gia phả ({members.length} thành viên, {events.length} sự kiện, thông tin dòng họ) đã được tải về máy bạn an toàn.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  id="btn-close-backup-toast"
+                  onClick={() => setBackupSuccess(false)}
+                  className="text-emerald-400 hover:text-emerald-100 p-1 rounded-lg hover:bg-emerald-900/40 transition-colors shrink-0 ml-2"
+                  title="Đóng thông báo"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Clan Quick Stats Bar: Gọn Gàng & Dễ Nhìn */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sun, Moon, Smartphone, Sunrise, Check, Sparkles, MapPin, RefreshCw } from 'lucide-react';
+import { Sun, Moon, Smartphone, Sunrise, Check, Sparkles, MapPin, RefreshCw, CloudSun } from 'lucide-react';
 import { useTheme, ThemeMode } from '../../context/ThemeContext';
+import { useHaevyMood } from '../../context/HaevyMoodContext';
 import { formatSolarTime } from '../../utils/solarCalculator';
 
 interface ThemeSwitcherProps {
@@ -25,6 +26,8 @@ export function ThemeSwitcher({
     requestSolarLocation,
     setThemeMode
   } = useTheme();
+
+  const mood = useHaevyMood();
 
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -233,6 +236,23 @@ export function ThemeSwitcher({
             );
           })}
         </div>
+
+        {/* Quick Haevy Mood link in menu-item */}
+        <div className="mt-2 px-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('haevy-open-mood-modal'));
+            }}
+            className="w-full py-1.5 px-2.5 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-semibold text-zinc-300 hover:text-white flex items-center justify-between transition-all cursor-pointer group"
+          >
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={12} className="text-amber-400 group-hover:rotate-12 transition-transform" />
+              <span>Haevy Mood: {mood.palette.vietnameseTitle}</span>
+            </div>
+            <span className="text-[10px] text-amber-400 font-bold">Tùy chỉnh ›</span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -329,8 +349,43 @@ export function ThemeSwitcher({
             })}
           </div>
 
-          {/* Solar Coordinates & GPS Info Bar */}
+          {/* Haevy Mood Atmospheric Background Engine Quick Link */}
           <div className="mt-2.5 pt-2 border-t border-zinc-800/80 px-1">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                window.dispatchEvent(new CustomEvent('haevy-open-mood-modal'));
+              }}
+              className="w-full p-2 rounded-xl bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-transparent border border-amber-500/30 hover:border-amber-400/60 flex items-center justify-between text-left transition-all cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-950 font-bold transition-colors"
+                  style={{ backgroundColor: mood.palette.accentColor }}
+                >
+                  <Sparkles size={12} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-zinc-200 group-hover:text-amber-300 flex items-center gap-1.5">
+                    <span>Haevy Mood</span>
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-amber-400/20 text-amber-300 font-medium">
+                      {mood.weather ? `${mood.weather.temperature}°C` : 'Thời tiết'}
+                    </span>
+                  </div>
+                  <div className="text-[9px] text-zinc-400 truncate max-w-[170px]">
+                    {mood.palette.vietnameseTitle}
+                  </div>
+                </div>
+              </div>
+              <span className="text-[10px] text-amber-400 font-semibold group-hover:translate-x-0.5 transition-transform">
+                Mở ›
+              </span>
+            </button>
+          </div>
+
+          {/* Solar Coordinates & GPS Info Bar */}
+          <div className="mt-2 pt-2 border-t border-zinc-800/80 px-1">
             <div className="flex items-center justify-between text-[10px] text-zinc-400">
               <div className="flex items-center gap-1">
                 <MapPin size={11} className={solarLocation?.source === 'gps' ? 'text-emerald-400' : 'text-amber-400'} />

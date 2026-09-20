@@ -17,22 +17,27 @@ import {
   ArrowLeft,
   LifeBuoy,
   Check,
-  Bot
+  Bot,
+  PieChart as PieIcon,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { HaevySupportAiView } from './account/HaevySupportAiView';
+import { HaevyEcosystemUsageDashboard } from './support/HaevyEcosystemUsageDashboard';
+import { EcosystemMode, ActiveTab } from '../types';
 
 interface HaevySupportViewProps {
   onBackToPortal?: () => void;
   onOpenAuth?: () => void;
+  onSelectMode?: (mode: EcosystemMode, initialTab?: ActiveTab | string) => void;
 }
 
-export function HaevySupportView({ onBackToPortal, onOpenAuth }: HaevySupportViewProps) {
+export function HaevySupportView({ onBackToPortal, onOpenAuth, onSelectMode }: HaevySupportViewProps) {
   const { user, accountId, isVip } = useAuth();
   
-  const [activeSupportTab, setActiveSupportTab] = useState<'ai_chat' | 'ticket_faq'>('ai_chat');
+  const [activeSupportTab, setActiveSupportTab] = useState<'dashboard' | 'ai_chat' | 'ticket_faq'>('dashboard');
   const [topic, setTopic] = useState('Tài khoản & Đăng nhập');
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
@@ -158,8 +163,27 @@ export function HaevySupportView({ onBackToPortal, onOpenAuth }: HaevySupportVie
       </div>
 
       {/* Support Mode Selector */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 w-full sm:w-fit shadow-xl">
+      <div className="flex items-center flex-wrap gap-2 p-1.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 w-full sm:w-fit shadow-xl">
         <button
+          type="button"
+          id="tab-support-dashboard"
+          onClick={() => setActiveSupportTab('dashboard')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+            activeSupportTab === 'dashboard'
+              ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white shadow-lg shadow-emerald-600/30 ring-1 ring-emerald-400/40'
+              : 'text-zinc-400 hover:text-white hover:bg-zinc-850'
+          }`}
+        >
+          <PieIcon size={16} className={activeSupportTab === 'dashboard' ? 'text-emerald-200' : 'text-emerald-400'} />
+          <span>Dashboard Hệ Sinh Thái (Recharts)</span>
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] font-black border border-emerald-400/40">
+            Mới
+          </span>
+        </button>
+
+        <button
+          type="button"
+          id="tab-support-ai-chat"
           onClick={() => setActiveSupportTab('ai_chat')}
           className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
             activeSupportTab === 'ai_chat'
@@ -168,11 +192,13 @@ export function HaevySupportView({ onBackToPortal, onOpenAuth }: HaevySupportVie
           }`}
         >
           <Bot size={16} className={activeSupportTab === 'ai_chat' ? 'text-amber-300' : 'text-zinc-400'} />
-          <span>Trợ Lý Haevy Support AI (Trực Tuyến 24/7)</span>
+          <span>Trợ Lý Haevy Support AI (24/7)</span>
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         </button>
 
         <button
+          type="button"
+          id="tab-support-ticket-faq"
           onClick={() => setActiveSupportTab('ticket_faq')}
           className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
             activeSupportTab === 'ticket_faq'
@@ -185,7 +211,14 @@ export function HaevySupportView({ onBackToPortal, onOpenAuth }: HaevySupportVie
         </button>
       </div>
 
-      {/* 1. Live AI Support Chat Session */}
+      {/* 1. Ecosystem Mode Usage Dashboard (Recharts Pie Chart) */}
+      {activeSupportTab === 'dashboard' && (
+        <div className="animate-in fade-in duration-300">
+          <HaevyEcosystemUsageDashboard onSelectMode={onSelectMode} />
+        </div>
+      )}
+
+      {/* 2. Live AI Support Chat Session */}
       {activeSupportTab === 'ai_chat' && (
         <div className="animate-in fade-in duration-300">
           <HaevySupportAiView
@@ -198,7 +231,7 @@ export function HaevySupportView({ onBackToPortal, onOpenAuth }: HaevySupportVie
         </div>
       )}
 
-      {/* 2. Main Support Grid: Send Ticket & FAQs */}
+      {/* 3. Main Support Grid: Send Ticket & FAQs */}
       {activeSupportTab === 'ticket_faq' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-300">
         

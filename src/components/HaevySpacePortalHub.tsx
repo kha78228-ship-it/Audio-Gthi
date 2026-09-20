@@ -12,7 +12,10 @@ import {
   Orbit, 
   ArrowRight, 
   ShieldCheck,
-  Layers
+  Layers,
+  Sun,
+  GraduationCap,
+  Wallet
 } from 'lucide-react';
 import { MorningSoundscape } from '../types';
 import { HaevySpaceLogo } from './HaevySpaceLogo';
@@ -21,6 +24,7 @@ interface HaevySpacePortalHubProps {
   onSelectCanvas: (presetToLoad?: string) => void;
   onSelectMascot: () => void;
   onSelectMagicAR: () => void;
+  onSelectMorningDashboard?: () => void;
   onStartCamera: () => void;
   isCameraActive: boolean;
   isCameraLoading: boolean;
@@ -36,6 +40,7 @@ export function HaevySpacePortalHub({
   onSelectCanvas,
   onSelectMascot,
   onSelectMagicAR,
+  onSelectMorningDashboard,
   onStartCamera,
   isCameraActive,
   isCameraLoading,
@@ -98,6 +103,51 @@ export function HaevySpacePortalHub({
             <span>Chuyển Chế Độ Ngay</span>
           </button>
         </div>
+
+        {/* ☀️ CHẾ ĐỘ XEM PHỤ: BẢNG ĐIỀU KHIỂN BUỔI SÁNG (MORNING DASHBOARD) */}
+        {onSelectMorningDashboard && (
+          <div 
+            onClick={onSelectMorningDashboard}
+            className="group relative rounded-3xl bg-gradient-to-r from-amber-500/20 via-zinc-900/95 to-emerald-950/40 border-2 border-amber-500/50 hover:border-amber-400 p-4 sm:p-5 md:p-6 shadow-2xl hover:shadow-amber-500/20 transition-all duration-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer active:scale-[0.99] overflow-hidden mb-6 sm:mb-8 text-left"
+          >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
+
+            <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 relative z-10">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-yellow-600 flex items-center justify-center text-black shadow-xl shadow-amber-500/30 border border-amber-300 shrink-0 group-hover:scale-105 transition-transform">
+                <Sun size={26} className="text-black animate-spin duration-1000" />
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/50 text-amber-300 text-[10px] sm:text-xs font-black">
+                    CHẾ ĐỘ XEM PHỤ MỚI ☀️
+                  </span>
+                  <span className="text-[11px] text-zinc-400 font-mono">Bảng Điều Khiển Buổi Sáng</span>
+                </div>
+
+                <h3 className="text-base sm:text-lg md:text-xl font-black text-white group-hover:text-amber-200 transition-colors">
+                  Bảng Điều Khiển Buổi Sáng (Morning Dashboard)
+                </h3>
+                <p className="text-xs text-zinc-300 mt-1 max-w-2xl leading-relaxed">
+                  Tóm tắt các nhiệm vụ hàng ngày của bạn từ <strong className="text-emerald-300">Haevy Edu</strong> (Thí nghiệm STEM & XP) và tình trạng ngân sách từ <strong className="text-emerald-300">Haevy Finance</strong> (Hạn mức & Số dư an toàn).
+                </p>
+              </div>
+            </div>
+
+            <div className="relative z-10 w-full sm:w-auto shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectMorningDashboard();
+                }}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs sm:text-sm shadow-xl shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+              >
+                <Sun size={15} />
+                <span>Mở Bảng Buổi Sáng →</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 🌟 3 MỤC CHÍNH ĐỘC BẢN (MỤC 1, MỤC 2 & MỤC 3) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-7 w-full max-w-full text-left mb-6 sm:mb-12">

@@ -30,13 +30,20 @@ interface ChemistryLabProps {
   onSelectExperiment?: (id: ChemExperimentId) => void;
   onOpenVideoLesson?: (topic: string) => void;
   onOpenQuickQuiz?: (subject: 'chemistry', experimentId?: string) => void;
+  onRecordActivity?: (params: {
+    type: 'lab_run' | 'lab_adjust' | 'lab_export' | 'lab_switch';
+    title: string;
+    xpAmount?: number;
+    category?: 'lab';
+  }) => void;
 }
 
 export function ChemistryLab({
   initialExperiment = 'titration',
   onSelectExperiment,
   onOpenVideoLesson,
-  onOpenQuickQuiz
+  onOpenQuickQuiz,
+  onRecordActivity
 }: ChemistryLabProps) {
   const [activeExp, setActiveExp] = useState<ChemExperimentId>(initialExperiment);
   const [gradeFilter, setGradeFilter] = useState<'all' | 10 | 11 | 12>('all');
@@ -50,6 +57,13 @@ export function ChemistryLab({
   const handleSwitchExp = (id: ChemExperimentId) => {
     setActiveExp(id);
     onSelectExperiment?.(id);
+    const expObj = allExperiments.find(e => e.id === id);
+    onRecordActivity?.({
+      type: 'lab_switch',
+      title: `Thí nghiệm Hóa học: ${expObj?.label || id}`,
+      xpAmount: 15,
+      category: 'lab'
+    });
   };
 
   const allExperiments = [

@@ -18,9 +18,11 @@ import {
   Landmark,
   GraduationCap,
   Gamepad2,
-  HeartHandshake
+  HeartHandshake,
+  BarChart3
 } from 'lucide-react';
 import { FinanceBudget, FinanceCategory, FinanceTransaction } from '../../types';
+import { FinanceRechartsVisualization } from './FinanceRechartsVisualization';
 
 interface FinanceBudgetViewProps {
   budget?: FinanceBudget;
@@ -28,7 +30,7 @@ interface FinanceBudgetViewProps {
   transactions: FinanceTransaction[];
   selectedMonth: string;
   onSaveBudget: (budgetData: Partial<FinanceBudget>) => void;
-  defaultMode?: '6jars' | '50_30_20';
+  defaultMode?: '6jars' | '50_30_20' | 'recharts_progress';
   onOpenAiAdvisor?: () => void;
 }
 
@@ -41,7 +43,7 @@ export function FinanceBudgetView({
   defaultMode = '6jars',
   onOpenAiAdvisor
 }: FinanceBudgetViewProps) {
-  const [budgetFramework, setBudgetFramework] = useState<'6jars' | '50_30_20'>(defaultMode);
+  const [budgetFramework, setBudgetFramework] = useState<'6jars' | '50_30_20' | 'recharts_progress'>(defaultMode);
   const [monthlyLimit, setMonthlyLimit] = useState<number>(budget?.totalMonthlyLimit || 15000000);
   const [alertThreshold, setAlertThreshold] = useState<number>(budget?.alertThresholdPercent || 80);
   const [categoryLimits, setCategoryLimits] = useState<Record<string, number>>(
@@ -222,6 +224,19 @@ export function FinanceBudgetView({
             <PieChart size={15} />
             <span>⚖️ Khung Ngân Sách 50/30/20</span>
           </button>
+
+          <button
+            onClick={() => setBudgetFramework('recharts_progress')}
+            className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+              budgetFramework === 'recharts_progress'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-zinc-950 border border-cyan-300 shadow-cyan-500/20 scale-105'
+                : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
+            }`}
+          >
+            <BarChart3 size={15} />
+            <span>📊 Tiến Độ Ngân Sách Recharts</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-black/30 font-bold text-zinc-950">Mới</span>
+          </button>
         </div>
 
         <button
@@ -237,6 +252,17 @@ export function FinanceBudgetView({
         <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-xs text-emerald-300 font-bold flex items-center gap-2 animate-fadeIn">
           <Check size={16} /> Đã lưu thiết lập ngân sách &amp; hũ tiền thành công!
         </div>
+      )}
+
+      {/* ================= RECHARTS BUDGET PROGRESS VISUALIZATION ================= */}
+      {budgetFramework === 'recharts_progress' && (
+        <FinanceRechartsVisualization
+          transactions={transactions}
+          categories={categories}
+          budget={budget}
+          selectedMonth={selectedMonth}
+          defaultTab="budget_progress"
+        />
       )}
 
       {/* ================= 6 JARS (HŨ TIỀN) FRAMEWORK ================= */}

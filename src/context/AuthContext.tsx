@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { 
   User, 
   onAuthStateChanged, 
@@ -52,12 +52,15 @@ import {
   HaevyUpcomingEvent,
   EventStatus,
   ShortcutItemConfig,
-  ShortcutsConfig
+  ShortcutsConfig,
+  LevelMilestone
 } from '../types';
 import { UserProfileData } from '../components/profile/types';
 import { INITIAL_TRACKS } from '../data';
 import { DEFAULT_SHORTCUTS_CONFIG } from '../data/defaultShortcuts';
 import { useGlobalPresenceHeartbeat } from '../services/presenceService';
+import { calculateLevelFromExp, getUnclaimedLevelRewards, LEVEL_MILESTONES } from '../data/levelMilestones';
+import { haptics } from '../utils/haptics';
 
 interface CustomAuthUser {
   uid: string;
@@ -285,6 +288,17 @@ interface AuthContextType {
   updateShortcutsConfig: (newConfig: ShortcutsConfig) => Promise<{ success: boolean; message: string }>;
   updateSingleShortcut: (actionId: string, updates: Partial<ShortcutItemConfig>) => Promise<{ success: boolean; message: string }>;
   resetShortcutsToDefault: () => Promise<{ success: boolean; message: string }>;
+
+  // User Level & EXP Privilege System
+  levelExp: number;
+  currentLevel: number;
+  claimedLevelRewards: number[];
+  unclaimedLevelRewardsCount: number;
+  addLevelExp: (amount: number, reason: string, source: 'gift_author' | 'gift_user' | 'gift_vip' | 'topup_coins' | 'purchase_vip' | 'couple_gift') => Promise<void>;
+  claimLevelReward: (level: number) => Promise<{ success: boolean; message: string; rewardsAwarded?: any[] }>;
+  claimAllLevelRewards: () => Promise<{ success: boolean; message: string; totalCoinsClaimed: number; count: number }>;
+  isLevelModalOpen: boolean;
+  setIsLevelModalOpen: (open: boolean) => void;
 
   signInWithGoogle: (referralCode?: string) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
@@ -635,6 +649,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return ['frame_holo_trooper', 'name_cosmic_nebula', 'font_gothic_fraktur', 'wave_cyber_cyan', 'title_cosmic_master'];
   });
 
+  // User Level & EXP Privilege System State
+  const [levelExp, setLevelExp] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('haevy_user_level_exp');
+      return saved ? Math.max(0, parseInt(saved, 10)) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [claimedLevelRewards, setClaimedLevelRewards] = useState<number[]>(() => {
+    try {
+      const saved = localStorage.getItem('haevy_claimed_level_rewards');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isLevelModalOpen, setIsLevelModalOpen] = useState<boolean>(false);
+
+  const levelState = useMemo(() => calculateLevelFromExp(levelExp), [levelExp]);
+  const currentLevel = levelState.currentLevel;
+  const unclaimedLevelRewardsCount = useMemo(
+    () => getUnclaimedLevelRewards(currentLevel, claimedLevelRewards).length,
+    [currentLevel, claimedLevelRewards]
+  );
+
   // Author & Verification State
   const [authorStatus, setAuthorStatus] = useState<AuthorVerificationStatus>('none');
   const [isAuthorVerified, setIsAuthorVerified] = useState<boolean>(false);
@@ -821,6 +861,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               vipExpiresAt: null,
               vipSettings: DEFAULT_VIP_SETTINGS,
               favoriteTrackIds: [],
+              levelExp: 0,
+              claimedLevelRewards: [],
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             }, { merge: true });
@@ -1063,6 +1105,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (Array.isArray(data.unlockedHaevyLiteItems)) {
             setUnlockedHaevyLiteItems(data.unlockedHaevyLiteItems);
             try { localStorage.setItem('haevy_unlocked_lite_items', JSON.stringify(data.unlockedHaevyLiteItems)); } catch (e) {}
+          }
+
+          // User Level & EXP Real-time Sync
+          if (typeof data.levelExp === 'number') {
+            setLevelExp(data.levelExp);
+            try { localStorage.setItem('haevy_user_level_exp', String(data.levelExp)); } catch (e) {}
+          }
+          if (Array.isArray(data.claimedLevelRewards)) {
+            setClaimedLevelRewards(data.claimedLevelRewards);
+            try { localStorage.setItem('haevy_claimed_level_rewards', JSON.stringify(data.claimedLevelRewards)); } catch (e) {}
           }
 
           // Real-time listener for user personal shortcuts_config in Firestore
@@ -1757,6 +1809,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         trackTitle: params.trackTitle || '',
         createdAt: serverTimestamp(),
       });
+
+      // Award Level EXP (1 Coin/Point = +1 EXP, +20% bonus EXP if VIP)
+      const expEarned = effectiveIsVip ? Math.round(params.pointsCost * 1.2) : params.pointsCost;
+      await addLevelExp(
+        expEarned,
+        `Tặng quà ${params.giftIcon} ${params.giftName} cho tác giả "${params.authorStageName}"`,
+        'gift_author'
+      );
 
       return {
         success: true,
@@ -3239,6 +3299,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         createdAt: serverTimestamp(),
       });
 
+      // Award Level EXP for redeeming VIP
+      await addLevelExp(pointsCost, `Đổi gói VIP ${durationDays} ngày bằng Điểm Audio`, 'purchase_vip');
+
       return {
         success: true,
         message: `Chúc mừng bạn đã kích hoạt thành công gói VIP ${durationDays} ngày! Toàn bộ đặc quyền cao cấp đã được mở khóa.`,
@@ -3308,6 +3371,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: serverTimestamp(),
         });
       }
+
+      // Award Level EXP for purchasing VIP package
+      const vipExpMap: Record<string, number> = {
+        week: 800,
+        month: 2000,
+        '3month': 6000,
+        year: 25000,
+        lifetime: 75000,
+      };
+      const expEarned = vipExpMap[pkg.id] || Math.max(500, pkg.durationDays * 60);
+      await addLevelExp(
+        expEarned,
+        `Mua & Kích hoạt gói VIP "${pkg.name}" (${pkg.durationDays} ngày)`,
+        'purchase_vip'
+      );
 
       return {
         success: true,
@@ -3380,6 +3458,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         targetName: user.displayName || user.email || 'Người dùng',
         details: `Nạp ${pkg.name} thanh toán ${finalAmount.toLocaleString()}đ, cộng ${totalPointsAwarded.toLocaleString()} Xu Audio.`,
       });
+
+      // Award Level EXP for coin top-up (1 Coin = +1 EXP)
+      await addLevelExp(
+        totalPointsAwarded,
+        `Nạp Xu Haevy gói ${pkg.name} (+${totalPointsAwarded.toLocaleString()} Xu)`,
+        'topup_coins'
+      );
 
       return {
         success: true,
@@ -3520,6 +3605,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         details: `${senderName} tặng gói ${pkg.name} (${pkg.durationDays} ngày) cho ${targetName} (${cleanId}). Thanh toán ${finalAmount.toLocaleString()}đ.`,
       });
 
+      // Award Level EXP for gifting VIP to friend
+      const vipExpMap: Record<string, number> = {
+        week: 800,
+        month: 2000,
+        '3month': 6000,
+        year: 25000,
+        lifetime: 75000,
+      };
+      const expEarned = vipExpMap[pkg.id] || Math.max(500, pkg.durationDays * 60);
+      await addLevelExp(
+        expEarned,
+        `Tặng gói VIP "${pkg.name}" (${pkg.durationDays} ngày) cho bạn bè (${targetName})`,
+        'gift_vip'
+      );
+
       return {
         success: true,
         message: `Đã tặng thành công gói ${pkg.name} (${pkg.durationDays} ngày) cho "${targetName}"! Hạn VIP của bạn bè đã được kích hoạt đến ${new Date(newExpiresAt).toLocaleDateString('vi-VN')}.`,
@@ -3659,6 +3759,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         details: `${senderName} đã chuyển tặng ${amount.toLocaleString()} Xu Haevy cho ${targetName} (${cleanId}).`,
       });
 
+      // Award Level EXP for transferring coins to friends (1 Coin = +1 EXP)
+      await addLevelExp(
+        amount,
+        `Tặng ${amount.toLocaleString()} Xu Haevy cho bạn bè (${targetName})`,
+        'gift_user'
+      );
+
       return {
         success: true,
         message: `Đã tặng thành công ${amount.toLocaleString()} Xu Haevy cho "${targetName}"!`,
@@ -3671,6 +3778,204 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         message: 'Chuyển tặng Xu Haevy thất bại. Vui lòng thử lại.',
       };
     }
+  };
+
+  // ---------------------------------------------------------------------------
+  // User Level & EXP Privilege System Methods
+  // ---------------------------------------------------------------------------
+  const addLevelExp = async (
+    amount: number,
+    reason: string,
+    source: 'gift_author' | 'gift_user' | 'gift_vip' | 'topup_coins' | 'purchase_vip' | 'couple_gift'
+  ) => {
+    if (!user || amount <= 0) return;
+
+    const previousLevel = calculateLevelFromExp(levelExp).currentLevel;
+    const newExp = levelExp + amount;
+    const newLevelState = calculateLevelFromExp(newExp);
+    const newLevel = newLevelState.currentLevel;
+
+    setLevelExp(newExp);
+    try {
+      localStorage.setItem('haevy_user_level_exp', String(newExp));
+    } catch {}
+
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(
+        userRef,
+        {
+          levelExp: increment(amount),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      await addDoc(collection(db, 'users', user.uid, 'expTransactions'), {
+        amount,
+        title: reason,
+        source,
+        createdAt: serverTimestamp(),
+      });
+
+      // Trigger celebratory level-up if higher level attained
+      if (newLevel > previousLevel) {
+        haptics.rewardClaim();
+        window.dispatchEvent(
+          new CustomEvent('haevy:level-up', {
+            detail: {
+              previousLevel,
+              newLevel,
+              milestone: newLevelState.currentMilestone,
+            },
+          })
+        );
+      }
+    } catch (err) {
+      console.warn('Error saving level EXP:', err);
+    }
+  };
+
+  const claimLevelReward = async (
+    targetLevel: number
+  ): Promise<{ success: boolean; message: string; rewardsAwarded?: any[] }> => {
+    if (!user) {
+      return { success: false, message: 'Vui lòng đăng nhập để nhận quà cấp độ.' };
+    }
+
+    const { currentLevel: calcLevel } = calculateLevelFromExp(levelExp);
+    if (targetLevel > calcLevel) {
+      return {
+        success: false,
+        message: `Bạn chưa đạt Cấp độ LV.${targetLevel}. Hãy tiếp tục tặng quà hoặc nạp để tích lũy EXP!`,
+      };
+    }
+
+    if (claimedLevelRewards.includes(targetLevel)) {
+      return {
+        success: false,
+        message: `Bạn đã nhận quà của Cấp độ LV.${targetLevel} rồi.`,
+      };
+    }
+
+    const milestone = LEVEL_MILESTONES.find((m) => m.level === targetLevel);
+    if (!milestone) {
+      return { success: false, message: 'Không tìm thấy thông tin phần thưởng cấp độ.' };
+    }
+
+    try {
+      let totalCoinsGained = 0;
+      let totalLiteCoinsGained = 0;
+      let totalVipDaysGained = 0;
+      const unlockedFrames: string[] = [];
+
+      for (const reward of milestone.rewards) {
+        if (reward.type === 'coins' && typeof reward.value === 'number') {
+          totalCoinsGained += reward.value;
+        } else if (reward.type === 'lite_coins' && typeof reward.value === 'number') {
+          totalLiteCoinsGained += reward.value;
+        } else if (reward.type === 'vip_days' && typeof reward.value === 'number') {
+          totalVipDaysGained += reward.value;
+        } else if (reward.type === 'avatar_frame' && typeof reward.value === 'string') {
+          unlockedFrames.push(reward.value);
+        }
+      }
+
+      const updatedClaimed = [...claimedLevelRewards, targetLevel];
+      setClaimedLevelRewards(updatedClaimed);
+      try {
+        localStorage.setItem('haevy_claimed_level_rewards', JSON.stringify(updatedClaimed));
+      } catch {}
+
+      const userRef = doc(db, 'users', user.uid);
+      const updates: Record<string, any> = {
+        claimedLevelRewards: updatedClaimed,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (totalCoinsGained > 0) {
+        updates.audioPoints = increment(totalCoinsGained);
+        updates.totalEarnedPoints = increment(totalCoinsGained);
+        setAudioPoints((prev) => prev + totalCoinsGained);
+
+        await addDoc(collection(db, 'users', user.uid, 'pointTransactions'), {
+          title: `🎁 Quà tặng thăng cấp Cấp độ LV.${targetLevel} (${milestone.title})`,
+          amount: totalCoinsGained,
+          type: 'bonus',
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      if (totalLiteCoinsGained > 0) {
+        updates.haevyLiteCoins = increment(totalLiteCoinsGained);
+        setHaevyLiteCoins((prev) => prev + totalLiteCoinsGained);
+      }
+
+      if (totalVipDaysGained > 0) {
+        let baseTime = Date.now();
+        if (vipExpiresAt && new Date(vipExpiresAt).getTime() > Date.now()) {
+          baseTime = new Date(vipExpiresAt).getTime();
+        }
+        const newExpiresAt = new Date(baseTime + totalVipDaysGained * 24 * 60 * 60 * 1000).toISOString();
+        updates.vipTier = vipTier === 'free' ? 'vip' : vipTier;
+        updates.vipExpiresAt = newExpiresAt;
+        setVipTier((prev) => (prev === 'free' ? 'vip' : prev));
+        setVipExpiresAt(newExpiresAt);
+      }
+
+      if (unlockedFrames.length > 0) {
+        updates.unlockedHaevyLiteItems = arrayUnion(...unlockedFrames);
+      }
+
+      await setDoc(userRef, updates, { merge: true });
+      haptics.rewardClaim();
+
+      return {
+        success: true,
+        message: `Nhận thành công quà tặng Cấp độ LV.${targetLevel}! Đã cộng +${totalCoinsGained.toLocaleString()} Xu Haevy và toàn bộ đặc quyền vào tài khoản.`,
+        rewardsAwarded: milestone.rewards,
+      };
+    } catch (err: any) {
+      console.error('Error claiming level reward:', err);
+      return { success: false, message: 'Nhận quà cấp độ thất bại. Vui lòng thử lại.' };
+    }
+  };
+
+  const claimAllLevelRewards = async (): Promise<{
+    success: boolean;
+    message: string;
+    totalCoinsClaimed: number;
+    count: number;
+  }> => {
+    if (!user) return { success: false, message: 'Vui lòng đăng nhập.', totalCoinsClaimed: 0, count: 0 };
+    const unclaimed = getUnclaimedLevelRewards(levelState.currentLevel, claimedLevelRewards);
+    if (unclaimed.length === 0) {
+      return {
+        success: false,
+        message: 'Bạn không có phần thưởng cấp độ nào chưa nhận.',
+        totalCoinsClaimed: 0,
+        count: 0,
+      };
+    }
+
+    let totalCoins = 0;
+    let successCount = 0;
+    for (const m of unclaimed) {
+      const res = await claimLevelReward(m.level);
+      if (res.success) {
+        successCount++;
+        m.rewards.forEach((r) => {
+          if (r.type === 'coins' && typeof r.value === 'number') totalCoins += r.value;
+        });
+      }
+    }
+
+    return {
+      success: true,
+      message: `Đã nhận thành công quà tặng của ${successCount} cấp độ! Tổng cộng +${totalCoins.toLocaleString()} Xu Haevy.`,
+      totalCoinsClaimed: totalCoins,
+      count: successCount,
+    };
   };
 
   const activateTrialVip = async () => {
@@ -4530,6 +4835,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updateShortcutsConfig,
         updateSingleShortcut,
         resetShortcutsToDefault,
+        // User Level & EXP Privilege System
+        levelExp,
+        currentLevel,
+        claimedLevelRewards,
+        unclaimedLevelRewardsCount,
+        addLevelExp,
+        claimLevelReward,
+        claimAllLevelRewards,
+        isLevelModalOpen,
+        setIsLevelModalOpen,
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,

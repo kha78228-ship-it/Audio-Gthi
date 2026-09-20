@@ -8,6 +8,7 @@ import { AccountSecurityShield } from '../../types';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { maskEmail } from '../../utils/privacyMask';
+import { saveStoredAccountSecurityShield } from '../../services/accountSecurityService';
 
 interface Props {
   user: any;
@@ -136,6 +137,7 @@ export function SixLayerSecurityShield({ user, accountId, onOpenSupport, isPriva
           raw.securityScore = score;
           raw.overallLockLevel = level;
           setShieldData(raw);
+          saveStoredAccountSecurityShield(raw);
           if (raw.layer4RecoveryEmail) setRecoveryEmailInput(raw.layer4RecoveryEmail);
           if (raw.layer5FaceDataUrl) setFaceCapturedImage(raw.layer5FaceDataUrl);
         } else {
@@ -175,6 +177,7 @@ export function SixLayerSecurityShield({ user, accountId, onOpenSupport, isPriva
     const { score, level } = computeSecurityScore(updated);
     const finalized = { ...updated, securityScore: score, overallLockLevel: level, updatedAt: new Date().toISOString() };
     setShieldData(finalized);
+    saveStoredAccountSecurityShield(finalized);
     if (!user) return;
     try {
       await setDoc(doc(db, 'users', user.uid, 'security', 'shield'), finalized, { merge: true });
@@ -1006,7 +1009,12 @@ Trạng thái: 6 LỚP AN NINH HAEVY SHIELD (${shieldData.securityScore}%)
 
             <div className="p-4 rounded-2xl bg-zinc-950 border border-rose-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="space-y-1 text-center sm:text-left">
-                <span className="text-[10px] font-bold uppercase text-zinc-500">MÃ KHỞI ĐỘNG HỆ THỐNG (MASTER KEY):</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase text-zinc-500">MÃ KHỞI ĐỘNG HỆ THỐNG (MASTER KEY):</span>
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[10px] font-bold">
+                    ⚡ Mật Khẩu Đăng Nhập Cổng MCP Cho AI
+                  </span>
+                </div>
                 <p className="text-base font-mono font-black text-rose-400 tracking-wider select-all break-all">
                   {shieldData.layer6MasterActivationCode || 'HAEVY-SEC-XXXX-XXXX-XXXX-XXXX'}
                 </p>

@@ -38,6 +38,7 @@ import {
   LoveCardCategory
 } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useGiftEffect } from '../context/GiftEffectContext';
 import { 
   collection, 
   doc, 
@@ -143,6 +144,7 @@ export function CoupleRomanceView({
 }: CoupleRomanceViewProps) {
   const effectiveTracks = allTracks || tracks || [];
   const { user, accountId } = useAuth();
+  const { triggerGiftEffect } = useGiftEffect();
 
   // Active Main 5-Page System
   const [localPage, setLocalPage] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>('page1');
@@ -601,6 +603,29 @@ export function CoupleRomanceView({
     setActiveLovePingNotification(messages[type]);
     setTimeout(() => setActiveLovePingNotification(null), 3500);
 
+    const giftMeta = {
+      kiss: { name: 'Nụ Hôn Ngọt Ngào', emoji: '💋', rarity: 'common' as const },
+      hug: { name: 'Cái Ôm Ấm Áp', emoji: '🫂', rarity: 'common' as const },
+      heartbeat: { name: 'Nhịp Đập Trái Tim', emoji: '💖', rarity: 'rare' as const },
+      rose: { name: 'Đóa Hồng Tình Yêu', emoji: '🌹', rarity: 'common' as const },
+      coffee: { name: 'Ly Trà Sữa Quan Tâm', emoji: '☕', rarity: 'common' as const }
+    }[type];
+
+    const isPartner1 = user?.uid === couple.partner1.uid;
+    const myName = isPartner1 ? couple.partner1.name : (couple.partner2?.name || user?.displayName || 'Bạn');
+    const partnerName = isPartner1 ? (couple.partner2?.name || 'Người Ấy') : couple.partner1.name;
+
+    triggerGiftEffect({
+      giftId: `love_${type}`,
+      giftName: giftMeta.name,
+      giftEmoji: giftMeta.emoji,
+      senderName: myName,
+      senderAvatar: user?.photoURL || undefined,
+      recipientName: partnerName,
+      rarity: giftMeta.rarity,
+      message: messages[type]
+    });
+
     try {
       await updateDoc(doc(db, 'couples', couple.id), {
         lovePoints: (couple.lovePoints || 100) + 5
@@ -638,6 +663,21 @@ export function CoupleRomanceView({
     if (!couple) return;
     setActiveLovePingNotification(customMessage || '🧸 Đã gửi sự quan tâm ấm áp tới bạn gái! (+10đ)');
     setTimeout(() => setActiveLovePingNotification(null), 4000);
+
+    const isPartner1 = user?.uid === couple.partner1.uid;
+    const myName = isPartner1 ? couple.partner1.name : (couple.partner2?.name || user?.displayName || 'Bạn Trai');
+    const partnerName = isPartner1 ? (couple.partner2?.name || 'Bạn Gái') : couple.partner1.name;
+
+    triggerGiftEffect({
+      giftId: `boyfriend_care_${careType}`,
+      giftName: 'Hộp Quà Yêu Thương Bạn Gái',
+      giftEmoji: '🧸',
+      senderName: myName,
+      senderAvatar: user?.photoURL || undefined,
+      recipientName: partnerName,
+      rarity: 'rare',
+      message: customMessage || 'Sự quan tâm ấm áp dành riêng cho người yêu thương nhất! (+10đ)'
+    });
 
     await updateDoc(doc(db, 'couples', couple.id), {
       lovePoints: (couple.lovePoints || 0) + 10

@@ -46,6 +46,7 @@ import {
   Command
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { calculateLevelFromExp } from '../data/levelMilestones';
 import { useModeBadges } from '../context/ModeBadgeContext';
 import { ActiveTab, EcosystemMode, Track } from '../types';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -71,6 +72,7 @@ interface NavbarProps {
   onToggleFullscreen?: () => void;
   isFullscreen?: boolean;
   onOpenInstallPwa?: () => void;
+  onOpenShortcuts?: () => void;
   onToggleVoiceListen?: () => void;
   isVoiceListening?: boolean;
   onUserMenuToggle?: (isOpen: boolean) => void;
@@ -92,6 +94,7 @@ export function Navbar({
   onToggleFullscreen,
   isFullscreen = false,
   onOpenInstallPwa,
+  onOpenShortcuts,
   onToggleVoiceListen,
   isVoiceListening = false,
   onUserMenuToggle,
@@ -113,8 +116,12 @@ export function Navbar({
     displayName: authDisplayName,
     photoURL: authPhotoURL,
     authStatus,
-    isAuthenticated
+    isAuthenticated,
+    levelExp = 0,
+    unclaimedLevelRewardsCount = 0
   } = useAuth();
+
+  const levelState = calculateLevelFromExp(levelExp);
 
   const effectiveDisplayName = userProfile?.displayName || authDisplayName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'Thành viên');
   const effectivePhotoURL = userProfile?.photoURL || authPhotoURL || user?.photoURL || null;
@@ -809,6 +816,17 @@ export function Navbar({
                 </span>
               </div>
 
+              {/* LV Badge Pill */}
+              <div 
+                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border border-amber-500/40 text-[9px] sm:text-[10px] font-black text-amber-300 shrink-0 shadow-sm"
+                title={`Cấp Độ: LV.${levelState.currentLevel} (${levelState.currentMilestone.title})`}
+              >
+                <span>LV.{levelState.currentLevel}</span>
+                {unclaimedLevelRewardsCount > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                )}
+              </div>
+
               <ChevronDown 
                 size={10} 
                 className={`text-zinc-500 group-hover:text-amber-300 transition-transform shrink-0 ${dropdownOpen ? 'rotate-180 text-amber-400' : 'group-hover:translate-y-0.5'}`} 
@@ -821,6 +839,11 @@ export function Navbar({
               onClose={() => setDropdownOpen(false)}
               onSelectMode={onSelectMode}
               onSelectTab={onSelectTab}
+              onOpenInstallPwa={onOpenInstallPwa}
+              onOpenNotifications={onOpenNotifications}
+              onToggleFullscreen={onToggleFullscreen}
+              isFullscreen={isFullscreen}
+              onOpenShortcuts={onOpenShortcuts}
             />
           </div>
         ) : (

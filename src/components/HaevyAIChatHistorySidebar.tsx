@@ -21,7 +21,8 @@ import {
   Calendar,
   Layers,
   ChevronRight,
-  RotateCcw
+  RotateCcw,
+  FileText
 } from 'lucide-react';
 import { HaevyAIChatSession, HaevyAIMessage } from '../types';
 import { haptics } from '../utils/haptics';
@@ -40,6 +41,7 @@ interface HaevyAIChatHistorySidebarProps {
   onSaveCurrentSession: () => void;
   isSaving?: boolean;
   currentMessageCount: number;
+  onExportSessionToDocs?: (session: HaevyAIChatSession) => void;
 }
 
 export function HaevyAIChatHistorySidebar({
@@ -55,7 +57,8 @@ export function HaevyAIChatHistorySidebar({
   onClearAllSessions,
   onSaveCurrentSession,
   isSaving = false,
-  currentMessageCount
+  currentMessageCount,
+  onExportSessionToDocs
 }: HaevyAIChatHistorySidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -259,6 +262,22 @@ export function HaevyAIChatHistorySidebar({
               >
                 {session.isPinned ? <PinOff size={13} /> : <Pin size={13} />}
               </button>
+
+              {/* Export to Google Docs button */}
+              {onExportSessionToDocs && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    haptics.impact('light');
+                    onExportSessionToDocs(session);
+                  }}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-blue-400 hover:bg-zinc-700/80 transition-colors"
+                  title="Xuất cuộc hội thoại này sang Google Docs"
+                >
+                  <FileText size={13} />
+                </button>
+              )}
 
               {/* Edit button */}
               <button

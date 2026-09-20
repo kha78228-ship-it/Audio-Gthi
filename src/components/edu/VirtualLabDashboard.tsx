@@ -147,9 +147,20 @@ interface VirtualLabDashboardProps {
   onOpenVideoLesson?: (topic: string) => void;
   onOpenRoadmapTopic?: (topic: string) => void;
   onOpenAiAssistant?: (topic: string, principle?: string) => void;
+  onRecordActivity?: (params: {
+    type: 'lab_run' | 'lab_adjust' | 'lab_export' | 'lab_switch';
+    title: string;
+    xpAmount?: number;
+    category?: 'lab';
+  }) => void;
 }
 
-export function VirtualLabDashboard({ onOpenVideoLesson, onOpenRoadmapTopic, onOpenAiAssistant }: VirtualLabDashboardProps) {
+export function VirtualLabDashboard({ 
+  onOpenVideoLesson, 
+  onOpenRoadmapTopic, 
+  onOpenAiAssistant,
+  onRecordActivity
+}: VirtualLabDashboardProps) {
   // Active Filter & Active Preset
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'physics' | 'chemistry'>('all');
   const [activePreset, setActivePreset] = useState<VirtualLabPreset>(LAB_PRESETS[0]);
@@ -179,6 +190,13 @@ export function VirtualLabDashboard({ onOpenVideoLesson, onOpenRoadmapTopic, onO
     } catch (e) {
       console.warn('Failed saving lab record', e);
     }
+
+    onRecordActivity?.({
+      type: 'lab_export',
+      title: `Lưu báo cáo thực nghiệm: ${record.title}`,
+      xpAmount: 35,
+      category: 'lab'
+    });
   };
 
   // =========================================================================
@@ -265,6 +283,13 @@ export function VirtualLabDashboard({ onOpenVideoLesson, onOpenRoadmapTopic, onO
     setActivePreset(preset);
     setIsSimRunning(true);
 
+    onRecordActivity?.({
+      type: 'lab_switch',
+      title: `Khảo sát mô hình: ${preset.name}`,
+      xpAmount: 10,
+      category: 'lab'
+    });
+
     if (preset.simulationType === 'pendulum') {
       const p = preset.initialParams;
       setPendulumLength(p.length || 1.2);
@@ -303,6 +328,13 @@ export function VirtualLabDashboard({ onOpenVideoLesson, onOpenRoadmapTopic, onO
 
   // Reset current active simulation
   const handleResetSim = () => {
+    onRecordActivity?.({
+      type: 'lab_adjust',
+      title: `Hiệu chỉnh lại thông số: ${activePreset.name}`,
+      xpAmount: 15,
+      category: 'lab'
+    });
+
     if (activePreset.simulationType === 'pendulum') {
       pendulumStateRef.current = {
         theta: (pendulumInitialAngle * Math.PI) / 180,
@@ -981,7 +1013,18 @@ export function VirtualLabDashboard({ onOpenVideoLesson, onOpenRoadmapTopic, onO
               {/* Master Playback Controls */}
               <div className="flex items-center gap-1.5 bg-zinc-900 p-1 rounded-xl border border-zinc-800">
                 <button
-                  onClick={() => setIsSimRunning(!isSimRunning)}
+                  onClick={() => {
+                    const next = !isSimRunning;
+                    setIsSimRunning(next);
+                    if (next) {
+                      onRecordActivity?.({
+                        type: 'lab_run',
+                        title: `Vận hành mô phỏng: ${activePreset.name}`,
+                        xpAmount: 25,
+                        category: 'lab'
+                      });
+                    }
+                  }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                     isSimRunning
                       ? 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20'

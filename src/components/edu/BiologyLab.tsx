@@ -32,13 +32,20 @@ interface BiologyLabProps {
   onSelectExperiment?: (id: BioExperimentId) => void;
   onOpenVideoLesson?: (topic: string) => void;
   onOpenQuickQuiz?: (subject: 'biology', experimentId?: string) => void;
+  onRecordActivity?: (params: {
+    type: 'lab_run' | 'lab_adjust' | 'lab_export' | 'lab_switch';
+    title: string;
+    xpAmount?: number;
+    category?: 'lab';
+  }) => void;
 }
 
 export function BiologyLab({
   initialExperiment = 'microscope',
   onSelectExperiment,
   onOpenVideoLesson,
-  onOpenQuickQuiz
+  onOpenQuickQuiz,
+  onRecordActivity
 }: BiologyLabProps) {
   const [activeExp, setActiveExp] = useState<BioExperimentId>(initialExperiment);
   const [gradeFilter, setGradeFilter] = useState<'all' | 10 | 11 | 12>('all');
@@ -52,6 +59,13 @@ export function BiologyLab({
   const handleSwitchExp = (id: BioExperimentId) => {
     setActiveExp(id);
     onSelectExperiment?.(id);
+    const expObj = allExperiments.find(e => e.id === id);
+    onRecordActivity?.({
+      type: 'lab_switch',
+      title: `Khảo sát Sinh học: ${expObj?.label || id}`,
+      xpAmount: 15,
+      category: 'lab'
+    });
   };
 
   const allExperiments = [

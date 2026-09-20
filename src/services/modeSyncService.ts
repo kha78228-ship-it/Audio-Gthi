@@ -1,6 +1,7 @@
 import { EcosystemMode, ActiveTab } from '../types';
 import { triggerHaptic } from '../utils/haptics';
 import { ALL_ECOSYSTEM_MODES, getEcosystemModeConfig, EcosystemModeConfig } from '../data/ecosystemModes';
+import { recordModeInteraction } from './ecosystemUsageService';
 
 export const MODE_STORAGE_KEY = 'haevy_active_ecosystem_mode';
 export const MODE_PREV_STORAGE_KEY = 'haevy_prev_ecosystem_mode';
@@ -85,6 +86,9 @@ export function switchEcosystemMode(
       // ignore
     }
   }
+
+  // Record telemetry interaction
+  recordModeInteraction(targetMode);
 
   // 1. Trigger haptics
   triggerHaptic('modeSwitch');

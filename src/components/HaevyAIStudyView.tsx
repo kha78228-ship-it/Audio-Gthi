@@ -17,9 +17,12 @@ import {
   Flame,
   Award,
   HelpCircle,
-  FolderOpen
+  FolderOpen,
+  HardDrive
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { GoogleDriveDocumentPickerModal } from './google/GoogleDriveDocumentPickerModal';
+import { GoogleDriveDocumentItem } from '../services/googleDriveService';
 
 interface HaevyAIStudyViewProps {
   onBackToPortal: () => void;
@@ -39,6 +42,7 @@ export function HaevyAIStudyView({ onBackToPortal, onOpenAuth }: HaevyAIStudyVie
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'study' | 'sample_docs' | 'mindmap'>('study');
+  const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
 
   // Sample Documents for quick testing
   const sampleDocuments = [
@@ -226,9 +230,20 @@ Tài liệu đã được tiếp nhận thành công. Dưới đây là phân t�
                 <FileText size={14} className="text-purple-400" />
                 <span>NỘI DUNG TÀI LIỆU CẦN HỌC</span>
               </label>
-              <span className="text-[10px] text-zinc-400">
-                {documentContent.length} ký tự
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDrivePickerOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                  title="Lấy file giáo trình từ Google Drive"
+                >
+                  <HardDrive size={12} className="text-amber-400" />
+                  <span>Lấy từ Google Drive</span>
+                </button>
+                <span className="text-[10px] text-zinc-400">
+                  {documentContent.length} ký tự
+                </span>
+              </div>
             </div>
 
             <textarea
@@ -419,6 +434,16 @@ Tài liệu đã được tiếp nhận thành công. Dưới đây là phân t�
 
       </div>
 
+      {/* Google Drive Document Picker Modal */}
+      <GoogleDriveDocumentPickerModal
+        isOpen={isDrivePickerOpen}
+        onClose={() => setIsDrivePickerOpen(false)}
+        onSelectDocumentForAI={(doc) => {
+          setDocumentContent(doc.content);
+          setUserRequest(`Hãy phân tích nguyên lý gốc rễ và giải thích bản chất logic của tài liệu "${doc.name}". Tránh học vẹt và tóm tắt cô đọng nhất.`);
+          setIsDrivePickerOpen(false);
+        }}
+      />
     </div>
   );
 }

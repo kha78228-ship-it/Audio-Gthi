@@ -57,12 +57,51 @@ const DEFAULT_SUBTAB_COUNTS: Record<string, number> = {
 };
 
 /**
+ * Helper to determine if an error is due to an offline client or transient network unavailability
+ */
+function isOfflineError(err: any): boolean {
+  if (!err) return false;
+  const msg = String(err?.message || '').toLowerCase();
+  const code = String(err?.code || '').toLowerCase();
+  return (
+    code === 'unavailable' ||
+    code === 'failed-precondition' ||
+    msg.includes('offline') ||
+    msg.includes('client is offline') ||
+    msg.includes('network') ||
+    msg.includes('could not reach cloud firestore')
+  );
+}
+
+/**
  * Initializes default mode badge document for user if it doesn't exist yet
  */
 export async function initializeModeBadgesIfMissing(userId: string): Promise<ModeBadgeSummary> {
+  const fallbackData: ModeBadgeSummary = {
+    unreadCounts: { ...DEFAULT_STARTER_COUNTS },
+    subTabUnreadCounts: { ...DEFAULT_SUBTAB_COUNTS },
+    lastViewedAt: {},
+    updatedAt: new Date().toISOString(),
+  };
+
+  // If browser is offline, return fallback starter counts immediately without attempting network operations
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return fallbackData;
+  }
+
   try {
     const docRef = doc(db, 'users', userId, 'modeBadges', 'summary');
-    const snap = await getDoc(docRef);
+    let snap;
+    try {
+      snap = await getDoc(docRef);
+    } catch (fetchErr: any) {
+      if (isOfflineError(fetchErr)) {
+        // Suppress noisy console.error when Firestore client is temporarily offline or reconnecting
+        console.warn('[modeBadgeService] Firestore offline during badge check, using starter counts.');
+        return fallbackData;
+      }
+      throw fetchErr;
+    }
 
     if (snap.exists()) {
       return snap.data() as ModeBadgeSummary;
@@ -75,7 +114,16 @@ export async function initializeModeBadgesIfMissing(userId: string): Promise<Mod
       updatedAt: new Date().toISOString(),
     };
 
-    await setDoc(docRef, initialData, { merge: true });
+    try {
+      await setDoc(docRef, initialData, { merge: true });
+    } catch (writeErr: any) {
+      if (isOfflineError(writeErr)) {
+        console.warn('[modeBadgeService] Deferred initial badge write while offline.');
+        return initialData;
+      }
+      console.warn('Could not write initial mode badges:', writeErr);
+      return initialData;
+    }
 
     // Seed starter friendly notifications
     const starterNotifs = [
@@ -126,18 +174,18 @@ export async function initializeModeBadgesIfMissing(userId: string): Promise<Mod
           createdAt: serverTimestamp(),
         });
       } catch (err) {
-        console.warn('Could not seed notification item:', err);
+        // Non-critical seeding error
       }
     }
 
     return initialData;
-  } catch (error) {
-    console.error('Error in initializeModeBadgesIfMissing:', error);
-    return {
-      unreadCounts: { ...DEFAULT_STARTER_COUNTS },
-      subTabUnreadCounts: { ...DEFAULT_SUBTAB_COUNTS },
-      lastViewedAt: {},
-    };
+  } catch (error: any) {
+    if (isOfflineError(error)) {
+      console.warn('[modeBadgeService] Client is offline; using default badges.');
+    } else {
+      console.warn('[modeBadgeService] Unexpected error in initializeModeBadgesIfMissing:', error);
+    }
+    return fallbackData;
   }
 }
 
@@ -161,9 +209,17 @@ export function subscribeToModeBadges(
           lastViewedAt: data.lastViewedAt || {},
           updatedAt: data.updatedAt,
         });
+      } else if (!(snapshot as any).metadata?.fromCache) {
+        // Only trigger initialization when the server confirms the document is actually missing,
+        // rather than during the initial local-cache check while offline.
+        initializeModeBadgesIfMissing(userId).then(onUpdate).catch(() => {});
       } else {
-        // Initialize if not present
-        initializeModeBadgesIfMissing(userId).then(onUpdate);
+        // Local cache has no document yet and client might be connecting; provide defaults immediately.
+        onUpdate({
+          unreadCounts: { ...DEFAULT_STARTER_COUNTS },
+          subTabUnreadCounts: { ...DEFAULT_SUBTAB_COUNTS },
+          lastViewedAt: {},
+        });
       }
     },
     (error) => {
@@ -231,8 +287,12 @@ export async function markModeAsViewedInFirestore(
     } catch (e) {
       // Non-critical, ignore if permissions/network
     }
-  } catch (error) {
-    console.error('Error marking mode as viewed in Firestore:', error);
+  } catch (error: any) {
+    if (isOfflineError(error)) {
+      console.warn('[modeBadgeService] Deferred markModeAsViewed while offline.');
+    } else {
+      console.warn('Error marking mode as viewed in Firestore:', error);
+    }
   }
 }
 
@@ -256,8 +316,12 @@ export async function markAllModesAsViewedInFirestore(userId: string): Promise<v
       },
       { merge: true }
     );
-  } catch (error) {
-    console.error('Error marking all modes viewed:', error);
+  } catch (error: any) {
+    if (isOfflineError(error)) {
+      console.warn('[modeBadgeService] Deferred markAllModesAsViewed while offline.');
+    } else {
+      console.warn('Error marking all modes viewed:', error);
+    }
   }
 }
 
@@ -288,8 +352,15 @@ export async function sendModeNotificationToFirestore(
     });
 
     // 2. Fetch current counts and increment
-    const snap = await getDoc(docRef);
-    const data = snap.exists() ? (snap.data() as ModeBadgeSummary) : { unreadCounts: {}, subTabUnreadCounts: {}, lastViewedAt: {} };
+    let data: ModeBadgeSummary = { unreadCounts: {}, subTabUnreadCounts: {}, lastViewedAt: {} };
+    try {
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        data = snap.data() as ModeBadgeSummary;
+      }
+    } catch {
+      // Offline fallback: continue with local increment
+    }
     
     const currentModeCount = (data.unreadCounts?.[modeId] || 0) + 1;
     const updatePayload: Record<string, any> = {
@@ -305,7 +376,11 @@ export async function sendModeNotificationToFirestore(
     }
 
     await setDoc(docRef, updatePayload, { merge: true });
-  } catch (error) {
-    console.error('Error sending mode notification to Firestore:', error);
+  } catch (error: any) {
+    if (isOfflineError(error)) {
+      console.warn('[modeBadgeService] Deferred sendModeNotification while offline.');
+    } else {
+      console.warn('Error sending mode notification to Firestore:', error);
+    }
   }
 }

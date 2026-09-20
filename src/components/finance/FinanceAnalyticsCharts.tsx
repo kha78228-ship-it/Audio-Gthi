@@ -9,22 +9,36 @@ import {
   ArrowDownRight,
   Sparkles,
   Layers,
-  HelpCircle
+  HelpCircle,
+  Activity
 } from 'lucide-react';
-import { FinanceTransaction, FinanceCategory } from '../../types';
+import {
+  ResponsiveContainer,
+  BarChart as RechartsBarChart,
+  Bar as RechartsBar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend as RechartsLegend
+} from 'recharts';
+import { FinanceTransaction, FinanceCategory, FinanceBudget } from '../../types';
+import { FinanceRechartsVisualization } from './FinanceRechartsVisualization';
 
 interface FinanceAnalyticsChartsProps {
   transactions: FinanceTransaction[];
   categories: FinanceCategory[];
+  budget?: FinanceBudget;
   selectedMonth: string;
 }
 
 export function FinanceAnalyticsCharts({
   transactions,
   categories,
+  budget,
   selectedMonth
 }: FinanceAnalyticsChartsProps) {
-  const [chartMode, setChartMode] = useState<'category' | 'trend' | 'ranking'>('category');
+  const [chartMode, setChartMode] = useState<'recharts' | 'category' | 'trend' | 'ranking'>('recharts');
 
   const formatVND = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -87,11 +101,22 @@ export function FinanceAnalyticsCharts({
   return (
     <div className="space-y-6">
       {/* Chart Navigation Switcher */}
-      <div className="flex items-center justify-between p-1.5 bg-zinc-900/80 rounded-2xl border border-zinc-800">
-        <div className="flex items-center gap-1">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-1.5 bg-zinc-900/80 rounded-2xl border border-zinc-800">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar w-full sm:w-auto">
+          <button
+            onClick={() => setChartMode('recharts')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              chartMode === 'recharts' 
+                ? 'bg-emerald-500 text-zinc-950 shadow-md font-black' 
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Activity size={14} />
+            <span>Phân Tích Recharts (Tuần &amp; Ngân Sách)</span>
+          </button>
           <button
             onClick={() => setChartMode('category')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               chartMode === 'category' 
                 ? 'bg-emerald-500 text-zinc-950 shadow-md font-black' 
                 : 'text-zinc-400 hover:text-white'
@@ -102,7 +127,7 @@ export function FinanceAnalyticsCharts({
           </button>
           <button
             onClick={() => setChartMode('trend')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               chartMode === 'trend' 
                 ? 'bg-emerald-500 text-zinc-950 shadow-md font-black' 
                 : 'text-zinc-400 hover:text-white'
@@ -113,7 +138,7 @@ export function FinanceAnalyticsCharts({
           </button>
           <button
             onClick={() => setChartMode('ranking')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               chartMode === 'ranking' 
                 ? 'bg-emerald-500 text-zinc-950 shadow-md font-black' 
                 : 'text-zinc-400 hover:text-white'
@@ -124,10 +149,20 @@ export function FinanceAnalyticsCharts({
           </button>
         </div>
 
-        <span className="text-xs text-zinc-400 pr-2 hidden sm:inline">
+        <span className="text-xs text-zinc-400 pr-2 hidden sm:inline whitespace-nowrap">
           Tháng đang xem: <strong className="text-white">{selectedMonth}</strong>
         </span>
       </div>
+
+      {/* MODE 0: RECHARTS ADVANCED VISUALIZATION */}
+      {chartMode === 'recharts' && (
+        <FinanceRechartsVisualization
+          transactions={transactions}
+          categories={categories}
+          budget={budget}
+          selectedMonth={selectedMonth}
+        />
+      )}
 
       {/* MODE 1: CATEGORY BREAKDOWN */}
       {chartMode === 'category' && (
@@ -242,34 +277,65 @@ export function FinanceAnalyticsCharts({
             </div>
           </div>
 
-          {/* Bar Chart Area */}
-          <div className="pt-6 pb-2 grid grid-cols-6 gap-3 sm:gap-6 items-end h-56 border-b border-zinc-800">
-            {trendData.map((m, idx) => {
-              const incomeHeight = Math.max(Math.round((m.income / maxTrendAmount) * 100), 4);
-              const expenseHeight = Math.max(Math.round((m.expense / maxTrendAmount) * 100), 4);
-
-              return (
-                <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end group">
-                  <div className="flex items-end gap-1 sm:gap-2 h-full w-full justify-center">
-                    {/* Income Bar */}
-                    <div
-                      className="w-3 sm:w-6 bg-gradient-to-t from-teal-600 to-teal-400 rounded-t-lg transition-all group-hover:brightness-110"
-                      style={{ height: `${incomeHeight}%` }}
-                      title={`Thu nhập ${m.label}: ${formatVND(m.income)}`}
-                    />
-                    {/* Expense Bar */}
-                    <div
-                      className="w-3 sm:w-6 bg-gradient-to-t from-rose-600 to-rose-400 rounded-t-lg transition-all group-hover:brightness-110"
-                      style={{ height: `${expenseHeight}%` }}
-                      title={`Chi tiêu ${m.label}: ${formatVND(m.expense)}`}
-                    />
-                  </div>
-                  <span className="text-[11px] font-bold text-zinc-400 group-hover:text-white transition-colors">
-                    {m.label}
-                  </span>
-                </div>
-              );
-            })}
+          {/* Recharts Bar Chart Area */}
+          <div className="pt-2 pb-2 h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsBarChart
+                data={trendData}
+                margin={{ top: 15, right: 15, left: 0, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  stroke="#71717a"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={{ stroke: '#3f3f46' }}
+                />
+                <YAxis
+                  stroke="#71717a"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(val) => val >= 1000000 ? `${(val / 1000000).toFixed(1)}Tr` : `${(val / 1000).toFixed(0)}k`}
+                />
+                <RechartsTooltip
+                  formatter={(value: any, name: any) => [
+                    formatVND(Number(value)),
+                    name === 'income' ? 'Thu nhập' : 'Chi tiêu'
+                  ]}
+                  contentStyle={{
+                    backgroundColor: '#09090b',
+                    borderColor: '#3f3f46',
+                    borderRadius: '14px',
+                    fontSize: '11px',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+                  }}
+                />
+                <RechartsLegend
+                  wrapperStyle={{ paddingTop: '8px', fontSize: '11px' }}
+                  formatter={(value) => (
+                    <span className="text-zinc-300 font-bold">
+                      {value === 'income' ? 'Thu nhập' : 'Chi tiêu'}
+                    </span>
+                  )}
+                />
+                <RechartsBar
+                  dataKey="income"
+                  name="income"
+                  fill="#14b8a6"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={32}
+                />
+                <RechartsBar
+                  dataKey="expense"
+                  name="expense"
+                  fill="#f43f5e"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={32}
+                />
+              </RechartsBarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}

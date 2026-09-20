@@ -59,7 +59,10 @@ import {
   Filter,
   History,
   Bookmark,
-  PanelLeft
+  PanelLeft,
+  GraduationCap,
+  FileText,
+  Cpu
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { HaevyAIMessage, HaevyAIChatSession, FinanceTransaction, FinanceWallet, Track } from '../types';
@@ -67,6 +70,10 @@ import { haptics } from '../utils/haptics';
 import { doc, setDoc, deleteDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { HaevyAIChatHistorySidebar } from './HaevyAIChatHistorySidebar';
+import { GoogleDocsExportModal } from './google/GoogleDocsExportModal';
+import { GoogleDocExportOptions } from '../services/googleDocsService';
+import { HaevyMCPProtocolModal } from './haevyAI/HaevyMCPProtocolModal';
+import { getStoredMCPSession, gatherFullMCPUserContext } from '../services/mcpContextService';
 import {
   parseEcosystemNaturalCommand,
   executeAddFamilyMembers,
@@ -79,6 +86,9 @@ import {
   executeDeleteCoupleMemories,
   executeAddFriend,
   executeDeleteFriend,
+  executeAddEduNote,
+  executeDeleteEduNote,
+  executeAddEduCalculation,
   executeUndoLastAction,
   getEcosystemLiveSnapshot,
   HAEVY_ECOSYSTEM_MODES_INFO,
@@ -119,6 +129,7 @@ export function HaevyAIHubView({
   onToggleFullscreen,
   isFullscreen = false
 }: HaevyAIHubViewProps) {
+  const auth = useAuth();
   const { 
     user, 
     accountId, 
@@ -130,11 +141,13 @@ export function HaevyAIHubView({
     isAuthorVerified, 
     authorStageName,
     addAudioPoints
-  } = useAuth();
+  } = auth;
 
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false);
+  const [isMCPModalOpen, setIsMCPModalOpen] = useState(false);
+  const [mcpSession, setMcpSession] = useState(() => getStoredMCPSession());
   const [sessions, setSessions] = useState<HaevyAIChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isSavingSession, setIsSavingSession] = useState(false);
@@ -145,10 +158,12 @@ export function HaevyAIHubView({
     return {
       id: `welcome_${Date.now()}`,
       sender: 'ai',
-      text: `Xin chào **${userName}**! ✨ Tôi là **Haevy AI Master** - Trợ Lý Thông Minh & Bạn Đồng Hành Toàn Năng của Hệ Sinh Thái Haevy.\n\nTôi có thể trò chuyện, tâm sự thấu cảm, đồng thời **trực tiếp thực hiện mọi nhiệm vụ theo lệnh của bạn**:\n- 📊 **Kiểm tra lượt nghe Audio hôm nay**: Thống kê số lượng người nghe, thời lượng và bài hát thịnh hành.\n- 💖 **Đếm ngày yêu nhau**: Tính toán chính xác số ngày bên nhau của cặp đôi và nhắc mốc kỷ niệm.\n- 💰 **Tự động thêm giao dịch nhận lương / chi tiêu**: Ghi sổ thu chi, cập nhật số dư ví và phân bổ 6 Hũ thông minh tức thì.\n- 🎵 **Gợi ý & Phát nhạc**: Bật nhạc Lo-Fi, truyện audio, không gian thư giãn.\n- 🪙 **Tặng Xu thưởng & Bảo mật**: Nhận xu tương tác, hướng dẫn 6 lớp bảo vệ tài khoản.\n\nHãy nhắn tin hoặc chọn nhanh các nhiệm vụ bên dưới để tôi hỗ trợ bạn ngay nhé! 🚀`,
+      text: `Xin chào **${userName}**! ✨ Tôi là **Haevy AI Master** - Trợ Lý Thông Minh & Bạn Đồng Hành Toàn Năng của Hệ Sinh Thái Haevy.\n\nTôi có thể trò chuyện, tâm sự thấu cảm, đồng thời **trực tiếp thực hiện mọi nhiệm vụ theo lệnh của bạn**:\n- ⚡ **Giao diện MCP (Model Context Protocol)**: Đọc dữ liệu người dùng thời gian thực sau bước xác thực thông tin đăng nhập, truy cứu thông tin cá nhân, cấp độ LV, ví 6 hũ và gia phả.\n- 📊 **Kiểm tra lượt nghe Audio hôm nay**: Thống kê số lượng người nghe, thời lượng và bài hát thịnh hành.\n- 💖 **Đếm ngày yêu nhau**: Tính toán chính xác số ngày bên nhau của cặp đôi và nhắc mốc kỷ niệm.\n- 💰 **Tự động thêm giao dịch nhận lương / chi tiêu**: Ghi sổ thu chi, cập nhật số dư ví và phân bổ 6 Hũ thông minh tức thì.\n- 🎵 **Gợi ý & Phát nhạc**: Bật nhạc Lo-Fi, truyện audio, không gian thư giãn.\n\nHãy nhắn tin hoặc chọn nhanh các nhiệm vụ bên dưới để tôi hỗ trợ bạn ngay nhé! 🚀`,
       timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       category: 'general',
       suggestedActions: [
+        { label: '⚡ Giao Diện MCP Tra Cứu Dữ Liệu', actionType: 'prompt_preset', target: 'Hãy truy cứu toàn bộ thông tin cá nhân, cấp độ LV và ví tài chính của tôi qua giao thức MCP.', icon: 'Cpu' },
+        { label: '🎖️ Kiểm Tra Cấp Độ LV & EXP', actionType: 'prompt_preset', target: 'Kiểm tra cấp độ LV, điểm EXP và quà tặng chờ nhận của tôi qua MCP.', icon: 'Award' },
         { label: '📊 Kiểm Tra Lượt Nghe Hôm Nay', actionType: 'prompt_preset', target: 'Kiểm tra lượt nghe audio hôm nay có bao nhiêu người nghe và thời lượng phát sóng?', icon: 'Headphones' },
         { label: '💖 Ngày Yêu Cặp Đôi', actionType: 'prompt_preset', target: 'Hôm nay là ngày thứ bao nhiêu hai đứa mình yêu nhau rồi?', icon: 'Heart' },
         { label: '💰 Tự Động Thêm Nhận Lương 50Tr', actionType: 'prompt_preset', target: 'Tự động thêm giao dịch nhận lương 50 triệu vào sổ thu chi và phân bổ 6 hũ tài chính thông minh giúp mình.', icon: 'Wallet' },
@@ -511,6 +526,88 @@ export function HaevyAIHubView({
       setIsSavingSession(false);
     }
   };
+
+  // Google Docs Export State & Handlers
+  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [docsExportOptions, setDocsExportOptions] = useState<GoogleDocExportOptions | null>(null);
+
+  const handleExportCurrentChatToDocs = () => {
+    haptics.impact('medium');
+    let md = `## HỘI THOẠI HAEVY AI ASSISTANT\n*Thời gian xuất: ${new Date().toLocaleString('vi-VN')}*\n*Tổng số tin nhắn: ${messages.length}*\n\n---\n\n`;
+    messages.forEach((msg, idx) => {
+      const isAi = msg.sender === 'ai';
+      const senderName = isAi ? 'Haevy AI Master' : (user?.displayName || 'Người dùng');
+      md += `### ${idx + 1}. ${isAi ? '🤖' : '👤'} ${senderName} (${msg.timestamp})\n\n`;
+      md += `${msg.text}\n\n`;
+      if (msg.actionResultSummary) {
+        md += `> **Thực thi hệ sinh thái:** ${msg.actionResultSummary}\n\n`;
+      }
+      md += `---\n\n`;
+    });
+
+    const activeSession = sessions.find(s => s.id === activeSessionId);
+    const title = activeSession?.title || `Hội Thoại Haevy AI (${messages.length} tin nhắn)`;
+
+    setDocsExportOptions({
+      title: `[Haevy AI] ${title}`,
+      contentMarkdown: md,
+      category: 'haevy_ai_chat',
+      categoryLabel: 'Haevy AI - Toàn Bộ Hội Thoại',
+      tags: ['HaevyAI', 'Assistant', 'ChatHistory'],
+      summary: `Toàn bộ biên bản ${messages.length} tin nhắn trò chuyện và tác vụ được thực thi bởi Haevy AI.`,
+      sourceApp: 'haevy_ai'
+    });
+    setIsDocsModalOpen(true);
+  };
+
+  const handleExportMessageToDocs = (msg: HaevyAIMessage) => {
+    haptics.impact('light');
+    let md = `## PHẢN HỒI TỪ HAEVY AI MASTER\n*Thời điểm: ${msg.timestamp} - ${new Date().toLocaleDateString('vi-VN')}*\n\n`;
+    md += `${msg.text}\n\n`;
+    if (msg.actionResultSummary) {
+      md += `> **Tác vụ đã thực thi:** ${msg.actionResultSummary}\n\n`;
+    }
+    md += `---\n*Được tạo bởi Trợ Lý Thông Minh Haevy AI và xuất tự động sang Google Docs.*\n`;
+
+    const previewTitle = msg.text.slice(0, 45).replace(/[#*`\n]/g, '').trim() || 'Phản Hồi Haevy AI';
+
+    setDocsExportOptions({
+      title: `[Haevy AI] ${previewTitle}`,
+      contentMarkdown: md,
+      category: 'haevy_ai_message',
+      categoryLabel: 'Haevy AI - Lời Giải & Lời Khuyên',
+      tags: ['HaevyAI', 'Response', msg.category || 'general'],
+      summary: msg.text.slice(0, 150),
+      sourceApp: 'haevy_ai'
+    });
+    setIsDocsModalOpen(true);
+  };
+
+  const handleExportSessionToDocs = (session: HaevyAIChatSession) => {
+    haptics.impact('medium');
+    let md = `## HỘI THOẠI HAEVY AI — ${session.title.toUpperCase()}\n*Thời điểm cập nhật: ${new Date(session.updatedAt).toLocaleString('vi-VN')}*\n*Số tin nhắn: ${session.messages?.length || 0}*\n\n---\n\n`;
+    (session.messages || []).forEach((msg, idx) => {
+      const isAi = msg.sender === 'ai';
+      const senderName = isAi ? 'Haevy AI Master' : (user?.displayName || 'Người dùng');
+      md += `### ${idx + 1}. ${isAi ? '🤖' : '👤'} ${senderName} (${msg.timestamp})\n\n`;
+      md += `${msg.text}\n\n`;
+      if (msg.actionResultSummary) {
+        md += `> **Thực thi:** ${msg.actionResultSummary}\n\n`;
+      }
+      md += `---\n\n`;
+    });
+
+    setDocsExportOptions({
+      title: `[Haevy AI] ${session.title}`,
+      contentMarkdown: md,
+      category: 'haevy_ai_session',
+      categoryLabel: 'Haevy AI - Phiên Trò Chuyện Lưu Trữ',
+      tags: ['HaevyAI', 'SavedSession', session.category || 'general'],
+      summary: `Phiên thảo luận "${session.title}" với ${session.messages?.length || 0} tin nhắn.`,
+      sourceApp: 'haevy_ai'
+    });
+    setIsDocsModalOpen(true);
+  };
   const [selectedMood, setSelectedMood] = useState<string>('😊 Vui vẻ & Tích cực');
   const [isMoodPickerOpen, setIsMoodPickerOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -603,6 +700,18 @@ export function HaevyAIHubView({
       text: 'Cho mình xin nhận 150 Xu thưởng tương tác hàng ngày cùng Haevy AI nhé!',
       icon: Coins,
       color: 'from-amber-600/30 to-orange-600/30 text-amber-300 border-amber-500/40'
+    },
+    { 
+      label: '🔬 Khám phá STEM Lab & Casio 880', 
+      text: 'Mở phòng thí nghiệm ảo STEM và giải thích cách giải phương trình trên máy tính Casio fx-880 BTG.',
+      icon: GraduationCap,
+      color: 'from-teal-600/30 to-emerald-600/30 text-teal-300 border-teal-500/40'
+    },
+    { 
+      label: '📓 Lưu Sổ Tay Nghiên Cứu Edu', 
+      text: 'Lưu vào sổ tay Edu: Bản chất định luật bảo toàn năng lượng và tư duy First Principles không học vẹt.',
+      icon: BookOpen,
+      color: 'from-cyan-600/30 to-blue-600/30 text-cyan-300 border-cyan-500/40'
     }
   ];
 
@@ -917,6 +1026,25 @@ export function HaevyAIHubView({
             affectedCount: 1
           };
           break;
+        case 'add_edu_note':
+          res = executeAddEduNote({
+            title: action.noteTitle || 'Ghi chép First Principles',
+            subject: action.subject || 'physics',
+            tags: ['Haevy AI', 'Ecosystem', 'First Principles'],
+            firstPrincipleEssence: action.firstPrincipleEssence || 'Bóc tách từ bản chất nền tảng',
+            content: action.content || ''
+          });
+          break;
+        case 'delete_edu_note':
+          res = executeDeleteEduNote(action.noteTitle || '');
+          break;
+        case 'add_edu_calculation':
+          res = executeAddEduCalculation({
+            expression: action.expression || '0',
+            result: action.result || '0',
+            mode: action.calcMode || 'calc'
+          });
+          break;
         default:
           break;
       }
@@ -1016,21 +1144,32 @@ export function HaevyAIHubView({
     setIsLoading(true);
 
     try {
+      const fullMcpContext = gatherFullMCPUserContext(auth);
       const payload = {
         message: textToSend,
         conversationHistory: messages.slice(-10),
+        mcpSession: mcpSession || null,
         userContext: {
           displayName: user?.displayName || 'Thành viên Haevy',
           accountId: accountId || 'HV-MEMBER',
           isVip: isVip,
           vipTier: vipTier,
+          levelExp: auth?.levelExp || 2850,
+          currentLevel: auth?.levelExp !== undefined 
+            ? Math.min(15, Math.floor(Math.sqrt((auth?.levelExp || 0) / 100)) + 1)
+            : 3,
+          unclaimedLevelRewardsCount: auth?.unclaimedLevelRewardsCount || 0,
+          haevyLiteCoins: auth?.haevyLiteCoins || 1250,
           audioPoints: audioPoints,
           totalEarnedPoints: totalEarnedPoints,
           totalListenedMinutes: totalListenedMinutes,
-          securityScore: 85,
-          lockLevel: 'enhanced',
+          securityScore: 92,
+          lockLevel: '6-layer fortress',
           isAuthorVerified: isAuthorVerified,
           stageName: authorStageName,
+          mcpActive: Boolean(mcpSession),
+          mcpGrantedScopes: mcpSession?.grantedScopes || [],
+          mcpDataSnapshot: fullMcpContext,
           coupleInfo: {
             isCoupled: true,
             partnerName: 'Em Yêu',
@@ -1375,6 +1514,30 @@ export function HaevyAIHubView({
         {/* Right: History Toggle, Mood Selector, Token Points, Modes Drawer, New Chat */}
         <div className="flex items-center gap-1.5 sm:gap-2">
 
+          {/* Model Context Protocol (MCP) Interface Button */}
+          <button
+            type="button"
+            id="haevy_mcp_protocol_toggle_btn"
+            onClick={() => {
+              haptics.selection();
+              setIsMCPModalOpen(true);
+            }}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
+              mcpSession
+                ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/25 shadow-sm shadow-cyan-900/30'
+                : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800'
+            }`}
+            title="Mở giao diện MCP Context Protocol cho AI truy cứu thông tin người dùng"
+          >
+            <Cpu size={14} className={mcpSession ? "text-cyan-400" : "text-zinc-400"} />
+            <span className="hidden xs:inline">Giao Diện MCP</span>
+            {mcpSession ? (
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            ) : (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            )}
+          </button>
+
           {/* Chat History Sidebar Toggle Button */}
           <button
             type="button"
@@ -1482,6 +1645,7 @@ export function HaevyAIHubView({
           onSaveCurrentSession={handleSaveCurrentSession}
           isSaving={isSavingSession}
           currentMessageCount={messages.length}
+          onExportSessionToDocs={handleExportSessionToDocs}
         />
 
         {/* Right Main Content Column */}
@@ -1518,15 +1682,27 @@ export function HaevyAIHubView({
           </button>
         </div>
 
-        {/* Quick Undo Last Action on Header */}
-        <button
-          onClick={handleUndoLastAction}
-          className="px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs flex items-center gap-1.5 transition shadow-sm"
-          title="Hoàn tác thao tác thêm/xoá dữ liệu vừa thực hiện"
-        >
-          <RotateCcw size={12} className="text-amber-400" />
-          <span className="hidden sm:inline">Hoàn Tác Lệnh</span>
-        </button>
+        {/* Top Chat Quick Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCurrentChatToDocs}
+            className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-white border border-blue-500/40 text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+            title="Xuất toàn bộ cuộc trò chuyện hiện tại sang Google Docs"
+          >
+            <FileText size={12} className="text-blue-400" />
+            <span className="hidden sm:inline">Xuất Docs</span>
+          </button>
+
+          {/* Quick Undo Last Action on Header */}
+          <button
+            onClick={handleUndoLastAction}
+            className="px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs flex items-center gap-1.5 transition shadow-sm"
+            title="Hoàn tác thao tác thêm/xoá dữ liệu vừa thực hiện"
+          >
+            <RotateCcw size={12} className="text-amber-400" />
+            <span className="hidden sm:inline">Hoàn Tác Lệnh</span>
+          </button>
+        </div>
       </div>
 
       {/* Undo / Notification Toast Bar */}
@@ -1589,6 +1765,13 @@ export function HaevyAIHubView({
                       <span>Haevy AI Agent</span>
                     </div>
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleExportMessageToDocs(msg)}
+                        className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-blue-400 transition"
+                        title="Xuất phản hồi này sang Google Docs"
+                      >
+                        <FileText size={13} />
+                      </button>
                       <button
                         onClick={() => handleCopyText(msg.id, msg.text)}
                         className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition"
@@ -2523,6 +2706,26 @@ export function HaevyAIHubView({
           </div>
         </div>
       )}
+
+      {/* Google Docs Export Modal */}
+      <GoogleDocsExportModal
+        isOpen={isDocsModalOpen}
+        onClose={() => setIsDocsModalOpen(false)}
+        options={docsExportOptions}
+      />
+
+      {/* Model Context Protocol (MCP) Interface Modal */}
+      <HaevyMCPProtocolModal
+        isOpen={isMCPModalOpen}
+        onClose={() => {
+          setIsMCPModalOpen(false);
+          setMcpSession(getStoredMCPSession());
+        }}
+        onRunChatPrompt={(prompt) => {
+          setInputMessage(prompt);
+          handleSendMessage(prompt);
+        }}
+      />
     </div>
   );
 }

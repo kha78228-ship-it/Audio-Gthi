@@ -21,7 +21,8 @@ import {
   Search,
   Filter,
   X,
-  Play
+  Play,
+  GraduationCap
 } from 'lucide-react';
 import {
   HAEVY_ECOSYSTEM_MODES_INFO,
@@ -61,6 +62,7 @@ export const HaevyEcosystemManager: React.FC<HaevyEcosystemManagerProps> = ({
       case 'game_arena': return Trophy;
       case 'zen': return Sparkles;
       case 'study': return BookOpen;
+      case 'edu': return GraduationCap;
       case 'account': return ShieldCheck;
       case 'community': return Users;
       default: return Compass;
@@ -108,8 +110,8 @@ export const HaevyEcosystemManager: React.FC<HaevyEcosystemManagerProps> = ({
             </div>
           </div>
 
-          {/* 6 Key Metric Badges */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+          {/* 7 Key Metric Badges */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
             <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col justify-between">
               <div className="flex items-center justify-between text-amber-400">
                 <TreePine size={16} />
@@ -167,6 +169,24 @@ export const HaevyEcosystemManager: React.FC<HaevyEcosystemManagerProps> = ({
               </div>
             </div>
 
+            {/* Edu STEM Metric */}
+            <div 
+              onClick={() => onSelectMode && onSelectMode('edu')}
+              className="p-3 rounded-2xl bg-teal-500/10 border border-teal-500/25 flex flex-col justify-between cursor-pointer hover:border-teal-400 transition"
+              title="Nhấn để mở Haevy Edu"
+            >
+              <div className="flex items-center justify-between text-teal-400">
+                <GraduationCap size={16} />
+                <span className="text-[10px] uppercase tracking-wider font-bold">Edu STEM</span>
+              </div>
+              <div className="mt-2">
+                <div className="text-sm font-black text-teal-300">
+                  {snapshot.eduStreakDays || 1}d • {snapshot.eduTotalXp || 120} XP
+                </div>
+                <div className="text-[10px] text-zinc-400 truncate">{snapshot.eduNotesCount || 0} ghi chép • Casio</div>
+              </div>
+            </div>
+
             <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex flex-col justify-between">
               <div className="flex items-center justify-between text-indigo-400">
                 <ShieldCheck size={16} />
@@ -190,7 +210,7 @@ export const HaevyEcosystemManager: React.FC<HaevyEcosystemManagerProps> = ({
           </h4>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
           <button
             onClick={() => onOpenQuickAdd('family')}
             className="p-3 rounded-2xl bg-zinc-900/90 hover:bg-zinc-800/90 border border-amber-500/30 hover:border-amber-400 text-left transition group shadow-md"
@@ -245,6 +265,26 @@ export const HaevyEcosystemManager: React.FC<HaevyEcosystemManagerProps> = ({
               + Bạn Bè Mới
             </div>
             <div className="text-[10px] text-zinc-400 mt-0.5">Haevy Message & kết nối tộc</div>
+          </button>
+
+          <button
+            onClick={() => {
+              if (onSendPrompt) {
+                onSendPrompt('Lưu vào sổ tay Edu: Bản chất nguyên lý First Principles và mô phỏng thực nghiệm.');
+              } else if (onSelectMode) {
+                onSelectMode('edu');
+              }
+            }}
+            className="p-3 rounded-2xl bg-zinc-900/90 hover:bg-zinc-800/90 border border-teal-500/30 hover:border-teal-400 text-left transition group shadow-md"
+          >
+            <div className="flex items-center justify-between text-teal-400 mb-1.5">
+              <GraduationCap size={18} />
+              <Plus size={15} className="group-hover:rotate-90 transition-transform text-zinc-400" />
+            </div>
+            <div className="text-xs font-bold text-white group-hover:text-teal-200 transition-colors">
+              + Sổ Tay Edu STEM
+            </div>
+            <div className="text-[10px] text-zinc-400 mt-0.5">First Principles & Casio 880</div>
           </button>
         </div>
       </div>

@@ -22,6 +22,7 @@ import {
   User as UserIcon,
   Layers,
   Compass,
+  FileText,
   Headphones,
   X,
   Sparkles,
@@ -34,6 +35,7 @@ import {
   Activity,
   UserCheck,
   Trophy,
+  Award,
   Gamepad2,
   Mic,
   Zap,
@@ -58,14 +60,19 @@ import {
   Orbit,
   Tv,
   ShoppingBag,
+  Gem,
   SlidersHorizontal,
   Moon,
   GraduationCap,
   FlaskConical,
-  Video
+  Video,
+  Timer,
+  MapPin,
+  PenLine
 } from 'lucide-react';
 import { Track, ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { calculateLevelFromExp } from '../data/levelMilestones';
 import { useModeBadges } from '../context/ModeBadgeContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -78,6 +85,8 @@ interface BottomTaskbarProps {
   onOpenModesSlider?: () => void;
   activeTab: ActiveTab;
   onSelectTab: (tab: ActiveTab) => void;
+  spaceSubTab?: 'portal' | 'canvas' | 'mascot' | 'magic_ar' | 'morning_dashboard';
+  onSelectSpaceSubTab?: (subTab: 'portal' | 'canvas' | 'mascot' | 'magic_ar' | 'morning_dashboard') => void;
   messageSubTab?: 'chat' | 'feed' | 'friends';
   onSelectMessageSubTab?: (subTab: 'chat' | 'feed' | 'friends') => void;
   coupleSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
@@ -90,8 +99,8 @@ interface BottomTaskbarProps {
   onSelectGamesSubTab?: (subTab: HaevyGamesSubTab) => void;
   studioSubTab?: 'page1' | 'page2' | 'page3';
   onSelectStudioSubTab?: (subTab: 'page1' | 'page2' | 'page3') => void;
-  vipSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
-  onSelectVipSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
+  vipSubTab?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6';
+  onSelectVipSubTab?: (subTab: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => void;
   haevyAISubTab?: 'overview' | 'chat' | 'updates' | 'troubleshoot' | 'modes';
   onSelectHaevyAISubTab?: (subTab: 'overview' | 'chat' | 'updates' | 'troubleshoot' | 'modes') => void;
   spiritualSubTab?: 'tarot' | 'tuvi' | 'astrology' | 'soundscapes' | 'crystal_oracle' | 'couple_spiritual';
@@ -100,8 +109,10 @@ interface BottomTaskbarProps {
   onSelectFamilyTreeSubTab?: (subTab: 'tree' | 'records' | 'anniversaries' | 'ancestors') => void;
   haevyLiteSubTab?: 'shop' | 'customize' | 'topup_and_ads';
   onSelectHaevyLiteSubTab?: (subTab: 'shop' | 'customize' | 'topup_and_ads') => void;
-  eduSubTab?: 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz';
-  onSelectEduSubTab?: (subTab: 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz') => void;
+  profileSubTab?: 'posts' | 'about' | 'audio' | 'media' | 'security' | 'transactions' | 'support';
+  onSelectProfileSubTab?: (subTab: 'posts' | 'about' | 'audio' | 'media' | 'security' | 'transactions' | 'support') => void;
+  eduSubTab?: 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam';
+  onSelectEduSubTab?: (subTab: 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam') => void;
   currentTrack: Track | null;
   isPlaying: boolean;
   progress: number;
@@ -134,6 +145,8 @@ export function BottomTaskbar({
   onOpenModesSlider,
   activeTab,
   onSelectTab,
+  spaceSubTab = 'portal',
+  onSelectSpaceSubTab,
   messageSubTab = 'chat',
   onSelectMessageSubTab,
   coupleSubTab = 'page1',
@@ -156,6 +169,8 @@ export function BottomTaskbar({
   onSelectFamilyTreeSubTab,
   haevyLiteSubTab = 'shop',
   onSelectHaevyLiteSubTab,
+  profileSubTab = 'posts',
+  onSelectProfileSubTab,
   eduSubTab = 'assistant',
   onSelectEduSubTab,
   currentTrack,
@@ -183,16 +198,20 @@ export function BottomTaskbar({
   onToggleRepeat,
   onOpenSmartShuffleModal,
 }: BottomTaskbarProps) {
-  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const { 
+    user, 
+    isAdmin, 
+    isSuperAdmin,
+    levelExp = 0,
+    unclaimedLevelRewardsCount = 0,
+    setIsLevelModalOpen
+  } = useAuth();
+
+  const levelState = calculateLevelFromExp(levelExp);
   const { getBadgeForMode, getBadgeForSubTab, markModeAsViewed, totalBadgesCount } = useModeBadges();
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [isPlayerStripCollapsed, setIsPlayerStripCollapsed] = useState(false);
-
-  // If in profile mode, do not render audio taskbar
-  if (currentMode === 'profile') {
-    return null;
-  }
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return '0:00';
@@ -275,6 +294,7 @@ export function BottomTaskbar({
         { id: 'page3', label: 'Nạp Xu', icon: Coins, isModeSubTab: true },
         { id: 'page4', label: 'Tặng Bạn', icon: Gift, isModeSubTab: true },
         { id: 'page5', label: 'AI VIP', icon: BrainCircuit, isModeSubTab: true },
+        { id: 'page6', label: 'Thượng Lưu', icon: Gem, isModeSubTab: true },
       ];
     }
 
@@ -404,7 +424,11 @@ export function BottomTaskbar({
       case 'morning':
       case 'space':
         return [
-          { id: 'morning', label: 'Haevy Space 🌌', icon: Sparkles, isModeSubTab: false },
+          { id: 'morning_dashboard', label: 'Bảng Buổi Sáng ☀️', icon: Sun, badge: 'Mới', isModeSubTab: true },
+          { id: 'portal', label: 'Cổng 3D 🌌', icon: Sparkles, isModeSubTab: true },
+          { id: 'canvas', label: 'Vẽ 3D ✍️', icon: PenLine, isModeSubTab: true },
+          { id: 'mascot', label: 'Linh Vật 🐲', icon: Flame, isModeSubTab: true },
+          { id: 'magic_ar', label: 'Phép Thuật 🧙‍♂️', icon: Zap, isModeSubTab: true },
         ];
       case 'haevy_ai':
         return [
@@ -437,11 +461,35 @@ export function BottomTaskbar({
         ];
       case 'edu':
         return [
-          { id: 'assistant', label: 'AI Gia Sư 🤖', icon: BrainCircuit, isModeSubTab: true },
-          { id: 'labs', label: 'Lab Ảo 🔬', icon: FlaskConical, isModeSubTab: true },
-          { id: 'roadmap', label: 'Lộ Trình 📚', icon: BookOpen, isModeSubTab: true },
-          { id: 'quiz', label: 'Quiz Nhanh 🎯', icon: Zap, isModeSubTab: true },
-          { id: 'video', label: 'Video 🎬', icon: Video, isModeSubTab: true },
+          { id: 'assistant', label: 'AI Gia Sư', icon: BrainCircuit, isModeSubTab: true },
+          { id: 'exam', label: 'Luyện Thi', icon: Timer, badge: '2027', isModeSubTab: true },
+          { id: 'labs', label: 'Lab Ảo', icon: FlaskConical, badge: '11+', isModeSubTab: true },
+          { id: 'tools', label: 'Tiện Ích', icon: Calculator, badge: 'fx-880', isModeSubTab: true },
+          { id: 'roadmap', label: 'Lộ Trình', icon: Compass, isModeSubTab: true },
+          { id: 'notebook', label: 'Sổ Tay', icon: FileText, isModeSubTab: true },
+          { id: 'quiz', label: 'Quiz', icon: Zap, isModeSubTab: true },
+        ];
+      case 'maps':
+        return [
+          { id: 'all', label: 'Tất Cả 📍', icon: MapPin, isModeSubTab: true },
+          { id: 'couple', label: 'Bạn Đời 💖', icon: Heart, isModeSubTab: true },
+          { id: 'family', label: 'Gia Đình 🏡', icon: Home, isModeSubTab: true },
+          { id: 'zones', label: 'Vùng An Toàn 🛡️', icon: ShieldCheck, isModeSubTab: true },
+        ];
+      case 'profile':
+        return [
+          { id: 'posts', label: 'Bài Đăng', icon: FileText, isModeSubTab: true },
+          { id: 'about', label: 'Hồ Sơ & Bio', icon: UserIcon, isModeSubTab: true },
+          { 
+            id: 'level', 
+            label: `Cấp LV.${levelState.currentLevel}`, 
+            icon: Award, 
+            isModeSubTab: true, 
+            badge: unclaimedLevelRewardsCount > 0 ? `+${unclaimedLevelRewardsCount}` : undefined 
+          },
+          { id: 'security', label: 'Bảo Mật', icon: ShieldCheck, badge: '6/6', isModeSubTab: true },
+          { id: 'transactions', label: 'Điểm & Xu', icon: Coins, isModeSubTab: true },
+          { id: 'media', label: 'Kho Media', icon: ImageIcon, isModeSubTab: true },
         ];
       default:
         return [
@@ -464,7 +512,7 @@ export function BottomTaskbar({
     if (activeTab === 'vip' || activeTab === 'topup') {
       if (item.isModeSubTab) {
         if (onSelectVipSubTab) {
-          onSelectVipSubTab(item.id as 'page1' | 'page2' | 'page3' | 'page4' | 'page5');
+          onSelectVipSubTab(item.id as 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6');
         }
       } else {
         onSelectTab(item.id as ActiveTab);
@@ -564,6 +612,28 @@ export function BottomTaskbar({
         onSelectTab('edu' as any);
         if (onSelectEduSubTab) {
           onSelectEduSubTab(item.id as any);
+        }
+      } else {
+        onSelectTab(item.id as ActiveTab);
+      }
+    } else if (currentMode === 'profile') {
+      if (item.id === 'level') {
+        setIsLevelModalOpen(true);
+        return;
+      }
+      if (item.isModeSubTab) {
+        onSelectTab('profile' as any);
+        if (onSelectProfileSubTab) {
+          onSelectProfileSubTab(item.id as any);
+        }
+      } else {
+        onSelectTab(item.id as ActiveTab);
+      }
+    } else if (currentMode === 'space' || currentMode === 'morning') {
+      if (item.isModeSubTab) {
+        onSelectTab('space' as any);
+        if (onSelectSpaceSubTab) {
+          onSelectSpaceSubTab(item.id as any);
         }
       } else {
         onSelectTab(item.id as ActiveTab);
@@ -873,7 +943,7 @@ export function BottomTaskbar({
       )}
 
       {/* Main Consolidated Navigation Taskbar (Moved Down from Top) */}
-      <div className="max-w-2xl mx-auto px-2 sm:px-6 py-2 flex items-center justify-around gap-1.5 sm:gap-2">
+      <div className="max-w-4xl mx-auto px-1.5 sm:px-6 py-2 flex items-center justify-around gap-1 sm:gap-2 overflow-x-auto no-scrollbar touch-pan-x">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = (activeTab === 'vip' || activeTab === 'topup')
@@ -900,6 +970,10 @@ export function BottomTaskbar({
             ? activeTab === 'haevy_lite' && (haevyLiteSubTab === item.id || (!haevyLiteSubTab && item.id === 'shop'))
             : currentMode === 'edu'
             ? activeTab === 'edu' && (eduSubTab === item.id || (!eduSubTab && item.id === 'assistant'))
+            : currentMode === 'profile'
+            ? activeTab === 'profile' && (profileSubTab === item.id || (!profileSubTab && item.id === 'posts'))
+            : (currentMode === 'space' || currentMode === 'morning')
+            ? (spaceSubTab === item.id || (!spaceSubTab && item.id === 'portal'))
             : activeTab === item.id;
 
           // Special Circular Plus Button for Finance "Thêm Chi Tiêu"
@@ -933,10 +1007,14 @@ export function BottomTaskbar({
               id={`taskbar-tab-${item.id}`}
               type="button"
               onClick={() => handleTabClick(item)}
-              className={`relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2 px-2.5 sm:px-4 rounded-2xl transition-all cursor-pointer min-w-0 flex-1 ${
+              className={`relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-2 sm:px-3.5 rounded-2xl transition-all cursor-pointer min-w-0 shrink-0 sm:shrink sm:flex-1 ${
                 isActive
                   ? currentMode === 'finance'
                     ? 'bg-emerald-500/20 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 dark:border-emerald-500/50 font-black shadow-lg shadow-emerald-500/10 scale-[1.02]'
+                    : currentMode === 'edu'
+                    ? 'bg-emerald-500/20 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 dark:border-emerald-500/50 font-black shadow-lg shadow-emerald-500/10 scale-[1.02]'
+                    : currentMode === 'profile'
+                    ? 'bg-blue-500/20 dark:bg-blue-500/20 text-blue-800 dark:text-blue-300 border border-blue-500/40 dark:border-blue-500/50 font-black shadow-lg shadow-blue-500/10 scale-[1.02]'
                     : currentMode === 'couple'
                     ? 'bg-rose-500/20 dark:bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/40 dark:border-rose-500/50 font-black shadow-lg shadow-rose-500/10 scale-[1.02]'
                     : currentMode === 'studio'
@@ -960,6 +1038,10 @@ export function BottomTaskbar({
                 <span className={`absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-1 rounded-full ${
                   currentMode === 'finance'
                     ? 'bg-emerald-400 shadow-[0_0_10px_#10b981]'
+                    : currentMode === 'edu'
+                    ? 'bg-emerald-400 shadow-[0_0_10px_#10b981]'
+                    : currentMode === 'profile'
+                    ? 'bg-blue-400 shadow-[0_0_10px_#3b82f6]'
                     : currentMode === 'couple'
                     ? 'bg-rose-400 shadow-[0_0_10px_#f43f5e]'
                     : currentMode === 'studio'
@@ -978,11 +1060,13 @@ export function BottomTaskbar({
 
               <div className="relative">
                 <Icon 
-                  size={17} 
+                  size={16} 
                   className={
                     isActive 
                       ? currentMode === 'finance' 
                         ? 'text-emerald-400' 
+                        : currentMode === 'edu'
+                        ? 'text-emerald-400'
                         : currentMode === 'couple' 
                         ? 'text-rose-400' 
                         : currentMode === 'studio'
@@ -998,12 +1082,18 @@ export function BottomTaskbar({
                   } 
                 />
                 {'badge' in item && item.badge !== undefined && (
-                  <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white font-black text-[9px] px-1.5 py-0.2 rounded-full min-w-[15px] text-center leading-tight shadow-md animate-pulse">
+                  <span className="absolute -top-1.5 -right-2.5 bg-emerald-500 text-zinc-950 font-black text-[9px] px-1 py-0.2 rounded-full min-w-[14px] text-center leading-tight shadow-md">
                     {item.badge}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap truncate max-w-full">
+              <span className={`text-[10px] sm:text-[11px] font-bold tracking-tight whitespace-nowrap ${
+                isActive 
+                  ? currentMode === 'finance' || currentMode === 'edu'
+                    ? 'text-emerald-300 font-black' 
+                    : 'text-white'
+                  : 'text-zinc-400'
+              }`}>
                 {item.label}
               </span>
             </button>

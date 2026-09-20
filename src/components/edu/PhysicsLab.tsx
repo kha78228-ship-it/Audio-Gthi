@@ -32,13 +32,20 @@ interface PhysicsLabProps {
   onSelectExperiment?: (id: PhysicsExperimentId) => void;
   onOpenVideoLesson?: (topic: string) => void;
   onOpenQuickQuiz?: (subject: 'physics', experimentId?: string) => void;
+  onRecordActivity?: (params: {
+    type: 'lab_run' | 'lab_adjust' | 'lab_export' | 'lab_switch';
+    title: string;
+    xpAmount?: number;
+    category?: 'lab';
+  }) => void;
 }
 
 export function PhysicsLab({
   initialExperiment = 'pendulum',
   onSelectExperiment,
   onOpenVideoLesson,
-  onOpenQuickQuiz
+  onOpenQuickQuiz,
+  onRecordActivity
 }: PhysicsLabProps) {
   const [activeExp, setActiveExp] = useState<PhysicsExperimentId>(initialExperiment);
   const [gradeFilter, setGradeFilter] = useState<'all' | 10 | 11 | 12>('all');
@@ -52,6 +59,13 @@ export function PhysicsLab({
   const handleSwitchExp = (id: PhysicsExperimentId) => {
     setActiveExp(id);
     onSelectExperiment?.(id);
+    const expObj = allExperiments.find(e => e.id === id);
+    onRecordActivity?.({
+      type: 'lab_switch',
+      title: `Thực nghiệm Vật lý: ${expObj?.label || id}`,
+      xpAmount: 15,
+      category: 'lab'
+    });
   };
 
   const allExperiments = [

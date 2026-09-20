@@ -220,6 +220,30 @@ export const HAEVY_ECOSYSTEM_MODES_INFO: EcosystemModeInfo[] = [
     ]
   },
   {
+    id: 'edu',
+    name: 'Haevy Edu (STEM & Học Sâu)',
+    tagline: 'Phòng Thí Nghiệm STEM Ảo, Casio fx-880 BTG & Tư Duy First Principles',
+    category: 'Giáo Dục & Khoa Học',
+    badge: 'STEM & Casio 880',
+    color: 'from-emerald-500 via-teal-500 to-cyan-500',
+    description: 'Hệ sinh thái học tập khoa học chuyên sâu: Phòng Lab mô phỏng STEM tương tác (Con lắc đơn, Dung dịch điện ly, Mạch điện Ohm, Khung Punnett di truyền), máy tính khoa học Casio fx-880 BTG chuẩn mực, lộ trình First Principles bóc tách nguyên lý gốc rễ tránh học vẹt, sổ tay nghiên cứu, luyện thi cấp tốc và hệ thống vinh danh XP & Streak.',
+    capabilities: [
+      'Vận hành phòng thí nghiệm ảo STEM (Vật lý, Hóa học, Sinh học)',
+      'Giả lập máy tính khoa học Casio fx-880 BTG với bộ nhớ biến A-F, x, y, z',
+      'Phân tích bản chất theo chuỗi tư duy First Principles không học vẹt',
+      'Thêm, sửa, xoá ghi chú nghiên cứu vào Sổ tay khoa học',
+      'Đồng bộ dữ liệu học tập thời gian thực với toàn bộ Hệ sinh thái Haevy AI'
+    ],
+    supportedActions: ['add_edu_note', 'delete_edu_note', 'open_edu_lab', 'edu_study_plan', 'edu_stats'],
+    keyStatsLabel: 'Ghi chép & Lab STEM',
+    sampleQueries: [
+      'Ghi chú vào sổ tay: Bản chất triệt tiêu khối lượng ở con lắc đơn',
+      'Mở phòng thí nghiệm ảo mạch điện định luật Ohm',
+      'Xem điểm XP và chuỗi streak học tập Edu',
+      'Lên kế hoạch ôn tập First Principles 3 ngày tới'
+    ]
+  },
+  {
     id: 'study',
     name: 'Haevy AI Study (Học Sâu)',
     tagline: 'Phân Tích Nguyên Lý & Logic Chuyên Sâu Tránh Học Vẹt',
@@ -303,6 +327,11 @@ export interface EcosystemLiveSnapshot {
   coupleMemoriesCount: number;
   messagesCount: number;
   studyDocsCount: number;
+  eduStreakDays: number;
+  eduTotalXp: number;
+  eduLevelTitle: string;
+  eduNotesCount: number;
+  eduCalculationsCount: number;
 }
 
 export function getEcosystemLiveSnapshot(): EcosystemLiveSnapshot {
@@ -320,7 +349,12 @@ export function getEcosystemLiveSnapshot(): EcosystemLiveSnapshot {
       couplePartnerName: 'Em Yêu',
       coupleMemoriesCount: 0,
       messagesCount: 0,
-      studyDocsCount: 0
+      studyDocsCount: 0,
+      eduStreakDays: 0,
+      eduTotalXp: 0,
+      eduLevelTitle: 'Tập Sự Khám Phá',
+      eduNotesCount: 0,
+      eduCalculationsCount: 0
     };
   }
 
@@ -418,6 +452,40 @@ export function getEcosystemLiveSnapshot(): EcosystemLiveSnapshot {
     }
   } catch (e) {}
 
+  // 7. Haevy Edu (Student Profile & Gamification)
+  let eduStreakDays = 1;
+  let eduTotalXp = 120;
+  let eduLevelTitle = 'Tập Sự Khám Phá';
+  try {
+    const rawEduProfile = localStorage.getItem('haevy_edu_student_profile_v2');
+    if (rawEduProfile) {
+      const parsed = JSON.parse(rawEduProfile);
+      if (typeof parsed?.streakDays === 'number') eduStreakDays = parsed.streakDays;
+      if (typeof parsed?.totalXp === 'number') eduTotalXp = parsed.totalXp;
+      if (parsed?.levelTitle) eduLevelTitle = parsed.levelTitle;
+    }
+  } catch (e) {}
+
+  // 8. Haevy Edu Research Notebook notes
+  let eduNotesCount = 3;
+  try {
+    const rawNotes = localStorage.getItem('haevy_edu_notebook_notes');
+    if (rawNotes) {
+      const parsed = JSON.parse(rawNotes);
+      if (Array.isArray(parsed)) eduNotesCount = parsed.length;
+    }
+  } catch (e) {}
+
+  // 9. Casio fx-880 BTG calculations
+  let eduCalculationsCount = 0;
+  try {
+    const rawHistory = localStorage.getItem('haevy_casio880_history');
+    if (rawHistory) {
+      const parsed = JSON.parse(rawHistory);
+      if (Array.isArray(parsed)) eduCalculationsCount = parsed.length;
+    }
+  } catch (e) {}
+
   return {
     familyTreeCount,
     familyTreeName,
@@ -431,7 +499,12 @@ export function getEcosystemLiveSnapshot(): EcosystemLiveSnapshot {
     couplePartnerName,
     coupleMemoriesCount,
     messagesCount,
-    studyDocsCount
+    studyDocsCount,
+    eduStreakDays,
+    eduTotalXp,
+    eduLevelTitle,
+    eduNotesCount,
+    eduCalculationsCount
   };
 }
 
@@ -1141,6 +1214,174 @@ export function executeDeleteFriend(friendNameOrId: string): EcosystemActionResu
 }
 
 // ==============================================================================
+// CRUD EXECUTORS FOR HAEVY EDU (STEM & RESEARCH NOTEBOOK)
+// ==============================================================================
+export function executeAddEduNote(payload: {
+  title: string;
+  subject?: 'physics' | 'chemistry' | 'biology' | 'math' | 'general';
+  tags?: string[];
+  firstPrincipleEssence?: string;
+  content: string;
+  source?: 'ai_assistant' | 'lab_experiment' | 'roadmap' | 'quiz' | 'custom';
+}): EcosystemActionResult {
+  try {
+    const raw = localStorage.getItem('haevy_edu_notebook_notes') || '[]';
+    let currentNotes: any[] = [];
+    try {
+      currentNotes = JSON.parse(raw);
+      if (!Array.isArray(currentNotes)) currentNotes = [];
+    } catch {
+      currentNotes = [];
+    }
+    const backup = [...currentNotes];
+
+    const newNote = {
+      id: `note_${Date.now()}`,
+      title: payload.title.trim(),
+      subject: payload.subject || 'physics',
+      tags: Array.isArray(payload.tags) && payload.tags.length > 0 ? payload.tags : ['First Principles', 'Bản chất', 'Haevy AI'],
+      firstPrincipleEssence: payload.firstPrincipleEssence || 'Bóc tách từ nguyên lý gốc rễ, loại trừ học vẹt và định kiến cảm tính.',
+      content: payload.content.trim(),
+      source: payload.source || 'ai_assistant',
+      createdAt: new Date().toISOString()
+    };
+
+    const updated = [newNote, ...currentNotes];
+    localStorage.setItem('haevy_edu_notebook_notes', JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('haevy_edu_notes_updated', { detail: { noteAdded: newNote } }));
+
+    const result: EcosystemActionResult = {
+      success: true,
+      actionType: 'add_edu_note',
+      targetMode: 'edu',
+      message: `Đã lưu ghi chú nghiên cứu "${newNote.title}" vào Sổ Tay Haevy Edu!`,
+      affectedCount: 1,
+      dataSummary: newNote,
+      undoData: {
+        actionType: 'restore_edu_notes',
+        targetMode: 'edu',
+        backupPayload: backup
+      }
+    };
+    lastExecutedAction = result;
+    return result;
+  } catch (err: any) {
+    return {
+      success: false,
+      actionType: 'add_edu_note',
+      targetMode: 'edu',
+      message: `Lỗi thêm ghi chú Edu: ${err?.message || 'Không xác định'}`,
+      affectedCount: 0
+    };
+  }
+}
+
+export function executeDeleteEduNote(noteIdOrTitle: string): EcosystemActionResult {
+  try {
+    const raw = localStorage.getItem('haevy_edu_notebook_notes') || '[]';
+    let currentNotes: any[] = [];
+    try {
+      currentNotes = JSON.parse(raw);
+      if (!Array.isArray(currentNotes)) currentNotes = [];
+    } catch {
+      currentNotes = [];
+    }
+    const backup = [...currentNotes];
+
+    const target = noteIdOrTitle.toLowerCase().trim();
+    const deleted = currentNotes.filter(n => n.id === target || n.title.toLowerCase().includes(target));
+    const remaining = currentNotes.filter(n => !(n.id === target || n.title.toLowerCase().includes(target)));
+
+    if (deleted.length === 0) {
+      return {
+        success: false,
+        actionType: 'delete_edu_note',
+        targetMode: 'edu',
+        message: `Không tìm thấy ghi chú "${noteIdOrTitle}" trong Sổ tay Edu để xoá.`,
+        affectedCount: 0
+      };
+    }
+
+    localStorage.setItem('haevy_edu_notebook_notes', JSON.stringify(remaining));
+    window.dispatchEvent(new CustomEvent('haevy_edu_notes_updated', { detail: { deleted } }));
+
+    const result: EcosystemActionResult = {
+      success: true,
+      actionType: 'delete_edu_note',
+      targetMode: 'edu',
+      message: `Đã xoá ${deleted.length} ghi chú khỏi Sổ Tay Edu: ${deleted.map(n => n.title).join(', ')}.`,
+      affectedCount: deleted.length,
+      dataSummary: { deleted },
+      undoData: {
+        actionType: 'restore_edu_notes',
+        targetMode: 'edu',
+        backupPayload: backup
+      }
+    };
+    lastExecutedAction = result;
+    return result;
+  } catch (err: any) {
+    return {
+      success: false,
+      actionType: 'delete_edu_note',
+      targetMode: 'edu',
+      message: `Lỗi xoá ghi chú Edu: ${err?.message || 'Không xác định'}`,
+      affectedCount: 0
+    };
+  }
+}
+
+export function executeAddEduCalculation(payload: {
+  expression: string;
+  result: string;
+  decimalResult?: string;
+  mode?: string;
+}): EcosystemActionResult {
+  try {
+    const raw = localStorage.getItem('haevy_casio880_history') || '[]';
+    let currentHist: any[] = [];
+    try {
+      currentHist = JSON.parse(raw);
+      if (!Array.isArray(currentHist)) currentHist = [];
+    } catch {
+      currentHist = [];
+    }
+
+    const newCalc = {
+      id: `calc_${Date.now()}`,
+      expression: payload.expression,
+      result: payload.result,
+      decimalResult: payload.decimalResult || payload.result,
+      mode: payload.mode || 'calculate',
+      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    const updated = [newCalc, ...currentHist.slice(0, 49)];
+    localStorage.setItem('haevy_casio880_history', JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('haevy_casio880_updated', { detail: { calcAdded: newCalc } }));
+
+    const result: EcosystemActionResult = {
+      success: true,
+      actionType: 'add_edu_calculation',
+      targetMode: 'edu',
+      message: `Đã lưu phép tính "${newCalc.expression} = ${newCalc.result}" vào Máy tính Casio fx-880 BTG!`,
+      affectedCount: 1,
+      dataSummary: newCalc
+    };
+    lastExecutedAction = result;
+    return result;
+  } catch (err: any) {
+    return {
+      success: false,
+      actionType: 'add_edu_calculation',
+      targetMode: 'edu',
+      message: `Lỗi lưu phép tính: ${err?.message || 'Không xác định'}`,
+      affectedCount: 0
+    };
+  }
+}
+
+// ==============================================================================
 // UNDO SYSTEM
 // ==============================================================================
 export function executeUndoLastAction(): EcosystemActionResult {
@@ -1172,6 +1413,9 @@ export function executeUndoLastAction(): EcosystemActionResult {
     } else if (actionType === 'restore_friends') {
       localStorage.setItem('haevy_messages_friends', JSON.stringify(backupPayload));
       window.dispatchEvent(new CustomEvent('haevy_messages_updated', { detail: { restored: true } }));
+    } else if (actionType === 'restore_edu_notes') {
+      localStorage.setItem('haevy_edu_notebook_notes', JSON.stringify(backupPayload));
+      window.dispatchEvent(new CustomEvent('haevy_edu_notes_updated', { detail: { restored: true } }));
     }
 
     lastExecutedAction = null;
@@ -1444,7 +1688,68 @@ export function parseEcosystemNaturalCommand(query: string): ParsedEcosystemInte
     };
   }
 
-  // 10. NAVIGATION OR MODE INFO
+  // 10. HAEVY EDU: ADD NOTE TO RESEARCH NOTEBOOK
+  if (
+    (q.includes('thêm') || q.includes('lưu') || q.includes('ghi lại') || q.includes('viết')) &&
+    (q.includes('ghi chú') || q.includes('sổ tay') || q.includes('bài học') || q.includes('nghiên cứu') || q.includes('edu'))
+  ) {
+    let noteTitle = 'Ghi chép bản chất First Principles';
+    const match = query.match(/(?:ghi chú|về|tiêu đề:?)\s*[:"']?([^"'\n]+)/i);
+    if (match && match[1]) noteTitle = match[1].trim();
+
+    let subject: 'physics' | 'chemistry' | 'biology' | 'math' | 'general' = 'physics';
+    if (q.includes('hóa') || q.includes('chất') || q.includes('ion') || q.includes('axit') || q.includes('ph')) subject = 'chemistry';
+    else if (q.includes('sinh') || q.includes('dna') || q.includes('gen') || q.includes('men-đen')) subject = 'biology';
+    else if (q.includes('toán') || q.includes('đạo hàm') || q.includes('tích phân') || q.includes('ma trận')) subject = 'math';
+
+    return {
+      intent: 'add_edu_note',
+      targetMode: 'edu',
+      actionData: {
+        type: 'add_edu_note',
+        title: 'Lưu Ghi Chú Vào Sổ Tay Nghiên Cứu Haevy Edu',
+        noteTitle,
+        subject,
+        content: query,
+        firstPrincipleEssence: 'Bóc tách từ bản chất vật lý / hóa học / toán học nền tảng.'
+      },
+      confidence: 0.94
+    };
+  }
+
+  // 11. HAEVY EDU: STUDY PLAN OR STATS
+  if (
+    q.includes('kế hoạch học') || q.includes('lộ trình ôn') || q.includes('luyện thi') || q.includes('thời khóa biểu')
+  ) {
+    return {
+      intent: 'edu_study_plan',
+      targetMode: 'edu',
+      actionData: {
+        type: 'edu_study_plan',
+        title: 'Lộ Trình Ôn Luyện First Principles & STEM',
+        days: 5,
+        targetSubject: q.includes('hóa') ? 'chemistry' : q.includes('sinh') ? 'biology' : 'physics'
+      },
+      confidence: 0.92
+    };
+  }
+
+  // 12. HAEVY EDU: STATS (XP & STREAK)
+  if (
+    q.includes('điểm xp') || q.includes('chuỗi học') || q.includes('streak') || q.includes('tiến độ học') || q.includes('cấp độ edu')
+  ) {
+    return {
+      intent: 'edu_stats',
+      targetMode: 'edu',
+      actionData: {
+        type: 'edu_stats',
+        title: 'Báo Cáo Tiến Độ Học Tập STEM & XP'
+      },
+      confidence: 0.93
+    };
+  }
+
+  // 13. NAVIGATION OR MODE INFO
   for (const mode of HAEVY_ECOSYSTEM_MODES_INFO) {
     if (
       q.includes(mode.name.toLowerCase()) || 
@@ -1454,6 +1759,7 @@ export function parseEcosystemNaturalCommand(query: string): ParsedEcosystemInte
       (mode.id === 'finance' && (q.includes('tài chính') || q.includes('6 hũ') || q.includes('két sắt'))) ||
       (mode.id === 'spiritual' && (q.includes('tâm linh') || q.includes('tarot') || q.includes('tử vi'))) ||
       (mode.id === 'space' && (q.includes('3d') || q.includes('ar') || q.includes('không gian'))) ||
+      (mode.id === 'edu' && (q.includes('haevy edu') || q.includes('phòng lab') || q.includes('casio 880') || q.includes('first principles'))) ||
       (mode.id === 'study' && (q.includes('học sâu') || q.includes('phân tích tài liệu')))
     ) {
       if (q.includes('mở') || q.includes('chuyển sang') || q.includes('vào chế độ')) {

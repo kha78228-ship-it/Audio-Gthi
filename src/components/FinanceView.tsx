@@ -702,6 +702,7 @@ export function FinanceView({
                     <FinanceAnalyticsCharts
                       transactions={transactions}
                       categories={categories}
+                      budget={budget}
                       selectedMonth={selectedMonth}
                     />
                   </div>

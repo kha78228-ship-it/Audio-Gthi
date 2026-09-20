@@ -35,6 +35,8 @@ import {
 } from '../../utils/spiritualTextReader';
 import { spiritualAudio } from '../../utils/spiritualAudioSynthesizer';
 import { haptics } from '../../utils/haptics';
+import { GoogleDocsExportModal } from '../google/GoogleDocsExportModal';
+import { GoogleDocExportOptions } from '../../services/googleDocsService';
 
 const SACRED_TEXT_PRESETS = [
   {
@@ -144,6 +146,10 @@ export function SpiritualTextReaderModal({
   const [availableVoices, setAvailableVoices] = useState<SpiritualSpeechVoice[]>([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>('');
   const [isCopied, setIsCopied] = useState<boolean>(false);
+
+  // Google Docs Export State
+  const [isGoogleDocsModalOpen, setIsGoogleDocsModalOpen] = useState(false);
+  const [googleDocsExportOptions, setGoogleDocsExportOptions] = useState<GoogleDocExportOptions | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const activeSentenceRef = useRef<HTMLSpanElement | null>(null);
@@ -339,6 +345,20 @@ export function SpiritualTextReaderModal({
     URL.revokeObjectURL(url);
   };
 
+  const handleOpenGoogleDocsExport = () => {
+    haptics.impact('light');
+    setGoogleDocsExportOptions({
+      title: activeTitle || 'Văn Bản Tri Thức Tâm Linh - Haevy',
+      contentMarkdown: activeContent,
+      category: category,
+      categoryLabel: `Haevy Tâm Linh - ${category.toUpperCase()}`,
+      tags: ['HaevyTamLinh', category, 'TriThucHuyenHoc'],
+      summary: initialSubtitle || 'Trích xuất văn bản tâm linh và thông điệp vũ trụ từ Haevy Spiritual.',
+      sourceApp: 'haevy_spiritual'
+    });
+    setIsGoogleDocsModalOpen(true);
+  };
+
   const handleApplyCustomText = () => {
     if (!customInputDraft.trim()) return;
     haptics.success();
@@ -511,6 +531,17 @@ export function SpiritualTextReaderModal({
               title="Tải tệp văn bản (.md)"
             >
               <Download className="w-4 h-4" />
+            </button>
+
+            {/* Google Docs Export Button */}
+            <button
+              id="btn_export_docs_reading_modal"
+              onClick={handleOpenGoogleDocsExport}
+              className="p-2 rounded-xl bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-all flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+              title="Xuất sang Google Docs"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden sm:inline">Xuất Docs</span>
             </button>
 
             {/* Share Button if available */}
@@ -1105,6 +1136,13 @@ export function SpiritualTextReaderModal({
           )}
         </div>
       </div>
+
+      {/* Google Docs Export Modal */}
+      <GoogleDocsExportModal
+        isOpen={isGoogleDocsModalOpen}
+        onClose={() => setIsGoogleDocsModalOpen(false)}
+        options={googleDocsExportOptions}
+      />
     </div>
   );
 }

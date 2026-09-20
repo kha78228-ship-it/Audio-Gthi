@@ -13,11 +13,13 @@ import {
   Sparkles,
   Shuffle,
   Repeat,
-  Repeat1
+  Repeat1,
+  BookmarkPlus
 } from 'lucide-react';
 import { Track } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { ShuffleMode, RepeatMode } from '../services/smartShuffleService';
+import { audioBookmarkService } from '../services/audioBookmarkService';
 import { haptics } from '../utils/haptics';
 
 interface BottomPlayerBarProps {
@@ -314,6 +316,31 @@ export function BottomPlayerBar({
               ) : null}
             </button>
           )}
+
+          {/* Quick Bookmark button */}
+          <button
+            id="bottom-quick-bookmark-btn"
+            type="button"
+            onClick={() => {
+              haptics.light();
+              if (currentTrack) {
+                audioBookmarkService.add({
+                  trackId: currentTrack.id,
+                  trackTitle: currentTrack.title,
+                  trackArtist: currentTrack.artist,
+                  trackCoverUrl: currentTrack.coverUrl,
+                  timestamp: Math.floor(progress),
+                  label: `Mốc ${formatTime(progress)}`,
+                  color: 'amber',
+                });
+                onOpenFullPlayer();
+              }
+            }}
+            className="p-1.5 sm:p-2 rounded-xl text-xs font-semibold flex items-center gap-1 text-zinc-400 hover:text-amber-400 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-all cursor-pointer"
+            title="Lưu mốc thời gian này vào Bookmarks & Mở trình phát"
+          >
+            <BookmarkPlus size={15} className="text-amber-400" />
+          </button>
 
           <div className="hidden md:flex items-center gap-2">
             <button 

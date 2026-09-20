@@ -434,6 +434,94 @@ button, a, input[type="button"], input[type="submit"] {
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
   --sar: env(safe-area-inset-right, 0px);
+
+  /* HAEVY MOOD BACKGROUND ENGINE CSS VARIABLES */
+  --haevy-mood-accent: #f59e0b;
+  --haevy-mood-accent-rgb: 245, 158, 11;
+  --haevy-mood-accent-glow: rgba(245, 158, 11, 0.3);
+  --haevy-mood-base-bg: #090805;
+  --haevy-mood-surface: #131109;
+  --haevy-mood-badge-color: #fde68a;
+  --haevy-mood-badge-bg: rgba(245, 158, 11, 0.15);
+  --haevy-mood-mesh-orb1: rgba(245, 158, 11, 0.25);
+  --haevy-mood-mesh-orb2: rgba(217, 119, 6, 0.18);
+  --haevy-mood-mesh-orb3: rgba(14, 165, 233, 0.12);
+  --haevy-mood-intensity: 0.8;
+}
+
+/* ========================================================================= */
+/* HAEVY MOOD ATMOSPHERIC KEYFRAMES & UTILITIES                              */
+/* ========================================================================= */
+
+@keyframes raindropFall {
+  0% {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(105vh);
+    opacity: 0;
+  }
+}
+
+@keyframes twinkleStar {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes pulseSlow {
+  0%, 100% {
+    transform: scale(1) translateZ(0);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.08) translateZ(0);
+    opacity: 1;
+  }
+}
+
+.animate-raindrop {
+  animation: raindropFall linear infinite;
+  will-change: transform, opacity;
+}
+
+.animate-twinkle {
+  animation: twinkleStar ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 9s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Atmospheric Mood Utilities */
+.mood-accent-text {
+  color: var(--haevy-mood-accent) !important;
+}
+
+.mood-accent-bg {
+  background-color: var(--haevy-mood-accent) !important;
+}
+
+.mood-accent-border {
+  border-color: rgba(var(--haevy-mood-accent-rgb), 0.35) !important;
+}
+
+.mood-accent-glow {
+  box-shadow: 0 0 25px var(--haevy-mood-accent-glow) !important;
 }
 
 html {

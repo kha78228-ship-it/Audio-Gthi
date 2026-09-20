@@ -109,9 +109,13 @@ export function AudioPlayer({
   const { user, isVip, vipSettings } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
-  const [rightPanelTab, setRightPanelTab] = useState<'queue' | 'equalizer'>('queue');
+  const [rightPanelTab, setRightPanelTab] = useState<'queue' | 'equalizer' | 'bookmarks'>('queue');
   const [displayMode, setDisplayMode] = useState<'artwork' | 'visualizer'>('artwork');
   const [currentEqPreset, setCurrentEqPreset] = useState<EqualizerPresetKey>(webAudioEqualizer.getCurrentPreset());
+  const [activeTrackBookmarks, setActiveTrackBookmarks] = useState<AudioBookmark[]>([]);
+  const [allBookmarksCount, setAllBookmarksCount] = useState<number>(0);
+
+  const activeTrack = currentTrack || playlist[0];
 
   // Sync EQ preset state
   useEffect(() => {
@@ -120,6 +124,21 @@ export function AudioPlayer({
     });
     return () => unsubscribe();
   }, []);
+
+  // Sync audio bookmarks for active track and total count
+  useEffect(() => {
+    const updateBookmarks = () => {
+      if (activeTrack) {
+        setActiveTrackBookmarks(audioBookmarkService.getForTrack(activeTrack.id));
+      } else {
+        setActiveTrackBookmarks([]);
+      }
+      setAllBookmarksCount(audioBookmarkService.getAll().length);
+    };
+    updateBookmarks();
+    const unsubscribe = audioBookmarkService.subscribe(updateBookmarks);
+    return () => unsubscribe();
+  }, [activeTrack?.id]);
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return '0:00';
@@ -137,8 +156,6 @@ export function AudioPlayer({
     }
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
-
-  const activeTrack = currentTrack || playlist[0];
 
   const filteredPlaylist = playlist.filter((track) => {
     const matchesSearch =
@@ -417,19 +434,62 @@ export function AudioPlayer({
           )}
         </div>
 
-        {/* Progress Bar */}
+        {/* Progress Bar with Bookmark Markers */}
         <div className="mb-4 px-1">
-          <input
-            id="audio-progress-bar"
-            type="range"
-            min={0}
-            max={duration || 100}
-            value={progress}
-            onChange={(e) => onSeek(Number(e.target.value))}
-            className="w-full h-2 bg-zinc-800 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-          />
-          <div className="flex justify-between mt-2 text-xs text-zinc-500 font-medium font-mono">
+          <div className="relative">
+            <input
+              id="audio-progress-bar"
+              type="range"
+              min={0}
+              max={duration || 100}
+              value={progress}
+              onChange={(e) => onSeek(Number(e.target.value))}
+              className="w-full h-2 bg-zinc-800 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white relative z-10"
+            />
+            {/* Visual Bookmark Indicators on Timeline */}
+            {duration > 0 && activeTrackBookmarks.length > 0 && (
+              <div className="absolute inset-0 pointer-events-none z-20 flex items-center">
+                {activeTrackBookmarks.map((bm) => {
+                  const percent = Math.min(99.5, Math.max(0.5, (bm.timestamp / duration) * 100));
+                  return (
+                    <div
+                      key={bm.id}
+                      style={{ left: `${percent}%` }}
+                      className="absolute -translate-x-1/2 w-2 h-2.5 bg-amber-400 border border-black rounded-sm shadow-sm"
+                      title={`${bm.label} (${formatTime(bm.timestamp)})`}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center justify-between mt-2 text-xs text-zinc-500 font-medium font-mono">
             <span>{formatTime(progress)}</span>
+
+            <button
+              type="button"
+              id="player-quick-bookmark-btn"
+              onClick={() => {
+                if (activeTrack) {
+                  audioBookmarkService.add({
+                    trackId: activeTrack.id,
+                    trackTitle: activeTrack.title,
+                    trackArtist: activeTrack.artist,
+                    trackCoverUrl: activeTrack.coverUrl,
+                    timestamp: Math.floor(progress),
+                    label: `Mốc ${formatTime(progress)}`,
+                    color: 'amber',
+                  });
+                  setRightPanelTab('bookmarks');
+                }
+              }}
+              className="flex items-center gap-1.5 text-[11px] font-sans text-amber-400 hover:text-amber-300 font-semibold px-2 py-0.5 rounded-lg hover:bg-amber-500/10 transition-all cursor-pointer border border-transparent hover:border-amber-500/30"
+              title="Lưu mốc thời gian này vào danh sách Bookmarks"
+            >
+              <BookmarkPlus size={13} className="text-amber-400" />
+              <span>+ Đánh dấu mốc</span>
+            </button>
+
             <span>{formatTime(duration)}</span>
           </div>
         </div>
@@ -702,12 +762,39 @@ export function AudioPlayer({
                 DSP
               </span>
             </button>
+
+            <button
+              type="button"
+              id="player-tab-bookmarks-btn"
+              onClick={() => setRightPanelTab('bookmarks')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                rightPanelTab === 'bookmarks'
+                  ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 shadow-sm border border-amber-500/40'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Bookmark size={14} className={rightPanelTab === 'bookmarks' ? 'text-amber-400' : 'text-zinc-500'} />
+              <span>Bookmarks</span>
+              {activeTrackBookmarks.length > 0 ? (
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 font-mono px-1.5 py-0.2 rounded font-bold border border-amber-500/30">
+                  {activeTrackBookmarks.length}
+                </span>
+              ) : allBookmarksCount > 0 ? (
+                <span className="text-[10px] bg-zinc-900 text-zinc-400 px-1.5 py-0.2 rounded font-mono">
+                  {allBookmarksCount}
+                </span>
+              ) : null}
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
             {rightPanelTab === 'equalizer' ? (
               <span className="text-[11px] text-zinc-400 font-medium">
                 Real-time Web Audio
+              </span>
+            ) : rightPanelTab === 'bookmarks' ? (
+              <span className="text-xs text-amber-400/90 font-medium font-mono">
+                {activeTrackBookmarks.length} mốc bài này
               </span>
             ) : (
               <span className="text-xs text-zinc-500 font-medium font-mono">
@@ -717,7 +804,19 @@ export function AudioPlayer({
           </div>
         </div>
 
-        {rightPanelTab === 'equalizer' ? (
+        {rightPanelTab === 'bookmarks' ? (
+          /* Bookmarks View */
+          <AudioBookmarksTab
+            currentTrack={activeTrack}
+            playlist={playlist}
+            progress={progress}
+            duration={duration}
+            isPlaying={isPlaying}
+            onSeek={onSeek}
+            onSelectTrack={onSelectTrack}
+            onTogglePlay={onTogglePlay}
+          />
+        ) : rightPanelTab === 'equalizer' ? (
           /* Visual Equalizer View */
           <div className="flex-1 flex flex-col justify-start">
             <VisualEqualizer 

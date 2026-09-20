@@ -43,9 +43,11 @@ import {
   GitFork,
   Calendar,
   Eye,
-  Gamepad2
+  Gamepad2,
+  Gem
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useGiftEffect } from '../context/GiftEffectContext';
 import { 
   VipPackage, 
   PromoCode, 
@@ -61,6 +63,7 @@ import { VIP_PRIVILEGES_LIST, POINT_TOPUP_PACKAGES } from '../data';
 import { collection, query, orderBy, limit, getDocs, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { VipAiIntelligenceDashboard } from './VipAiIntelligenceDashboard';
+import { BillionaireLoungeView } from './vip/BillionaireLoungeView';
 
 interface VipTopupViewProps {
   onOpenAuth: () => void;
@@ -68,8 +71,8 @@ interface VipTopupViewProps {
   allTracks?: Track[];
   currentTrack?: Track;
   onOpenGiftShopModal?: (author?: any) => void;
-  activePage?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
-  onSelectPage?: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
+  activePage?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6';
+  onSelectPage?: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => void;
   onNavigateMode?: (mode: string, params?: any) => void;
 }
 
@@ -175,12 +178,35 @@ export const VIP_PACKAGES: VipPackage[] = [
       'Tặng trọn gói kho giao diện Royal, Cyber Neon & Luxury',
       'Thưởng ngay +12.000 Xu Haevy cực khủng'
     ]
+  },
+  {
+    id: 'centurion_sovereign',
+    name: 'Gói Siêu Giàu Centurion (Vĩnh Viễn)',
+    durationDays: 36500,
+    priceVnd: 999000,
+    originalPriceVnd: 9999000,
+    bonusPoints: 100000,
+    tier: 'vip',
+    isBestValue: true,
+    description: 'Đặc quyền tối cao của giới siêu giàu - Sở hữu Thẻ Đen Centurion Titanium trọn đời & Quản gia AI riêng 24/7',
+    features: [
+      'Đặc quyền Thẻ Đen Centurion Sovereign Trọn Đời (Vĩnh Viễn)',
+      'Quản gia AI riêng (Butler Sterling) phục vụ 24/7 tức thì',
+      'Thẻ kim loại Titanium nguyên khối NFC khắc laser gửi tận nơi',
+      'Âm thanh Audiophile 32-bit DSD Master 11.2MHz & Không gian 360°',
+      'Két sắt Lượng tử Thụy Sĩ bảo toàn 100% tài sản trong hệ sinh thái',
+      'Miễn 100% thuế phí chuyển tiền & Không giới hạn hạn mức giao dịch',
+      'Đường truyền vệ tinh riêng biệt Zero-Latency 0ms cho mọi dịch vụ',
+      'Bảo hộ vĩnh cửu cây gia phả dòng họ & di sản muôn đời',
+      'Thưởng ngay +100.000 Xu Haevy cực khủng'
+    ]
   }
 ];
 
 const AVAILABLE_PROMO_CODES: PromoCode[] = [
   { code: 'VIP2026', discountType: 'percentage', value: 20, description: 'Giảm 20% tổng hóa đơn chào đón năm 2026' },
   { code: 'HE2026', discountType: 'fixed', value: 10000, description: 'Giảm ngay 10.000đ cho tất cả gói nạp' },
+  { code: 'BILLIONAIRE', discountType: 'percentage', value: 30, description: 'Mã đặc quyền siêu giàu giảm 30% gói Centurion' },
   { code: 'AUDIO20', discountType: 'percentage', value: 20, description: 'Ưu đãi đặc biệt giảm 20% trải nghiệm Hi-Fi' },
   { code: 'HAEVYVIP', discountType: 'percentage', value: 15, description: 'Mã tri ân thành viên Haevy giảm 15%' }
 ];
@@ -206,9 +232,10 @@ export function VipTopupView({
     transferCoinsToUser,
     accountId 
   } = useAuth();
+  const { triggerGiftEffect } = useGiftEffect();
 
   // Internal tab state synced with activePage prop
-  const [internalPage, setInternalPage] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5'>(activePage);
+  const [internalPage, setInternalPage] = useState<'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6'>(activePage);
 
   useEffect(() => {
     if (activePage) {
@@ -216,7 +243,7 @@ export function VipTopupView({
     }
   }, [activePage]);
 
-  const handleTabChange = (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => {
+  const handleTabChange = (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6') => {
     setInternalPage(page);
     if (onSelectPage) {
       onSelectPage(page);
@@ -552,6 +579,17 @@ export function VipTopupView({
 
       if (res.success) {
         setGiftSuccessMessage(res.message);
+        triggerGiftEffect({
+          giftId: giftSelectedVipPkg.id,
+          giftName: `Gói VIP ${giftSelectedVipPkg.name}`,
+          giftEmoji: '👑',
+          senderName: user.displayName || 'Bạn',
+          senderAvatar: user.photoURL || undefined,
+          recipientName: giftRecipientInput.trim(),
+          pointsCost: giftSelectedVipPkg.priceVnd,
+          rarity: 'legendary',
+          message: giftMessage.trim() || 'Tặng bạn gói VIP thưởng thức âm nhạc đỉnh cao!'
+        });
         setGiftMessage('');
       } else {
         setGiftErrorMessage(res.message);
@@ -599,6 +637,17 @@ export function VipTopupView({
 
       if (res.success) {
         setGiftSuccessMessage(res.message);
+        triggerGiftEffect({
+          giftId: 'transfer_coins_gift',
+          giftName: `${actualCoins.toLocaleString()} Xu Haevy`,
+          giftEmoji: '🪙',
+          senderName: user.displayName || 'Bạn',
+          senderAvatar: user.photoURL || undefined,
+          recipientName: giftRecipientInput.trim(),
+          pointsCost: actualCoins,
+          rarity: actualCoins >= 5000 ? 'legendary' : actualCoins >= 1000 ? 'epic' : 'rare',
+          message: giftMessage.trim() || 'Tặng bạn Xu Haevy để cùng tận hưởng âm nhạc!'
+        });
         setGiftCustomCoins('');
         setGiftMessage('');
       } else {
@@ -763,6 +812,20 @@ export function VipTopupView({
             <span className="sm:hidden">AI VIP</span>
             <span className="hidden sm:inline">Trang 5: AI VIP Intelligence</span>
           </button>
+
+          <button
+            id="vip-tab-page6"
+            onClick={() => handleTabChange('page6')}
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all cursor-pointer whitespace-nowrap shrink-0 active:scale-95 ${
+              internalPage === 'page6'
+                ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-500 text-black shadow-lg shadow-yellow-500/30 font-black'
+                : 'bg-zinc-900/80 hover:bg-zinc-800 text-yellow-300 border border-yellow-500/50 hover:border-yellow-400 shadow-sm'
+            }`}
+          >
+            <Gem size={15} className={internalPage === 'page6' ? 'fill-black text-black' : 'text-yellow-400 animate-pulse'} />
+            <span className="sm:hidden">Thượng Lưu 👑</span>
+            <span className="hidden sm:inline">Trang 6: Thượng Lưu 👑 (Billionaire)</span>
+          </button>
         </div>
       </div>
 
@@ -772,6 +835,36 @@ export function VipTopupView({
       {internalPage === 'page1' && (
         <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-200">
           
+          {/* Billionaire Lounge & Black Card Callout Banner */}
+          <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-r from-amber-500/25 via-yellow-500/10 to-zinc-900 border-2 border-yellow-400/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl shadow-yellow-500/10">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-600 text-black flex items-center justify-center font-black shrink-0 shadow-lg shadow-yellow-500/40">
+                <Crown size={24} className="fill-black" />
+              </div>
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-yellow-500/20 border border-yellow-400/50 text-yellow-300 text-[10px] font-black uppercase tracking-wider">
+                  <Sparkles size={11} className="text-yellow-300" />
+                  <span>Haevy Centurion Sovereign • Độc Bản 24K</span>
+                </div>
+                <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                  <span>Trải Nghiệm Thượng Lưu & Thẻ Đen Centurion 3D</span>
+                  <span className="text-[10px] bg-yellow-400 text-black px-2 py-0.5 rounded-md font-black uppercase">Mới</span>
+                </h3>
+                <p className="text-xs text-zinc-300">
+                  Phòng Thương Gia Siêu Giàu: Quản gia riêng AI Sterling 24/7, Thẻ Đen Titanium 3D, Két sắt Thụy Sĩ & Sâm Panh Mưa Vàng 24K.
+                </p>
+              </div>
+            </div>
+            <button
+              id="btn-goto-billionaire-lounge"
+              onClick={() => handleTabChange('page6')}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:brightness-110 active:scale-95 text-black font-black text-xs transition-all shadow-md shadow-yellow-500/30 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer whitespace-nowrap"
+            >
+              <span>Vào Phòng Thượng Lưu</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+
           {/* AI VIP Intelligence Highlight Callout Banner */}
           <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-r from-amber-500/15 via-zinc-900 to-zinc-900 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
             <div className="flex items-center gap-3.5">
@@ -2117,6 +2210,18 @@ export function VipTopupView({
         <VipAiIntelligenceDashboard
           onOpenAuth={onOpenAuth}
           onNavigateMode={onNavigateMode}
+          onGoToProfile={onGoToProfile}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* TRANG 6: HAEVY BILLIONAIRE LOUNGE (Phòng Thương Gia Siêu Giàu 24K)         */}
+      {/* ========================================================================= */}
+      {internalPage === 'page6' && (
+        <BillionaireLoungeView
+          onOpenAuth={onOpenAuth}
+          onNavigateMode={onNavigateMode}
+          onGoToTopupVip={() => handleTabChange('page2')}
           onGoToProfile={onGoToProfile}
         />
       )}

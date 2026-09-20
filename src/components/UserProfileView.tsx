@@ -66,6 +66,7 @@ import {
 } from './profile/types';
 
 interface UserProfileViewProps {
+  initialTab?: 'posts' | 'about' | 'audio' | 'media' | 'security' | 'transactions' | 'support';
   onOpenAuth: (tab?: 'signin' | 'signup' | 'anonymous') => void;
   onGoToTopup: () => void;
   onGoToHome?: () => void;
@@ -85,6 +86,7 @@ interface UserProfileViewProps {
 }
 
 export function UserProfileView({ 
+  initialTab,
   onOpenAuth, 
   onGoToTopup,
   onGoToHome,
@@ -138,7 +140,13 @@ export function UserProfileView({
   // 3: audio (Trang audio)
   // 4: media (Kho tổng hợp các ảnh và video đã đăng)
   // + secondary: security (Bảo vệ 6 lớp), transactions (Lịch sử điểm), support (Hỗ trợ AI)
-  const [activeTab, setActiveTab] = useState<'posts' | 'about' | 'audio' | 'media' | 'security' | 'transactions' | 'support'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'about' | 'audio' | 'media' | 'security' | 'transactions' | 'support'>(initialTab || 'posts');
+  
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   
   const [isSupportFullScreen, setIsSupportFullScreen] = useState(false);
   const [supportInitialTab, setSupportInitialTab] = useState<'chat' | 'security' | 'history' | 'ticket' | 'faq'>('chat');

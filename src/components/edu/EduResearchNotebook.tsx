@@ -20,10 +20,13 @@ import {
   Calculator,
   ChevronRight,
   ExternalLink,
-  Lightbulb
+  Lightbulb,
+  FileText
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { EduLabSubject } from '../../types';
+import { GoogleDocsExportModal } from '../google/GoogleDocsExportModal';
+import { GoogleDocExportOptions } from '../../services/googleDocsService';
 
 export interface EduResearchNote {
   id: string;
@@ -137,6 +140,10 @@ export function EduResearchNotebook({ onOpenLab, onOpenAiAssistant }: EduResearc
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [copiedFormula, setCopiedFormula] = useState<string | null>(null);
 
+  // Google Docs Export state
+  const [isGoogleDocsModalOpen, setIsGoogleDocsModalOpen] = useState(false);
+  const [googleDocsExportOptions, setGoogleDocsExportOptions] = useState<GoogleDocExportOptions | null>(null);
+
   // Form state for new note
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
@@ -225,6 +232,53 @@ export function EduResearchNotebook({ onOpenLab, onOpenAiAssistant }: EduResearc
     URL.revokeObjectURL(url);
   };
 
+  const handleOpenGoogleDocsExportAll = () => {
+    let md = `## SỔ TAY NGHIÊN CỨU FIRST PRINCIPLES - HAEVY EDU\n*Tổng hợp ngày: ${new Date().toLocaleDateString('vi-VN')}*\n\n`;
+    const targetNotes = filteredNotes.length > 0 ? filteredNotes : notes;
+    targetNotes.forEach((n, idx) => {
+      md += `### ${idx + 1}. [${n.subject}] ${n.title}\n\n`;
+      md += `*Thời gian: ${n.createdAt} | Thẻ: ${n.tags?.join(', ') || 'Chung'}*\n\n`;
+      md += `${n.content}\n\n`;
+      if (n.labBridge) {
+        md += `*Thí nghiệm ảo kiểm chứng:* **${n.labBridge.experimentName}**\n\n`;
+      }
+      md += `---\n\n`;
+    });
+
+    setGoogleDocsExportOptions({
+      title: `Sổ Tay Nghiên Cứu First Principles (${targetNotes.length} Luận Điểm) - Haevy Edu`,
+      contentMarkdown: md,
+      category: 'haevy_edu_notebook',
+      categoryLabel: 'Haevy Edu - Sổ Tay Nghiên Cứu STEM',
+      tags: ['HaevyEdu', 'FirstPrinciples', 'STEM', activeFilter],
+      summary: `Tổng hợp ${targetNotes.length} ghi chép bóc tách bản chất khoa học First Principles từ Sổ tay Haevy Edu.`,
+      sourceApp: 'haevy_edu'
+    });
+    setIsGoogleDocsModalOpen(true);
+  };
+
+  const handleOpenGoogleDocsExportNote = (note: EduResearchNote) => {
+    let md = `**Lĩnh vực:** ${note.subject} &nbsp;|&nbsp; **Ngày ghi chép:** ${note.createdAt}\n\n`;
+    if (note.tags && note.tags.length > 0) {
+      md += `**Tags:** ${note.tags.map(t => `#${t}`).join(', ')}\n\n`;
+    }
+    md += `${note.content}\n\n`;
+    if (note.labBridge) {
+      md += `\n---\n*Liên kết thí nghiệm ảo kiểm chứng:* **${note.labBridge.experimentName}**\n`;
+    }
+
+    setGoogleDocsExportOptions({
+      title: `[Haevy Edu] ${note.title}`,
+      contentMarkdown: md,
+      category: 'haevy_edu_single_note',
+      categoryLabel: `Haevy Edu (${note.subject})`,
+      tags: note.tags || ['HaevyEdu', 'FirstPrinciples'],
+      summary: `Ghi chép bóc tách bản chất khoa học: ${note.title}`,
+      sourceApp: 'haevy_edu'
+    });
+    setIsGoogleDocsModalOpen(true);
+  };
+
   const handleCopyFormula = (formula: string, label: string) => {
     navigator.clipboard.writeText(formula);
     setCopiedFormula(label);
@@ -287,6 +341,15 @@ export function EduResearchNotebook({ onOpenLab, onOpenAiAssistant }: EduResearc
             >
               <Plus size={16} />
               <span>Ghi Chép Mới</span>
+            </button>
+
+            <button
+              onClick={handleOpenGoogleDocsExportAll}
+              className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-950/50 transition-all flex items-center gap-1.5"
+              title="Xuất các ghi chép sổ tay sang Google Docs"
+            >
+              <FileText size={15} />
+              <span>Xuất Google Docs</span>
             </button>
 
             <button
@@ -410,8 +473,16 @@ export function EduResearchNotebook({ onOpenLab, onOpenAiAssistant }: EduResearc
                       </span>
                     </div>
 
-                    {/* Pin & Delete Buttons */}
+                    {/* Pin, Docs Export & Delete Buttons */}
                     <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenGoogleDocsExportNote(note)}
+                        className="p-1.5 rounded-lg text-zinc-500 hover:text-blue-400 hover:bg-zinc-900 transition-colors"
+                        title="Xuất ghi chép này sang Google Docs"
+                      >
+                        <FileText size={14} />
+                      </button>
+
                       <button
                         onClick={() => handleTogglePin(note.id)}
                         className={`p-1.5 rounded-lg text-xs transition-colors ${
@@ -649,6 +720,13 @@ export function EduResearchNotebook({ onOpenLab, onOpenAiAssistant }: EduResearc
           </div>
         </div>
       )}
+
+      {/* Google Docs Export Confirmation & Integration Modal */}
+      <GoogleDocsExportModal
+        isOpen={isGoogleDocsModalOpen}
+        onClose={() => setIsGoogleDocsModalOpen(false)}
+        options={googleDocsExportOptions}
+      />
     </div>
   );
 }

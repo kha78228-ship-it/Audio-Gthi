@@ -15,10 +15,13 @@ import {
   Award,
   Globe,
   Loader2,
-  BookOpen
+  BookOpen,
+  FileText
 } from 'lucide-react';
 import { SpiritualShareAttachment, Conversation, Friendship } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { GoogleDocsExportModal } from '../google/GoogleDocsExportModal';
+import { GoogleDocExportOptions } from '../../services/googleDocsService';
 import { 
   sendChatMessage, 
   getOrCreateConversation 
@@ -52,7 +55,7 @@ export function SpiritualShareModal({
 }: SpiritualShareModalProps) {
   const { user, isVip, isAuthorVerified, authorStageName } = useAuth();
   
-  const [activeTab, setActiveTab] = useState<'message' | 'invite' | 'couple' | 'feed' | 'copy'>('message');
+  const [activeTab, setActiveTab] = useState<'message' | 'invite' | 'couple' | 'feed' | 'copy' | 'docs'>('message');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [friendsList, setFriendsList] = useState<any[]>([]);
   const [selectedRecipientUid, setSelectedRecipientUid] = useState<string | null>(null);
@@ -64,6 +67,37 @@ export function SpiritualShareModal({
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [coupleInfo, setCoupleInfo] = useState<any | null>(null);
   const [loadingCouple, setLoadingCouple] = useState(false);
+
+  // Google Docs Export state
+  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [docsExportOptions, setDocsExportOptions] = useState<GoogleDocExportOptions | null>(null);
+
+  const handleOpenDocsExport = () => {
+    if (!attachment) return;
+    haptics.impact('medium');
+    let md = `## 🔮 HAEVY SPIRITUAL — ${attachment.title.toUpperCase()}\n*Thời điểm khai mở: ${new Date().toLocaleString('vi-VN')}*\n\n`;
+    if (attachment.subtitle) {
+      md += `> **Phụ đề & Thể loại:** ${attachment.subtitle}\n\n`;
+    }
+    if (attachment.aiVerdictExcerpt) {
+      md += `### ✨ Luận Giải & Lời Khuyên Vũ Trụ\n${attachment.aiVerdictExcerpt}\n\n`;
+    }
+    if (attachment.affirmationText) {
+      md += `### 🌟 Câu Khẳng Định Năng Lượng Tích Cực (Cosmic Affirmation)\n> "${attachment.affirmationText}"\n\n`;
+    }
+    md += `---\n*Tài liệu được kết xuất từ hệ sinh thái Haevy Tâm Linh vào Google Docs.*\n`;
+
+    setDocsExportOptions({
+      title: `[Haevy Tâm Linh] ${attachment.title}`,
+      contentMarkdown: md,
+      category: attachment.type,
+      categoryLabel: `Haevy Tâm Linh (${attachment.type.toUpperCase()})`,
+      tags: ['HaevyTamLinh', attachment.type, 'HuyenHocVuTru'],
+      summary: attachment.subtitle || attachment.aiVerdictExcerpt?.slice(0, 120) || 'Kết quả giải bài tâm linh từ Haevy Spiritual',
+      sourceApp: 'haevy_spiritual'
+    });
+    setIsDocsModalOpen(true);
+  };
 
   // Load conversations and friends
   useEffect(() => {
@@ -419,6 +453,18 @@ export function SpiritualShareModal({
             <Copy size={14} />
             <span>Sao Chép</span>
           </button>
+
+          <button
+            onClick={() => { haptics.impact('light'); setActiveTab('docs'); }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'docs'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+            }`}
+          >
+            <FileText size={14} />
+            <span>Google Docs</span>
+          </button>
         </div>
 
         {/* Content Area */}
@@ -693,6 +739,35 @@ export function SpiritualShareModal({
               </button>
             </div>
           )}
+
+          {/* TAB 6: Google Docs Export */}
+          {activeTab === 'docs' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-blue-950/30 border border-blue-500/30 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center shrink-0">
+                  <FileText size={20} />
+                </div>
+                <div className="flex-1">
+                  <h5 className="text-xs font-bold text-blue-200">Xuất Sang Google Docs</h5>
+                  <p className="text-[11px] text-zinc-300 mt-1 leading-relaxed">
+                    Tạo trực tiếp một tài liệu Google Docs mới chứa toàn bộ luận giải bài, thông điệp vũ trụ và câu khẳng định năng lượng để lưu trữ dài hạn hoặc chia sẻ với bạn bè.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 font-mono max-h-40 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                {`📄 TIÊU ĐỀ: [Haevy Tâm Linh] ${attachment.title}\n\n🔮 NỘI DUNG:\n${attachment.subtitle ? `> Phụ đề: ${attachment.subtitle}\n\n` : ''}${attachment.aiVerdictExcerpt || attachment.affirmationText || 'Thông điệp năng lượng tích cực từ Haevy Spiritual.'}`}
+              </div>
+
+              <button
+                onClick={handleOpenDocsExport}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 cursor-pointer transition-all active:scale-98"
+              >
+                <FileText size={16} />
+                <span>Mở Trình Xuất Google Docs</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Success Toast Floating inside modal */}
@@ -703,6 +778,13 @@ export function SpiritualShareModal({
           </div>
         )}
       </div>
+
+      {/* Google Docs Export Modal */}
+      <GoogleDocsExportModal
+        isOpen={isDocsModalOpen}
+        onClose={() => setIsDocsModalOpen(false)}
+        options={docsExportOptions}
+      />
     </div>
   );
 }

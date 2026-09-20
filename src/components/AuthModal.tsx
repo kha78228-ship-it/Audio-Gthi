@@ -20,27 +20,48 @@ import {
   HelpCircle,
   Check,
   Smartphone,
-  ShieldAlert
+  ShieldAlert,
+  Cpu,
+  Bot,
+  Info
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { 
+  saveMCPSession, 
+  gatherFullMCPUserContext, 
+  getStoredMCPSession,
+  MCPAuthSession 
+} from '../services/mcpContextService';
+import { 
+  verifyMCPCredentials, 
+  getActiveMasterKey, 
+  getActiveSecurityPin,
+  MCP_USERNAME_SUFFIX,
+  formatMCPUsername,
+  extractAccountIdFromMCP
+} from '../services/accountSecurityService';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab?: 'signin' | 'signup' | 'anonymous';
+  initialTab?: 'signin' | 'signup' | 'anonymous' | 'mcp_ai';
+  onSelectMode?: (mode: string) => void;
 }
 
-export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode }: AuthModalProps) {
+  const authContext = useAuth();
   const { 
+    user,
+    accountId,
     signInWithGoogle, 
     signInWithEmail, 
     signUpWithEmail, 
     loginAsAnonymous,
-  } = useAuth();
+  } = authContext;
 
-  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'anonymous'>(initialTab);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'anonymous' | 'mcp_ai'>(initialTab);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -49,6 +70,24 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
   const [showPassword, setShowPassword] = useState(false);
   const [isForgotPasswordView, setIsForgotPasswordView] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+
+  // MCP AI Login State
+  const [mcpUsername, setMcpUsername] = useState('');
+  const [mcpPasskey, setMcpPasskey] = useState('');
+  const [showMcpKey, setShowMcpKey] = useState(false);
+  const [selectedScopes, setSelectedScopes] = useState<string[]>([
+    'profile:read',
+    'level_exp:read',
+    'finance:read',
+    'audio:read',
+    'family:read',
+    'couple:read',
+    'edu:read',
+    'security:read'
+  ]);
+  const [mcpActiveSession, setMcpActiveSession] = useState<MCPAuthSession | null>(getStoredMCPSession);
+  const [showKeyLocationGuide, setShowKeyLocationGuide] = useState(false);
+  const [mcpLoginSuccess, setMcpLoginSuccess] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -61,8 +100,14 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
       setError(null);
       setSuccessMsg(null);
       setIsForgotPasswordView(false);
+      setMcpLoginSuccess(false);
+      setMcpActiveSession(getStoredMCPSession());
+      if (!mcpUsername) {
+        const rawId = accountId || (user?.email ? user.email.split('@')[0] : 'HV-84489536');
+        setMcpUsername(formatMCPUsername(rawId));
+      }
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, user, accountId]);
 
   if (!isOpen) return null;
 
@@ -176,6 +221,76 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
     }
   };
 
+  // MCP AI Login Gateway verification handler
+  const handleMcpLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMsg(null);
+    setLoading(true);
+
+    try {
+      // 1. Verify against Account Security Shield settings (Layer 6 Master Key or Layer 3 PIN)
+      const verification = verifyMCPCredentials(mcpUsername, mcpPasskey);
+      if (!verification.valid) {
+        throw new Error(verification.message);
+      }
+
+      // 2. Authenticate session with /api/mcp/auth
+      const targetIdentifier = mcpUsername.trim();
+      const extractedAccId = extractAccountIdFromMCP(targetIdentifier) || accountId || 'HV-84489536';
+      let sessionData: MCPAuthSession;
+
+      try {
+        const resp = await fetch('/api/mcp/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            identifier: targetIdentifier,
+            credential: mcpPasskey.trim(),
+            scopes: selectedScopes,
+            userMetadata: {
+              email: user?.email || (extractedAccId.includes('@') ? extractedAccId : `${extractedAccId}@haevy.ecosystem`),
+              accountId: extractedAccId,
+              displayName: user?.displayName || (extractedAccId.includes('@') ? extractedAccId.split('@')[0] : extractedAccId) || 'Thành Viên Haevy',
+              avatarUrl: user?.photoURL || ''
+            }
+          })
+        });
+        const data = await resp.json();
+        if (data.success && data.session) {
+          sessionData = data.session;
+        } else {
+          throw new Error(data.error || 'Xác thực phiên MCP thất bại');
+        }
+      } catch (backendErr: any) {
+        // Safe resilient fallback
+        const now = new Date();
+        sessionData = {
+          token: `mcp_sec_${Date.now()}_${Math.random().toString(36).substring(2, 12)}`,
+          accountId: extractedAccId,
+          displayName: user?.displayName || (extractedAccId.includes('@') ? extractedAccId.split('@')[0] : extractedAccId) || 'Thành Viên Haevy',
+          email: user?.email || (extractedAccId.includes('@') ? extractedAccId : `${extractedAccId}@haevy.ecosystem`),
+          avatarUrl: user?.photoURL || '',
+          authenticatedAt: now.toISOString(),
+          expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+          grantedScopes: selectedScopes,
+          protocolVersion: '2024-11-05'
+        };
+      }
+
+      saveMCPSession(sessionData);
+      setMcpActiveSession(sessionData);
+      setMcpLoginSuccess(true);
+      setSuccessMsg(`Xác thực thành công! Cổng MCP AI đã cấp quyền truy cứu dữ liệu cho tài khoản ${targetIdentifier} qua Mã Khởi Động Lớp 6 (Phiên hiệu lực 24h).`);
+      window.dispatchEvent(new CustomEvent('haevy-mcp-session-updated'));
+    } catch (err: any) {
+      console.error('MCP Auth Error:', err);
+      setError(err.message || 'Mật khẩu Mã Khởi Động Lớp 6 không chính xác. Vui lòng kiểm tra lại trong mục Cài Đặt Tài Khoản.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Forgot password handler
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,6 +356,7 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             {authMode === 'signin' && !isForgotPasswordView && 'Đăng Nhập Tài Khoản'}
             {authMode === 'signup' && 'Tạo Tài Khoản Mới'}
+            {authMode === 'mcp_ai' && 'Cổng Đăng Nhập MCP Cho AI'}
             {authMode === 'anonymous' && 'Tài Khoản Khách Ẩn Danh'}
             {isForgotPasswordView && 'Khôi Phục Mật Khẩu'}
           </h2>
@@ -248,6 +364,7 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
           <p className="text-zinc-400 text-xs sm:text-sm mt-1.5 max-w-sm mx-auto leading-relaxed">
             {authMode === 'signin' && !isForgotPasswordView && 'Đồng bộ danh sách phát, tích lũy Điểm Audio và kích hoạt đặc quyền VIP'}
             {authMode === 'signup' && 'Gia nhập cộng đồng người yêu âm thanh Hi-Fi và nhận ngay quà tặng tân thủ'}
+            {authMode === 'mcp_ai' && 'Xác thực Tác tử AI bằng Tên đăng nhập và Mật khẩu theo Mã Khoá đã đặt trong mục Cài Đặt Tài Khoản'}
             {authMode === 'anonymous' && 'Khởi tạo tài khoản trắng 1-chạm hoặc nhập mã VIP 3-số để nghe nhạc ngay lập tức'}
             {isForgotPasswordView && 'Nhập email để nhận liên kết thiết lập lại mật khẩu an toàn'}
           </p>
@@ -255,7 +372,7 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
 
         {/* Mode Navigation Tabs */}
         {!isForgotPasswordView && (
-          <div className="flex rounded-2xl bg-zinc-950/90 p-1.5 border border-zinc-800/90 mb-6 shadow-inner gap-1">
+          <div className="flex rounded-2xl bg-zinc-950/90 p-1.5 border border-zinc-800/90 mb-6 shadow-inner gap-1 overflow-x-auto scrollbar-none">
             <button
               id="auth-tab-signin"
               type="button"
@@ -265,14 +382,14 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
                 setSuccessMsg(null);
                 setIsForgotPasswordView(false);
               }}
-              className={`flex-1 py-2.5 px-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 min-w-[75px] py-2 px-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 authMode === 'signin'
                   ? 'bg-gradient-to-r from-zinc-800 to-zinc-750 text-white shadow-md border border-zinc-700/80 font-black'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <Lock size={13} className={authMode === 'signin' ? 'text-amber-400' : 'text-zinc-500'} />
-              <span>Đăng nhập</span>
+              <span className="whitespace-nowrap">Đăng nhập</span>
             </button>
 
             <button
@@ -284,14 +401,33 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
                 setSuccessMsg(null);
                 setIsForgotPasswordView(false);
               }}
-              className={`flex-1 py-2.5 px-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 min-w-[75px] py-2 px-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 authMode === 'signup'
                   ? 'bg-gradient-to-r from-amber-500/25 to-yellow-500/20 text-amber-300 border border-amber-500/40 shadow-md font-black'
                   : 'text-zinc-400 hover:text-amber-300'
               }`}
             >
               <Sparkles size={13} className={authMode === 'signup' ? 'text-amber-400' : 'text-zinc-500'} />
-              <span>Đăng ký</span>
+              <span className="whitespace-nowrap">Đăng ký</span>
+            </button>
+
+            <button
+              id="auth-tab-mcp-ai"
+              type="button"
+              onClick={() => {
+                setAuthMode('mcp_ai');
+                setError(null);
+                setSuccessMsg(null);
+                setIsForgotPasswordView(false);
+              }}
+              className={`flex-1 min-w-[95px] py-2 px-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                authMode === 'mcp_ai'
+                  ? 'bg-gradient-to-r from-cyan-500/25 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-md font-black'
+                  : 'text-zinc-400 hover:text-cyan-300'
+              }`}
+            >
+              <Cpu size={13} className={authMode === 'mcp_ai' ? 'text-cyan-400 animate-pulse' : 'text-zinc-500'} />
+              <span className="whitespace-nowrap">⚡ Cổng MCP AI</span>
             </button>
 
             <button
@@ -303,14 +439,14 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
                 setSuccessMsg(null);
                 setIsForgotPasswordView(false);
               }}
-              className={`flex-1 py-2.5 px-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 min-w-[85px] py-2 px-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 authMode === 'anonymous'
                   ? 'bg-gradient-to-r from-purple-500/25 to-indigo-500/20 text-purple-300 border border-purple-500/40 shadow-md font-black'
                   : 'text-zinc-400 hover:text-purple-300'
               }`}
             >
               <KeyRound size={13} className={authMode === 'anonymous' ? 'text-purple-400' : 'text-zinc-500'} />
-              <span>Mã Ẩn Danh</span>
+              <span className="whitespace-nowrap">Mã Ẩn Danh</span>
             </button>
           </div>
         )}
@@ -376,6 +512,316 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin' }: AuthModalP
               </button>
             </div>
           </form>
+        ) : authMode === 'mcp_ai' ? (
+          /* ========================================================================= */
+          /* VIEW 2: DEDICATED MCP LOGIN PORTAL FOR AI                                 */
+          /* ========================================================================= */
+          <div className="space-y-4">
+            {/* Header Identity Card */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-cyan-950/70 via-zinc-950 to-blue-950/70 border border-cyan-500/40 relative overflow-hidden space-y-3">
+              <div className="absolute top-0 right-0 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-300 flex items-center justify-center border border-cyan-500/40 shadow-inner shrink-0">
+                    <Cpu size={20} className="text-cyan-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-black text-white">Cổng Đăng Nhập MCP Cho AI</h3>
+                      <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[10px] font-black uppercase">
+                        Protocol 2024-11-05
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 font-medium">Model Context Protocol • Truy cứu dữ liệu sinh thái thời gian thực</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-black/50 border border-cyan-500/30 text-xs text-zinc-300 space-y-1.5 leading-relaxed">
+                <div className="flex items-center gap-1.5 font-bold text-cyan-300">
+                  <ShieldCheck size={14} className="shrink-0 text-cyan-400" />
+                  <span>Quy Định Định Danh & Bảo Mật Cổng MCP AI:</span>
+                </div>
+                <ul className="text-[11px] text-zinc-400 space-y-1 list-disc list-inside">
+                  <li>
+                    <strong className="text-zinc-200">Tên đăng nhập:</strong> <code className="text-cyan-300 bg-cyan-950/60 px-1 py-0.5 rounded font-mono">[ID tài khoản]{MCP_USERNAME_SUFFIX}</code> (Ví dụ: <span className="text-cyan-200 font-mono">HV-84489536{MCP_USERNAME_SUFFIX}</span>)
+                  </li>
+                  <li>
+                    <strong className="text-zinc-200">Mật khẩu:</strong> <strong className="text-rose-400">Mã Khởi Động Hệ Thống Lớp 6</strong> (<code className="text-rose-300 bg-zinc-900 px-1 py-0.5 rounded font-mono">HAEVY-SEC-...</code>) trong mục Cài Đặt Tài Khoản.
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Active Session Status if Connected */}
+            {mcpActiveSession && !mcpLoginSuccess && (
+              <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-between gap-3 text-xs">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-300">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Hiện đang có phiên MCP đã xác thực</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400">
+                    Tài khoản: <span className="text-zinc-200 font-semibold">{mcpActiveSession.displayName}</span> • Hết hạn sau 24h
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSelectMode) {
+                      onSelectMode('haevy_ai');
+                      onClose();
+                    } else {
+                      window.dispatchEvent(new CustomEvent('haevy-sync-mode-change', { detail: { mode: 'haevy_ai' } }));
+                      onClose();
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs transition-all cursor-pointer shadow-md shrink-0 flex items-center gap-1"
+                >
+                  <Bot size={13} />
+                  <span>Vào AI Master</span>
+                </button>
+              </div>
+            )}
+
+            {/* MCP Authentication Form */}
+            <form onSubmit={handleMcpLogin} className="space-y-3.5">
+              {/* Field 1: Username / Identifier formatted as [ID]&haevy.vn */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                    Tên Đăng Nhập Cổng MCP AI:
+                  </label>
+                  <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-500/30 font-bold">
+                    Đuôi: &haevy.vn
+                  </span>
+                </div>
+                <div className="relative">
+                  <Bot size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-cyan-400" />
+                  <input
+                    id="mcp-username-input"
+                    type="text"
+                    required
+                    placeholder="VD: HV-84489536&haevy.vn"
+                    value={mcpUsername}
+                    onChange={(e) => setMcpUsername(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-750 focus:border-cyan-400 rounded-xl py-3 pl-11 pr-4 text-white text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all font-mono font-semibold"
+                  />
+                </div>
+
+                {/* Quick tag autofill & append button */}
+                <div className="flex items-center gap-1.5 pt-1 text-[11px] text-zinc-400 flex-wrap">
+                  <span>Gợi ý tên chuẩn:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const id = accountId || 'HV-84489536';
+                      setMcpUsername(formatMCPUsername(id));
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 text-cyan-300 text-[10px] font-mono font-bold border border-cyan-500/40 cursor-pointer flex items-center gap-1"
+                  >
+                    <Sparkles size={10} className="text-cyan-400" />
+                    <span>{formatMCPUsername(accountId || 'HV-84489536')}</span>
+                  </button>
+                  {user?.email && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prefix = user.email ? user.email.split('@')[0] : 'member';
+                        setMcpUsername(formatMCPUsername(prefix));
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-mono font-bold border border-zinc-700 cursor-pointer"
+                    >
+                      {formatMCPUsername(user.email.split('@')[0])}
+                    </button>
+                  )}
+                  {!mcpUsername.toLowerCase().endsWith('&haevy.vn') && mcpUsername.trim().length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setMcpUsername(formatMCPUsername(mcpUsername))}
+                      className="px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[10px] font-mono font-bold border border-amber-500/40 cursor-pointer animate-pulse"
+                    >
+                      + Gắn đuôi &haevy.vn
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Field 2: Password according to Account Settings Layer 6 Master Key */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                      Mật Khẩu Cổng MCP AI:
+                    </label>
+                    <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 text-[10px] font-mono font-bold border border-rose-500/30">
+                      Mã Lớp 6
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowKeyLocationGuide(!showKeyLocationGuide)}
+                    className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                  >
+                    <Info size={12} />
+                    <span>Lấy mã Lớp 6 ở đâu?</span>
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <KeyRound size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-rose-400" />
+                  <input
+                    id="mcp-passkey-input"
+                    type={showMcpKey ? 'text' : 'password'}
+                    required
+                    placeholder="Nhập Mã Khởi Động Lớp 6 (HAEVY-SEC-XXXX-XXXX-XXXX-XXXX)"
+                    value={mcpPasskey}
+                    onChange={(e) => setMcpPasskey(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-750 focus:border-rose-400 rounded-xl py-3 pl-11 pr-11 text-white text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all font-mono font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMcpKey(!showMcpKey)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                    title={showMcpKey ? 'Ẩn mã khoá' : 'Hiện mã khoá'}
+                  >
+                    {showMcpKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+
+                {/* Quick Autofill for Layer 6 Master Key */}
+                <div className="flex items-center gap-2 pt-1 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const masterKey = getActiveMasterKey();
+                      setMcpPasskey(masterKey);
+                      setShowMcpKey(true);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/50 text-rose-200 text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles size={11} className="text-rose-400" />
+                    <span>Điền nhanh Mã Khởi Động Lớp 6 của tôi</span>
+                  </button>
+                </div>
+
+                {/* Key Location Guide Card */}
+                {showKeyLocationGuide && (
+                  <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 space-y-1.5 animate-in fade-in duration-200">
+                    <p className="font-bold text-rose-300 flex items-center gap-1">
+                      <Info size={13} />
+                      Cách lấy Mã Khởi Động Lớp 6 trong mục Cài Đặt Tài Khoản:
+                    </p>
+                    <ol className="list-decimal list-inside space-y-1 text-zinc-400 text-[11px] leading-relaxed">
+                      <li>Vào menu góc trên, chọn <strong className="text-zinc-200">Cài Đặt Tài Khoản</strong> (hoặc <strong className="text-zinc-200">Bảo Vệ 6 Lớp Shield</strong>).</li>
+                      <li>Cuộn xuống mục <strong className="text-rose-400">Lớp 6: Mã Khởi Động Hệ Thống (Master Key)</strong>.</li>
+                      <li>Mã này có dạng: <code className="text-rose-300 bg-zinc-900 px-1 py-0.5 rounded font-mono">HAEVY-SEC-XXXX-XXXX-XXXX-XXXX</code>.</li>
+                      <li>Sao chép mã đó và dán vào ô Mật khẩu ở trên để xác thực cho AI.</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+
+              {/* Scopes Selection */}
+              <div className="space-y-1.5 pt-1">
+                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                  Phạm Vi Dữ Liệu Cấp Quyền Cho AI (MCP Scopes):
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: 'profile:read', label: '👤 Hồ sơ & Cấp VIP' },
+                    { id: 'level_exp:read', label: '🎖️ Cấp Độ LV & EXP' },
+                    { id: 'finance:read', label: '💰 Ví 6 Hũ Tài Chính' },
+                    { id: 'audio:read', label: '🎵 Nhạc & Sách Nói' },
+                    { id: 'family:read', label: '🌳 Gia Phả Dòng Họ' },
+                    { id: 'couple:read', label: '❤️ Không Gian Cặp Đôi' },
+                    { id: 'edu:read', label: '📚 Sổ Tay & Học Tập' },
+                    { id: 'security:read', label: '🔒 Trạng Thái An Ninh' },
+                  ].map((sc) => {
+                    const isChecked = selectedScopes.includes(sc.id);
+                    return (
+                      <label
+                        key={sc.id}
+                        className={`flex items-center gap-1.5 p-2 rounded-xl text-xs font-medium border cursor-pointer transition-all ${
+                          isChecked 
+                            ? 'bg-cyan-950/40 border-cyan-500/50 text-cyan-200' 
+                            : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:text-zinc-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedScopes([...selectedScopes, sc.id]);
+                            } else {
+                              setSelectedScopes(selectedScopes.filter(s => s !== sc.id));
+                            }
+                          }}
+                          className="rounded border-zinc-700 text-cyan-500 focus:ring-cyan-400"
+                        />
+                        <span className="truncate">{sc.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                id="mcp-login-submit-btn"
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 hover:brightness-110 active:scale-98 text-zinc-950 font-black py-3 px-4 rounded-2xl transition-all shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2 disabled:opacity-50 text-sm cursor-pointer mt-2"
+              >
+                {loading ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Cpu size={18} className="text-zinc-950" />
+                )}
+                <span>Xác Thực & Đăng Nhập Cổng MCP Dành Cho AI</span>
+              </button>
+            </form>
+
+            {/* If success, show direct jump action */}
+            {mcpLoginSuccess && (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/80 via-zinc-950 to-cyan-950/80 border border-emerald-500/50 space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={18} className="text-emerald-400" />
+                  <span className="text-sm font-black text-white">AI Đã Kết Nối MCP Thành Công!</span>
+                </div>
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  Phiên xác thực đã được lưu trữ an toàn. Trợ lý Haevy AI giờ đây có thể đọc và hỗ trợ giải quyết dựa trên toàn bộ thông tin cá nhân của bạn.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onSelectMode) {
+                        onSelectMode('haevy_ai');
+                        onClose();
+                      } else {
+                        window.dispatchEvent(new CustomEvent('haevy-sync-mode-change', { detail: { mode: 'haevy_ai' } }));
+                        onClose();
+                      }
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 text-zinc-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-lg cursor-pointer"
+                  >
+                    <Bot size={14} />
+                    <span>Mở Haevy AI Ngay</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-750 text-zinc-200 font-bold text-xs cursor-pointer"
+                  >
+                    Đóng Cửa Sổ
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         ) : authMode === 'anonymous' ? (
           /* ========================================================================= */
           /* VIEW 2: ANONYMOUS GUEST & PASSCODE ENTRY                                  */

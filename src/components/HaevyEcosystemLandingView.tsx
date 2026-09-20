@@ -87,7 +87,7 @@ function playCelebrationChime() {
 }
 
 interface HaevyEcosystemLandingViewProps {
-  onOpenAuth: (tab?: 'signin' | 'signup' | 'anonymous') => void;
+  onOpenAuth: (tab?: 'signin' | 'signup' | 'anonymous' | 'mcp_ai') => void;
   onOpenNotifications: () => void;
   unreadNotificationCount?: number;
   onToggleFullscreen?: () => void;
@@ -754,6 +754,20 @@ export function HaevyEcosystemLandingView({
             </button>
           )}
 
+          {/* Dedicated MCP AI Login Portal Entry */}
+          <button
+            id="landing-mcp-ai-portal-btn"
+            onClick={() => {
+              haptics.light();
+              onOpenAuth('mcp_ai');
+            }}
+            className="flex items-center gap-1 sm:gap-1.5 bg-gradient-to-r from-cyan-950/60 via-blue-950/50 to-purple-950/60 hover:from-cyan-900/60 hover:to-blue-900/50 text-cyan-300 font-bold text-[10px] sm:text-xs px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border border-cyan-500/40 hover:border-cyan-400 transition-all shadow-md shadow-cyan-500/10 active:scale-95 cursor-pointer shrink-0"
+            title="Cổng đăng nhập Model Context Protocol (MCP) dành cho AI"
+          >
+            <Cpu size={12} className="text-cyan-400 animate-pulse shrink-0" />
+            <span className="font-mono font-bold text-[10px] sm:text-xs whitespace-nowrap">Cổng MCP AI</span>
+          </button>
+
         </div>
       </header>
 
@@ -973,6 +987,18 @@ export function HaevyEcosystemLandingView({
                     <BrainCircuit size={13} className="text-purple-400 shrink-0" />
                     <span>Mở Haevy AI</span>
                   </button>
+
+                  <button
+                    onClick={() => {
+                      haptics.modeSwitch();
+                      onOpenAuth('mcp_ai');
+                    }}
+                    className="px-3 py-2 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/60 text-cyan-300 font-bold text-xs sm:text-sm border border-cyan-500/40 hover:border-cyan-400 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                    title="Cổng đăng nhập Model Context Protocol (MCP) dành cho AI"
+                  >
+                    <Cpu size={13} className="text-cyan-400 animate-pulse shrink-0" />
+                    <span>Cổng MCP Cho AI</span>
+                  </button>
                 </div>
 
               </div>
@@ -1056,6 +1082,29 @@ export function HaevyEcosystemLandingView({
                       </div>
                       <p className="text-[10px] text-zinc-400 line-clamp-1">Quản lý thu chi & ngân sách</p>
                     </div>
+                  </div>
+
+                  {/* MCP AI Gateway Quick Card */}
+                  <div
+                    onClick={() => {
+                      haptics.modeSwitch();
+                      onOpenAuth('mcp_ai');
+                    }}
+                    className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-cyan-950/40 via-blue-950/30 to-purple-950/40 hover:from-cyan-950/60 hover:to-blue-950/50 border border-cyan-500/40 hover:border-cyan-400 transition-all cursor-pointer group shadow-sm flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-xs shrink-0 border border-cyan-500/30">
+                        <Cpu size={13} className="text-cyan-400 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-cyan-200 group-hover:text-cyan-100 transition-colors">Cổng Đăng Nhập MCP Cho AI</span>
+                          <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-[9px] font-mono font-bold">Protocol 2024-11-05</span>
+                        </div>
+                        <p className="text-[10px] text-zinc-400 line-clamp-1">Định danh <span className="text-cyan-300 font-mono">[ID]&haevy.vn</span> & Mật khẩu <span className="text-rose-300 font-mono">Mã Khởi Động Lớp 6</span></p>
+                      </div>
+                    </div>
+                    <ChevronRight size={13} className="text-cyan-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
                   </div>
 
                   {/* Bottom Status Row */}

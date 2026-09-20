@@ -14,11 +14,16 @@ import {
   Palette,
   Eye,
   EyeOff,
-  ShieldAlert
+  ShieldAlert,
+  Award,
+  TrendingUp,
+  Zap,
+  Gift
 } from 'lucide-react';
 import { AvatarFrame, AvatarFrameId, AVATAR_FRAMES, COVER_PRESETS, UserProfileData } from './types';
 import { maskAccountId } from '../../utils/privacyMask';
 import { useAuth } from '../../context/AuthContext';
+import { calculateLevelFromExp } from '../../data/levelMilestones';
 import { CosmicAvatarFX } from '../haevyLite/CosmicAvatarFX';
 import { HAEVY_LITE_SHOP_ITEMS } from '../haevyLite/themeBundles';
 import { CosmicProfileCardModal } from '../haevyLite/CosmicProfileCardModal';
@@ -59,7 +64,17 @@ export function ProfileHeaderCover({
   const [copiedId, setCopiedId] = useState(false);
   const [showAccountId, setShowAccountId] = useState(false);
 
-  const { activeAvatarFrame, unlockedHaevyLiteItems = [], equipHaevyLiteItem, unequipHaevyLiteItem } = useAuth();
+  const { 
+    activeAvatarFrame, 
+    unlockedHaevyLiteItems = [], 
+    equipHaevyLiteItem, 
+    unequipHaevyLiteItem,
+    levelExp = 0,
+    unclaimedLevelRewardsCount = 0,
+    setIsLevelModalOpen
+  } = useAuth();
+
+  const levelState = calculateLevelFromExp(levelExp);
 
   const currentFrame = AVATAR_FRAMES.find(f => f.id === avatarFrameId) || AVATAR_FRAMES[0];
 
@@ -327,11 +342,68 @@ export function ProfileHeaderCover({
                   "{profileData.quote}"
                 </p>
               )}
+
+              {/* Interactive User Level & EXP Progress Bar */}
+              <div 
+                onClick={() => setIsLevelModalOpen(true)}
+                className="mt-2.5 p-2.5 px-3 rounded-2xl bg-gradient-to-r from-amber-500/15 via-zinc-900/90 to-purple-500/15 border border-amber-500/30 hover:border-amber-400/60 transition-all cursor-pointer group shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 max-w-xl"
+                title="Bấm để mở Trung Tâm Cấp Độ & Đặc Quyền LV"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-zinc-950 font-black text-sm shadow-md shrink-0">
+                    {levelState.currentMilestone.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black text-xs text-amber-300">
+                        LV.{levelState.currentLevel}
+                      </span>
+                      <span className="text-[11px] font-bold text-white truncate">
+                        {levelState.currentMilestone.title}
+                      </span>
+                      {unclaimedLevelRewardsCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-black animate-pulse">
+                          +{unclaimedLevelRewardsCount} Quà
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                      {!levelState.nextMilestone 
+                        ? 'Cấp Tối Thượng (Max Level)' 
+                        : `${levelState.expInCurrentLevel.toLocaleString()} / ${levelState.expRequiredForNext.toLocaleString()} EXP (${levelState.progressPercentage}%)`}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:w-44 shrink-0">
+                  <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden border border-zinc-700/60">
+                    <div 
+                      className="h-full bg-gradient-to-r from-amber-400 to-yellow-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)] transition-all duration-500"
+                      style={{ width: `${levelState.progressPercentage}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-bold text-amber-300 group-hover:translate-x-0.5 transition-transform flex items-center">
+                    Chi tiết →
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Right: Action Buttons (Chỉnh sửa thông tin, Đổi ảnh bìa, Đổi khung, Nạp VIP) */}
+          {/* Right: Action Buttons (Chỉnh sửa thông tin, Đổi ảnh bìa, Đổi khung, Cấp độ LV, Nạp VIP) */}
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5 w-full md:w-auto shrink-0 sm:mb-2">
+            <button
+              onClick={() => setIsLevelModalOpen(true)}
+              className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 font-bold text-xs border border-amber-500/40 shadow-md flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer group"
+              title="Xem cấp độ LV, điểm EXP và nhận đặc quyền"
+            >
+              <Award size={14} className="text-amber-400 group-hover:rotate-12 transition-transform" />
+              <span>Cấp Độ LV.{levelState.currentLevel}</span>
+              {unclaimedLevelRewardsCount > 0 && (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              )}
+            </button>
+
             <button
               onClick={() => setIsCosmicModalOpen(true)}
               className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-sky-600/30 to-indigo-600/30 hover:from-sky-600/50 hover:to-indigo-600/50 text-cyan-300 font-bold text-xs border border-sky-400/40 shadow-md flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"

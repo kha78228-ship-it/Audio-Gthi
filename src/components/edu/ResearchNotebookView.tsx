@@ -18,9 +18,12 @@ import {
   ExternalLink,
   Tag,
   ArrowRight,
-  Filter
+  Filter,
+  FileText
 } from 'lucide-react';
 import { EduNotebookNote, EduLabSubject } from '../../types';
+import { GoogleDocsExportModal } from '../google/GoogleDocsExportModal';
+import { GoogleDocExportOptions } from '../../services/googleDocsService';
 
 interface ResearchNotebookViewProps {
   onOpenLab?: (subject: EduLabSubject, experimentId: string) => void;
@@ -93,6 +96,10 @@ export function ResearchNotebookView({ onOpenLab, onOpenAiAssistant }: ResearchN
   const [selectedNoteId, setSelectedNoteId] = useState<string>(notes[0]?.id || '');
   const [isEditing, setIsEditing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Google Docs Export State
+  const [isGoogleDocsModalOpen, setIsGoogleDocsModalOpen] = useState(false);
+  const [googleDocsExportOptions, setGoogleDocsExportOptions] = useState<GoogleDocExportOptions | null>(null);
 
   // Form states for creating/editing note
   const [formTitle, setFormTitle] = useState('');
@@ -228,6 +235,49 @@ ${n.content}
     URL.revokeObjectURL(url);
   };
 
+  const handleExportGoogleDocsAll = () => {
+    let md = `## SỔ TAY NGHIÊN CỨU HỌC TẬP CHUYÊN SÂU - HAEVY EDU\n*Tổng hợp: ${new Date().toLocaleDateString('vi-VN')}*\n\n`;
+    notes.forEach((n, idx) => {
+      md += `### ${idx + 1}. [${n.subject.toUpperCase()}] ${n.title}\n\n`;
+      md += `*Thời gian: ${new Date(n.createdAt).toLocaleString('vi-VN')} | Thẻ: ${n.tags.join(', ')}*\n\n`;
+      if (n.firstPrincipleEssence) {
+        md += `> **Bản chất First Principles:** ${n.firstPrincipleEssence}\n\n`;
+      }
+      md += `${n.content}\n\n`;
+      md += `---\n\n`;
+    });
+
+    setGoogleDocsExportOptions({
+      title: `Sổ Tay Nghiên Cứu Chuyên Sâu STEM (${notes.length} Luận Điểm) - Haevy Edu`,
+      contentMarkdown: md,
+      category: 'haevy_edu_lab_notebook',
+      categoryLabel: 'Haevy Edu - Sổ Tay STEM & First Principles',
+      tags: ['HaevyEdu', 'STEM', 'FirstPrinciples'],
+      summary: `Tổng hợp ${notes.length} ghi chép chuyên sâu từ phòng Lab và trợ lý AI Haevy Edu.`,
+      sourceApp: 'haevy_edu'
+    });
+    setIsGoogleDocsModalOpen(true);
+  };
+
+  const handleExportGoogleDocsSingle = (note: EduNotebookNote) => {
+    let md = `**Môn học:** ${note.subject.toUpperCase()} &nbsp;|&nbsp; **Ngày lập:** ${new Date(note.createdAt).toLocaleString('vi-VN')}\n\n`;
+    if (note.firstPrincipleEssence) {
+      md += `> **Nguyên lý gốc rễ:** ${note.firstPrincipleEssence}\n\n`;
+    }
+    md += `${note.content}\n\n`;
+
+    setGoogleDocsExportOptions({
+      title: `[Haevy Edu] ${note.title}`,
+      contentMarkdown: md,
+      category: 'haevy_edu_single_note',
+      categoryLabel: `Haevy Edu (${note.subject.toUpperCase()})`,
+      tags: note.tags || ['HaevyEdu', 'STEM'],
+      summary: note.firstPrincipleEssence || `Bản chất khoa học: ${note.title}`,
+      sourceApp: 'haevy_edu'
+    });
+    setIsGoogleDocsModalOpen(true);
+  };
+
   // Calculator outputs
   const calcPendulumPeriod = (2 * Math.PI * Math.sqrt(calcPendulumL / calcPendulumG)).toFixed(3);
   const calcOhmCurrent = calcOhmR > 0 ? (calcOhmU / calcOhmR).toFixed(3) : '0';
@@ -280,6 +330,15 @@ ${n.content}
             >
               <Plus size={16} />
               <span>Tạo Ghi Chép Mới</span>
+            </button>
+
+            <button
+              onClick={handleExportGoogleDocsAll}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-950/50 transition-all"
+              title="Xuất các ghi chép sổ tay sang Google Docs"
+            >
+              <FileText size={14} />
+              <span>Xuất Google Docs</span>
             </button>
 
             <button
@@ -539,6 +598,13 @@ ${n.content}
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleExportGoogleDocsSingle(activeNote)}
+                        className="p-2 bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 hover:text-blue-400 rounded-xl transition-colors"
+                        title="Xuất ghi chép này sang Google Docs"
+                      >
+                        <FileText size={15} />
+                      </button>
                       <button
                         onClick={() => handleCopyNote(activeNote)}
                         className="p-2 bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 rounded-xl transition-colors"
@@ -818,6 +884,13 @@ ${n.content}
         </div>
 
       </div>
+
+      {/* Google Docs Export Modal */}
+      <GoogleDocsExportModal
+        isOpen={isGoogleDocsModalOpen}
+        onClose={() => setIsGoogleDocsModalOpen(false)}
+        options={googleDocsExportOptions}
+      />
     </div>
   );
 }

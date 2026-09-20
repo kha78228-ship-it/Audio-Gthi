@@ -25,7 +25,8 @@ import {
   Eye,
   Camera,
   Coins,
-  GraduationCap
+  GraduationCap,
+  MapPin
 } from 'lucide-react';
 import { EcosystemMode, ActiveTab } from '../types';
 
@@ -34,7 +35,7 @@ export interface EcosystemModeConfig {
   name: string;
   shortName: string;
   englishName: string;
-  category: 'hub' | 'audio' | 'ai' | 'spiritual' | 'family' | 'finance' | 'creative' | 'social' | 'games' | 'utility' | 'study';
+  category: 'hub' | 'audio' | 'ai' | 'spiritual' | 'family' | 'finance' | 'creative' | 'social' | 'games' | 'utility' | 'study' | 'maps';
   categoryLabel: string;
   icon: React.ElementType;
   badge: string;
@@ -477,6 +478,33 @@ export const ALL_ECOSYSTEM_MODES: EcosystemModeConfig[] = [
       { title: 'Đọc File & Lộ Trình Học', desc: 'AI phân tích nguyên lý gốc rễ, tránh học vẹt', tabKey: 'roadmap' },
       { title: 'Tạo Video Bài Giảng AI', desc: 'Chuyển tài liệu thành video thuyết minh sống động', tabKey: 'video' },
       { title: 'Công Cụ & Tra Cứu Khoa Học', desc: 'Máy tính STEM, hằng số vũ trụ & chuyển đổi', tabKey: 'tools' }
+    ]
+  },
+  {
+    id: 'maps',
+    name: 'Haevy Maps (Gia Đình & Bạn Đời)',
+    shortName: 'Haevy Maps',
+    englishName: 'Live Family & Couple GPS Map',
+    category: 'family',
+    categoryLabel: 'Bản Đồ Định Vị & An Toàn',
+    icon: MapPin,
+    badge: 'Live GPS 📍',
+    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+    color: 'from-emerald-500 via-teal-500 to-sky-500',
+    accentColor: 'text-emerald-400',
+    borderColor: 'border-emerald-500/30 hover:border-emerald-400',
+    activeBorderColor: 'border-emerald-400 ring-2 ring-emerald-400/40 shadow-emerald-500/20',
+    tagline: 'Bản đồ trực tiếp kết nối vị trí bạn đời, người yêu và gia đình, chia sẻ mức pin & vùng an toàn Geofencing.',
+    description: 'Chế độ bản đồ định vị thông minh thời gian thực: Hiển thị khoảng cách và ước tính thời gian di chuyển (xe máy, ô tô, đi bộ) tới bạn đời hoặc người thân; Gửi nhịp tim yêu thương và rung chuông tìm kiếm; Quản lý vùng an toàn Geofencing (nhà riêng, trường học, cơ quan) và phát tín hiệu SOS khẩn cấp khi cần giúp đỡ.',
+    defaultTab: 'maps' as ActiveTab,
+    shortcut: 'Alt + M',
+    shortcutAction: 'mode_maps',
+    keywords: ['maps', 'bản đồ', 'định vị', 'gps', 'người yêu', 'bạn đời', 'gia đình', 'vị trí', 'an toàn', 'geofence', 'sos', 'pin'],
+    subPages: [
+      { title: 'Tất Cả Thành Viên', desc: 'Xem toàn bộ người thân và bạn bè trên bản đồ', tabKey: 'all' },
+      { title: 'Bạn Đời & Người Yêu', desc: 'Không gian định vị cặp đôi, gửi tim & dẫn đường', tabKey: 'couple' },
+      { title: 'Nhóm Gia Đình', desc: 'Theo dõi an toàn con cái, bố mẹ và ông bà', tabKey: 'family' },
+      { title: 'Vùng An Toàn (Geofence)', desc: 'Nhà riêng, cơ quan, trường học & bệnh viện', tabKey: 'zones' }
     ]
   }
 ];

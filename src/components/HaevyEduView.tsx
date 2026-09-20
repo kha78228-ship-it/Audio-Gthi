@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   GraduationCap, 
   FlaskConical, 
@@ -9,14 +9,18 @@ import {
   Dna, 
   BookOpen, 
   BrainCircuit,
-  ArrowLeft,
   Sparkles,
   Zap,
   HelpCircle,
   Activity,
   CheckCircle2,
   ChevronRight,
-  Calculator
+  Calculator,
+  Timer,
+  Globe,
+  Bell,
+  ArrowLeft,
+  Calendar
 } from 'lucide-react';
 import { PhysicsLab } from './edu/PhysicsLab';
 import { ChemistryLab } from './edu/ChemistryLab';
@@ -27,19 +31,36 @@ import { VirtualLabDashboard } from './edu/VirtualLabDashboard';
 import { AiStudyAssistantView } from './edu/AiStudyAssistantView';
 import { ResearchNotebookView } from './edu/ResearchNotebookView';
 import { StemQuickQuizView } from './edu/StemQuickQuizView';
+import { EduUtilitySuiteView } from './edu/EduUtilitySuiteView';
+import { SpeedExamPrepView } from './edu/SpeedExamPrepView';
+import { EduPushNotificationModal } from './edu/EduPushNotificationModal';
+import { 
+  evaluateScheduledReminders, 
+  calculateThpt2027Countdown, 
+  EDU_NOTIFICATION_CLICK_EVENT 
+} from '../services/eduPushNotificationService';
+import { useEduGamification } from '../hooks/useEduGamification';
+import { EduStreakXpWidget } from './edu/gamification/EduStreakXpWidget';
+import { EduXpNotificationToast } from './edu/gamification/EduXpNotificationToast';
+import { EduStreakXpModal } from './edu/gamification/EduStreakXpModal';
 import { EduLabSubject } from '../types';
 
 interface HaevyEduViewProps {
   onBackToLanding?: () => void;
-  activeTabControlled?: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz';
-  onTabChange?: (tab: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz') => void;
+  activeTabControlled?: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam';
+  onTabChange?: (tab: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam') => void;
+  onOpenHaevyAi?: () => void;
 }
 
-export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange }: HaevyEduViewProps) {
-  // Main tab state: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz'
-  const [internalTab, setInternalTab] = useState<'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz'>('assistant');
+export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange, onOpenHaevyAi }: HaevyEduViewProps) {
+  // Gamification Engine (Streak & XP System)
+  const { profile, recordActivity, latestXpToast, clearToast } = useEduGamification();
+  const [isGamificationModalOpen, setIsGamificationModalOpen] = useState<boolean>(false);
+
+  // Main tab state: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam'
+  const [internalTab, setInternalTab] = useState<'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam'>('assistant');
   const activeTab = activeTabControlled ?? internalTab;
-  const setActiveTab = (tab: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz') => {
+  const setActiveTab = (tab: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam') => {
     setInternalTab(tab);
     if (onTabChange) {
       onTabChange(tab);
@@ -61,11 +82,56 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
   // AI Assistant cross-navigation prompt state
   const [aiInitialQuery, setAiInitialQuery] = useState<string>('');
 
+  // Quick Lab Selector Dropdown Popover State
+  const [isQuickLabDropdownOpen, setIsQuickLabDropdownOpen] = useState<boolean>(false);
+
+  // Selected Utility Suite Tab (defaults to Casio fx-880 BTG for THPT 2027)
+  const [selectedToolsTab, setSelectedToolsTab] = useState<'casio880' | 'calculator' | 'periodic' | 'converter' | 'pomodoro' | 'flashcards' | 'deconstructor'>('casio880');
+
+  // THPT 2027 Web Push Notification & Milestone Reminders State
+  const [isPushReminderModalOpen, setIsPushReminderModalOpen] = useState<boolean>(false);
+  const [countdownDays, setCountdownDays] = useState<number>(() => calculateThpt2027Countdown().days);
+
+  // Background ticker for scheduled push reminders & milestone alerts
+  useEffect(() => {
+    evaluateScheduledReminders();
+    const interval = setInterval(() => {
+      evaluateScheduledReminders();
+      setCountdownDays(calculateThpt2027Countdown().days);
+    }, 30000);
+
+    const handleNotifClick = (e: any) => {
+      const detail = e.detail;
+      if (!detail) return;
+      if (detail.actionType === 'open_exam') {
+        setActiveTab('exam');
+      } else if (detail.actionType === 'open_lab') {
+        const subj = detail.actionPayload?.subject || 'physics';
+        const expId = detail.actionPayload?.experimentId || 'pendulum';
+        handleOpenLab(subj as EduLabSubject, expId);
+      } else if (detail.actionType === 'open_assistant') {
+        if (detail.actionPayload?.initialQuery) {
+          setAiInitialQuery(detail.actionPayload.initialQuery);
+        }
+        setActiveTab('assistant');
+      } else if (detail.actionType === 'open_notebook') {
+        setActiveTab('notebook');
+      }
+    };
+
+    window.addEventListener(EDU_NOTIFICATION_CLICK_EVENT, handleNotifClick);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener(EDU_NOTIFICATION_CLICK_EVENT, handleNotifClick);
+    };
+  }, []);
+
   // Handle cross-navigation from Roadmap or Video
   const handleOpenLab = (subject: EduLabSubject, experimentId: string) => {
     setActiveLabSubject(subject);
     setActiveExperimentId(experimentId);
     setActiveTab('labs');
+    setIsQuickLabDropdownOpen(false);
   };
 
   const handleOpenQuiz = (subject?: EduLabSubject, experimentId?: string) => {
@@ -138,218 +204,355 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
 
   return (
     <div className="w-full min-h-screen bg-zinc-950 text-zinc-100 flex flex-col no-swipe touch-pan-y" data-no-swipe="true">
-      {/* Header Banner */}
-      <header className="w-full bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-800/80 sticky top-0 z-30 px-3 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
-        <div className="flex items-center gap-3">
-          {onBackToLanding && (
-            <button
-              onClick={onBackToLanding}
-              className="p-2 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer shadow-sm group shrink-0"
-              title="Quay lại Cổng Hệ Sinh Thái Haevy"
-            >
-              <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-            </button>
-          )}
-
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-lg shadow-emerald-950/50 shrink-0">
-            <div className="w-full h-full bg-zinc-950 rounded-[14px] flex items-center justify-center text-emerald-400">
-              <GraduationCap size={22} />
+      {/* Header Banner - Executive Academic Header without crowded nav tabs (Taskbar moved down to Bottom) */}
+      <header className="w-full bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-800/80 sticky top-0 z-30 px-3 sm:px-6 py-2.5 sm:py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xl">
+        {/* Left: Branding & Academic Profile */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            {onBackToLanding && (
+              <button
+                onClick={onBackToLanding}
+                className="p-1.5 sm:p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 border border-zinc-800 transition-all cursor-pointer active:scale-95"
+                title="Quay về Cổng Hệ Sinh Thái"
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-md shadow-emerald-950/40 shrink-0">
+              <GraduationCap size={20} className="sm:w-5 sm:h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-black tracking-tight text-zinc-100 flex items-center gap-1">
+                  Haevy <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Edu</span>
+                </h1>
+                <span className="text-zinc-600 text-xs hidden sm:inline">•</span>
+                <span className="hidden sm:inline-block text-xs text-zinc-400 font-medium">Hệ Thống Nghiên Cứu STEM</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold tracking-wide">
+                  GDPT 2018
+                </span>
+                <span className="hidden xs:inline-block px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold">
+                  THPT 2027
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-zinc-400 font-normal truncate max-w-[220px] xs:max-w-md sm:max-w-none">
+                Tư duy First Principles • Thí nghiệm ảo 11+ • Casio fx-880 BTG • Thông báo đẩy ôn thi
+              </p>
             </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black tracking-tight text-zinc-100">
-                Haevy <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Edu</span>
-              </h1>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold tracking-wide uppercase flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
-                First Principles STEM
-              </span>
-            </div>
-            <p className="text-xs text-zinc-400 font-normal">
-              Nghiên cứu khoa học bản chất • Thí nghiệm ảo tương tác • Tuyệt đối tránh học vẹt
-            </p>
+
+          {/* Mobile Streak & XP Widget */}
+          <div className="md:hidden shrink-0">
+            <EduStreakXpWidget profile={profile} onClick={() => setIsGamificationModalOpen(true)} />
           </div>
         </div>
 
-        {/* Primary Tab Navigation */}
-        <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-2xl border border-zinc-800 shrink-0 overflow-x-auto scrollbar-none">
+        {/* Right side: Academic Actions & Widgets */}
+        <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar justify-between md:justify-end py-0.5 touch-pan-x">
+          {/* THPT 2027 Interactive Milestone Countdown */}
           <button
-            onClick={() => setActiveTab('assistant')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeTab === 'assistant'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-            }`}
+            onClick={() => setIsPushReminderModalOpen(true)}
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-amber-300 hover:text-amber-200 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/40 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 shadow-sm"
+            title="Nhắc nhở học tập định kỳ bằng thông báo đẩy theo 7 cột mốc ôn thi THPT 2027"
           >
-            <BrainCircuit size={15} className="text-emerald-400" />
-            <span>AI Trợ Lý Học Tập</span>
+            <Bell size={13} className="text-amber-400 shrink-0 animate-pulse" />
+            <span>Đếm ngược THPT 2027:</span>
+            <span className="font-mono text-amber-300 bg-amber-500/20 px-1.5 py-0.2 rounded font-black text-[11px]">
+              {countdownDays} ngày
+            </span>
           </button>
 
+          {/* Tra cứu ngoài (Google Search Grounding) */}
           <button
-            onClick={() => setActiveTab('labs')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeTab === 'labs'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-            }`}
+            onClick={() => {
+              setActiveTab('assistant');
+              setAiInitialQuery('Tra cứu thông tin bên ngoài: ');
+            }}
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-300 hover:text-blue-200 bg-blue-950/40 hover:bg-blue-900/50 border border-blue-500/40 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 shadow-sm"
+            title="Tra cứu trực tiếp kiến thức bên ngoài qua Google Search"
           >
-            <FlaskConical size={15} className="text-cyan-400" />
-            <span>Phòng Thí Nghiệm Ảo</span>
-            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono">11+</span>
+            <Globe size={13} className="text-blue-400 shrink-0" />
+            <span className="hidden xs:inline">Tra Cứu</span>
+            <span>Ngoài</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('roadmap')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeTab === 'roadmap'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-            }`}
-          >
-            <Compass size={15} className="text-amber-400" />
-            <span>Đọc File & Lộ Trình</span>
-          </button>
+          {/* Desktop Streak & XP Widget */}
+          <div className="hidden md:block shrink-0">
+            <EduStreakXpWidget profile={profile} onClick={() => setIsGamificationModalOpen(true)} />
+          </div>
 
-          <button
-            onClick={() => setActiveTab('video')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeTab === 'video'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-            }`}
-          >
-            <Film size={15} className="text-rose-400" />
-            <span>Video Bài Giảng AI</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('notebook')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeTab === 'notebook'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-            }`}
-          >
-            <BookOpen size={15} className="text-purple-400" />
-            <span>Sổ Tay Nghiên Cứu</span>
-          </button>
-
-          <button
-            onClick={() => handleOpenQuiz()}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-              activeTab === 'quiz'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-            }`}
-          >
-            <Zap size={15} className="text-emerald-400" />
-            <span>Bài Kiểm Tra Nhanh</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">Quiz</span>
-          </button>
+          {/* Haevy AI Hub Button */}
+          {onOpenHaevyAi && (
+            <button
+              onClick={onOpenHaevyAi}
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer bg-gradient-to-r from-purple-950/80 to-indigo-950/80 hover:from-purple-900/90 hover:to-indigo-900/90 text-purple-200 hover:text-white border border-purple-500/40 hover:border-purple-300 shadow-sm active:scale-95"
+              title="Mở Không Gian Haevy AI Toàn Năng"
+            >
+              <Sparkles size={13} className="text-purple-400" />
+              <span className="hidden sm:inline">Haevy</span>
+              <span>AI Hub</span>
+            </button>
+          )}
         </div>
       </header>
 
-      {/* Fast Jump / Quick Access Bar for Core STEM Experiments */}
-      <div className="w-full bg-zinc-950/60 border-b border-zinc-800/60 px-3 sm:px-6 py-2 flex items-center justify-between gap-3 overflow-x-auto scrollbar-none text-[11px]">
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-zinc-400 font-semibold flex items-center gap-1 text-[11px]">
-            <Zap size={13} className="text-emerald-400" />
-            <span>Thí nghiệm bản chất:</span>
-          </span>
-          <button
-            onClick={() => handleOpenLab('physics', 'pendulum')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-cyan-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>⏱️ Con Lắc Đơn</span>
-          </button>
-          <button
-            onClick={() => handleOpenLab('physics', 'free_fall')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-cyan-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>🪶 Rơi Tự Do L10</span>
-          </button>
-          <button
-            onClick={() => handleOpenLab('physics', 'wave_interference')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-cyan-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>🌊 Giao Thoa Sóng L11</span>
-          </button>
-          <button
-            onClick={() => handleOpenLab('chemistry', 'reaction_rate')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-rose-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>⏱️ Tốc Độ Phản Ứng L10</span>
-          </button>
-          <button
-            onClick={() => handleOpenLab('chemistry', 'le_chatelier')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-rose-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>⚖️ Le Chatelier L11</span>
-          </button>
-          <button
-            onClick={() => handleOpenLab('chemistry', 'electrochemical')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-rose-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>🔋 Pin Daniell L12</span>
-          </button>
-          <button
-            onClick={() => handleOpenLab('biology', 'plasmolysis')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-teal-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>💧 Co Nguyên Sinh L10</span>
-          </button>
-          <button
-            onClick={() => handleOpenLab('biology', 'hardy_weinberg')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-teal-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>📊 Hardy-Weinberg L12</span>
-          </button>
-          <button
-            onClick={() => handleOpenLab('biology', 'microscope')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-teal-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>🔬 Kính Hiển Vi</span>
-          </button>
-          <button
-            onClick={() => handleOpenLab('biology', 'genetics')}
-            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-teal-300 font-medium transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <span>🧬 Di Truyền Men-đen</span>
-          </button>
-          <button
-            onClick={() => handleOpenQuiz()}
-            className="px-2.5 py-1 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 text-emerald-300 font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1"
-          >
-            <Zap size={12} className="text-emerald-400" />
-            <span>🎯 Tự Đánh Giá Quiz</span>
-          </button>
+      {/* Contextual Academic Sub-Bar (Mobile Responsive & Academic Focus) */}
+      <div className="w-full bg-zinc-950/80 border-b border-zinc-800/80 px-2.5 sm:px-6 py-1.5 sm:py-2 flex items-center justify-between gap-3 overflow-x-auto scrollbar-none text-xs touch-pan-x">
+        {/* Left: Dynamic Academic Scope Breadcrumb */}
+        <div className="flex items-center gap-1.5 shrink-0 text-zinc-300 font-medium">
+          <span className="text-zinc-500 font-mono text-[10px] sm:text-[11px]">HỌC PHẦN:</span>
+          {activeTab === 'assistant' && (
+            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
+              <BrainCircuit size={13} className="text-emerald-400 shrink-0" />
+              <span>AI Trợ Lý First Principles</span>
+              <span className="hidden md:inline text-zinc-400 font-normal"> • Phân Tích Bản Chất & Trích Xuất Giáo Trình</span>
+            </span>
+          )}
+          {activeTab === 'exam' && (
+            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
+              <Timer size={13} className="text-amber-400 shrink-0" />
+              <span>Luyện Thi GDPT 2018</span>
+              <span className="hidden md:inline text-zinc-400 font-normal"> • Bấm Giờ & Casio fx-880 BTG</span>
+            </span>
+          )}
+          {activeTab === 'labs' && (
+            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
+              <FlaskConical size={13} className="text-cyan-400 shrink-0" />
+              <span>Phòng Thí Nghiệm Ảo</span>
+              <span className="hidden md:inline text-zinc-400 font-normal"> • 11+ Mô Phỏng (L10 - L12)</span>
+            </span>
+          )}
+          {activeTab === 'tools' && (
+            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
+              <Calculator size={13} className="text-emerald-400 shrink-0" />
+              <span>Tiện Ích STEM Đa Năng</span>
+              <span className="hidden md:inline text-zinc-400 font-normal"> • fx-880, Đồ Thị, Bảng Tuần Hoàn 2026</span>
+            </span>
+          )}
+          {activeTab === 'roadmap' && (
+            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
+              <Compass size={13} className="text-amber-400 shrink-0" />
+              <span>Lộ Trình Tri Thức STEM</span>
+              <span className="hidden md:inline text-zinc-400 font-normal"> • Bóc Tách Bản Chất Đa Cấp Độ</span>
+            </span>
+          )}
+          {activeTab === 'notebook' && (
+            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
+              <BookOpen size={13} className="text-purple-400 shrink-0" />
+              <span>Sổ Tay Nghiên Cứu</span>
+              <span className="hidden md:inline text-zinc-400 font-normal"> • Lưu Trữ Nguyên Lý & Cheat Sheet</span>
+            </span>
+          )}
+          {activeTab === 'video' && (
+            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
+              <Film size={13} className="text-rose-400 shrink-0" />
+              <span>Video Bài Giảng AI</span>
+              <span className="hidden md:inline text-zinc-400 font-normal"> • Trực Quan Hóa Tự Nhiên</span>
+            </span>
+          )}
+          {activeTab === 'quiz' && (
+            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
+              <Zap size={13} className="text-emerald-400 shrink-0" />
+              <span>Đánh Giá Năng Lực Nhanh</span>
+              <span className="hidden md:inline text-zinc-400 font-normal"> • Phản Biện Bản Chất</span>
+            </span>
+          )}
         </div>
 
-        <div className="hidden md:flex items-center gap-3 shrink-0 text-zinc-400">
-          <span className="flex items-center gap-1 text-[10px] text-emerald-400/90 font-mono">
-            <Sparkles size={11} />
-            Gemini 3.5 Flash Processor
-          </span>
-          <span className="text-zinc-600">•</span>
-          <button
-            onClick={() => setActiveTab('notebook')}
-            className="text-amber-300/80 hover:text-amber-200 flex items-center gap-1 text-[11px] font-bold cursor-pointer"
-          >
-            <Calculator size={12} />
-            <span>Máy tính khoa học</span>
-          </button>
+        {/* Right: Integrated Fast Jump Tools Dock & Lab Selector Popover */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 bg-zinc-900/90 px-1.5 sm:px-2 py-1 rounded-xl border border-zinc-800">
+            <button
+              onClick={() => setIsPushReminderModalOpen(true)}
+              className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-amber-300 hover:text-amber-200 hover:bg-amber-950/50 border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
+              title="Nhắc nhở học tập định kỳ bằng thông báo đẩy theo 7 cột mốc ôn thi THPT 2027"
+            >
+              <Bell size={12} className="text-amber-400 shrink-0 animate-pulse" />
+              <span>Nhắc THPT 2027</span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono hidden sm:inline">
+                {countdownDays}d
+              </span>
+            </button>
+
+            <span className="text-zinc-700">|</span>
+
+            <button
+              onClick={() => {
+                setActiveTab('assistant');
+                setAiInitialQuery('Tra cứu thông tin bên ngoài: ');
+              }}
+              className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-blue-300 hover:text-blue-200 hover:bg-blue-950/50 border border-blue-500/30 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
+              title="Tra cứu trực tiếp thông tin bên ngoài phục vụ học tập qua Google Search"
+            >
+              <Globe size={12} className="text-blue-400 shrink-0" />
+              <span>Tra Cứu Ngoài</span>
+            </button>
+
+            <span className="text-zinc-700">|</span>
+
+            <button
+              onClick={() => setActiveTab('exam')}
+              className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-amber-300 hover:bg-zinc-800 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
+              title="Chuyển nhanh tới phòng thi thử bấm giờ"
+            >
+              <Timer size={12} className="text-amber-400 shrink-0" />
+              <span>Thi Thử</span>
+            </button>
+
+            <span className="text-zinc-700">|</span>
+
+            <button
+              onClick={() => { setSelectedToolsTab('casio880'); setActiveTab('tools'); }}
+              className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-emerald-300 hover:bg-zinc-800 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
+              title="Mở máy tính Casio fx-880 BTG"
+            >
+              <Calculator size={12} className="text-emerald-400 shrink-0" />
+              <span>fx-880</span>
+            </button>
+
+            <span className="text-zinc-700 hidden xs:inline">|</span>
+
+            <button
+              onClick={() => { setSelectedToolsTab('calculator'); setActiveTab('tools'); }}
+              className="hidden xs:flex px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-teal-300 hover:bg-zinc-800 transition-all items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
+              title="Khảo sát hàm số & đồ thị"
+            >
+              <span>Đồ Thị</span>
+            </button>
+
+            <span className="text-zinc-700">|</span>
+
+            {/* Quick Lab Popover Selector */}
+            <div className="relative">
+              <button
+                onClick={() => setIsQuickLabDropdownOpen(!isQuickLabDropdownOpen)}
+                className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold text-cyan-300 hover:bg-cyan-500/10 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
+                title="Mở danh sách thí nghiệm ảo 11+"
+              >
+                <FlaskConical size={12} className="text-cyan-400 shrink-0" />
+                <span>Lab ▾</span>
+              </button>
+
+              {isQuickLabDropdownOpen && (
+                <div 
+                  className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-24px)] bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl p-3 z-50 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-150"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <span className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                      <FlaskConical size={14} className="text-cyan-400" />
+                      Phòng Thí Nghiệm Ảo (11+)
+                    </span>
+                    <button
+                      onClick={() => setIsQuickLabDropdownOpen(false)}
+                      className="text-zinc-400 hover:text-white text-xs p-1 rounded-md hover:bg-zinc-800"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Physics Labs */}
+                  <div>
+                    <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider mb-1">Vật Lý (L10 - L12)</div>
+                    <div className="grid grid-cols-1 gap-1 text-[11px]">
+                      <button
+                        onClick={() => handleOpenLab('physics', 'pendulum')}
+                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
+                      >
+                        <span>Con Lắc Đơn & Cơ Năng</span>
+                        <span className="text-[9px] text-zinc-500 font-mono">T=2π√(L/g)</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenLab('physics', 'free_fall')}
+                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
+                      >
+                        <span>Rơi Tự Do Trong Chân Không</span>
+                        <span className="text-[9px] text-zinc-500 font-mono">L10</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenLab('physics', 'wave_interference')}
+                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
+                      >
+                        <span>Giao Thoa Sóng Cơ Học</span>
+                        <span className="text-[9px] text-zinc-500 font-mono">L11</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Chemistry Labs */}
+                  <div>
+                    <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1">Hóa Học (L10 - L12)</div>
+                    <div className="grid grid-cols-1 gap-1 text-[11px]">
+                      <button
+                        onClick={() => handleOpenLab('chemistry', 'reaction_rate')}
+                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
+                      >
+                        <span>Tốc Độ Phản Ứng & Nhiệt Độ</span>
+                        <span className="text-[9px] text-zinc-500 font-mono">L10</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenLab('chemistry', 'le_chatelier')}
+                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
+                      >
+                        <span>Cân Bằng Le Chatelier (NO2)</span>
+                        <span className="text-[9px] text-zinc-500 font-mono">L11</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenLab('chemistry', 'electrochemical')}
+                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
+                      >
+                        <span>Pin Điện Hóa Daniell (Zn-Cu)</span>
+                        <span className="text-[9px] text-zinc-500 font-mono">L12</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Biology Labs */}
+                  <div>
+                    <div className="text-[10px] font-bold text-teal-400 uppercase tracking-wider mb-1">Sinh Học (L10 - L12)</div>
+                    <div className="grid grid-cols-1 gap-1 text-[11px]">
+                      <button
+                        onClick={() => handleOpenLab('biology', 'plasmolysis')}
+                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
+                      >
+                        <span>Co Nguyên Sinh Tế Bào</span>
+                        <span className="text-[9px] text-zinc-500 font-mono">L10</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenLab('biology', 'hardy_weinberg')}
+                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
+                      >
+                        <span>Di Truyền Hardy - Weinberg</span>
+                        <span className="text-[9px] text-zinc-500 font-mono">L12</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-zinc-400 pl-2 border-l border-zinc-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-mono text-[10px]">Gemini 3.5 Flash</span>
+          </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 pb-12">
+      <div className="flex-1 max-w-7xl w-full mx-auto p-2.5 sm:p-5 lg:p-6 pb-28 sm:pb-16">
         {/* TAB 0: AI STUDY ASSISTANT (FIRST PRINCIPLES) */}
         {activeTab === 'assistant' && (
           <AiStudyAssistantView
             onOpenLab={(subject, experimentId) => handleOpenLab(subject, experimentId)}
             onOpenVideo={(topic, summary) => handleOpenVideo(topic, summary)}
             onOpenNotebook={() => setActiveTab('notebook')}
+            onOpenTools={(toolTab) => {
+              if (toolTab) setSelectedToolsTab(toolTab);
+              setActiveTab('tools');
+            }}
+            onOpenExam={() => setActiveTab('exam')}
+            onOpenHaevyAi={onOpenHaevyAi}
             initialQuery={aiInitialQuery}
             onClearInitialQuery={() => setAiInitialQuery('')}
           />
@@ -358,55 +561,58 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
         {/* TAB 1: VIRTUAL LABS */}
         {activeTab === 'labs' && (
           <div className="w-full flex flex-col gap-5">
-            {/* Subject Selector & Quick Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+            {/* Subject Selector & Quick Actions (Unified Segmented Control) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-3">
+              <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800/90 overflow-x-auto scrollbar-none -mx-2.5 px-2.5 sm:mx-0 sm:px-0 touch-pan-x">
                 <button
                   onClick={() => setActiveLabSubject('dashboard')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 ${
                     activeLabSubject === 'dashboard'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-lg shadow-emerald-950/40'
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/80 shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                   }`}
                 >
-                  <FlaskConical size={15} />
+                  <FlaskConical size={14} className={activeLabSubject === 'dashboard' ? 'text-emerald-400' : 'text-zinc-400'} />
                   <span>Tổng Quan Dashboard</span>
                 </button>
 
                 <button
                   onClick={() => { setActiveLabSubject('physics'); setActiveExperimentId('pendulum'); }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 ${
                     activeLabSubject === 'physics'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-lg shadow-cyan-950/40'
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-800 text-cyan-300 border border-zinc-700/80 shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                   }`}
                 >
-                  <Atom size={15} />
-                  <span>Vật Lý (7 Thí Nghiệm • L10-L12)</span>
+                  <Atom size={14} className={activeLabSubject === 'physics' ? 'text-cyan-400' : 'text-zinc-400'} />
+                  <span>Vật Lý</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-950/60 text-zinc-400 font-mono">7 mô phỏng</span>
                 </button>
 
                 <button
                   onClick={() => { setActiveLabSubject('chemistry'); setActiveExperimentId('titration'); }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 ${
                     activeLabSubject === 'chemistry'
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-lg shadow-rose-950/40'
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-800 text-rose-300 border border-zinc-700/80 shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                   }`}
                 >
-                  <TestTube size={15} />
-                  <span>Hóa Học (6 Thí Nghiệm • L10-L12)</span>
+                  <TestTube size={14} className={activeLabSubject === 'chemistry' ? 'text-rose-400' : 'text-zinc-400'} />
+                  <span>Hóa Học</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-950/60 text-zinc-400 font-mono">6 mô phỏng</span>
                 </button>
 
                 <button
                   onClick={() => { setActiveLabSubject('biology'); setActiveExperimentId('microscope'); }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 ${
                     activeLabSubject === 'biology'
-                      ? 'bg-teal-500/20 text-teal-300 border border-teal-500/50 shadow-lg shadow-teal-950/40'
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-800 text-teal-300 border border-zinc-700/80 shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                   }`}
                 >
-                  <Dna size={15} />
-                  <span>Sinh Học (7 Thí Nghiệm • L10-L12)</span>
+                  <Dna size={14} className={activeLabSubject === 'biology' ? 'text-teal-400' : 'text-zinc-400'} />
+                  <span>Sinh Học</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-950/60 text-zinc-400 font-mono">7 mô phỏng</span>
                 </button>
               </div>
 
@@ -414,11 +620,11 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
               <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                 <button
                   onClick={() => handleAskAiAboutLab(activeLabSubject, activeExperimentId)}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/50 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
                   title="Gửi câu hỏi bóc tách nguyên lý của thí nghiệm này tới AI Trợ lý"
                 >
                   <BrainCircuit size={14} className="text-emerald-400" />
-                  <span>Hỏi AI về hiện tượng này</span>
+                  <span>Hỏi AI Về Hiện Tượng</span>
                 </button>
               </div>
             </div>
@@ -429,6 +635,7 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
                 onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
                 onOpenRoadmapTopic={(topic) => handleOpenVideo(topic)}
                 onOpenAiAssistant={() => setActiveTab('assistant')}
+                onRecordActivity={recordActivity}
               />
             )}
             {activeLabSubject === 'physics' && (
@@ -437,6 +644,7 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
                 onSelectExperiment={(id) => setActiveExperimentId(id)}
                 onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
                 onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
+                onRecordActivity={recordActivity}
               />
             )}
 
@@ -446,6 +654,7 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
                 onSelectExperiment={(id) => setActiveExperimentId(id)}
                 onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
                 onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
+                onRecordActivity={recordActivity}
               />
             )}
 
@@ -455,6 +664,7 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
                 onSelectExperiment={(id) => setActiveExperimentId(id)}
                 onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
                 onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
+                onRecordActivity={recordActivity}
               />
             )}
           </div>
@@ -503,9 +713,81 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
               if (prompt) setAiInitialQuery(prompt);
               setActiveTab('assistant');
             }}
+            onRecordActivity={recordActivity}
+          />
+        )}
+
+        {/* TAB 6: STEM UTILITY SUITE & CASIO FX-880 BTG */}
+        {activeTab === 'tools' && (
+          <EduUtilitySuiteView
+            onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
+            onOpenAiAssistant={(prompt) => {
+              if (prompt) setAiInitialQuery(prompt);
+              setActiveTab('assistant');
+            }}
+            onOpenExamPrep={() => setActiveTab('exam')}
+            onRecordActivity={recordActivity}
+            initialUtilityTab={selectedToolsTab}
+          />
+        )}
+
+        {/* TAB 7: SPEED EXAM PREP (LUYỆN THI CẤP TỐC TÍCH HỢP TRỰC TIẾP CASIO FX-880 BTG) */}
+        {activeTab === 'exam' && (
+          <SpeedExamPrepView
+            onRecordActivity={recordActivity}
+            onOpenAiAssistant={(prompt) => {
+              if (prompt) setAiInitialQuery(prompt);
+              setActiveTab('assistant');
+            }}
+            onSaveToNotebook={() => {
+              setActiveTab('notebook');
+            }}
+            onOpenPushReminders={() => setIsPushReminderModalOpen(true)}
           />
         )}
       </div>
+
+      {/* Realtime Floating XP & Streak Notification */}
+      <EduXpNotificationToast toast={latestXpToast} onDismiss={clearToast} />
+
+      {/* Student Streak & XP Profile Modal */}
+      <EduStreakXpModal
+        isOpen={isGamificationModalOpen}
+        onClose={() => setIsGamificationModalOpen(false)}
+        profile={profile}
+        onJumpToLabs={() => {
+          setIsGamificationModalOpen(false);
+          setActiveTab('labs');
+        }}
+        onJumpToQuiz={() => {
+          setIsGamificationModalOpen(false);
+          handleOpenQuiz();
+        }}
+      />
+
+      {/* THPT 2027 Milestone Study Reminders & Push Notification Modal */}
+      <EduPushNotificationModal
+        isOpen={isPushReminderModalOpen}
+        onClose={() => setIsPushReminderModalOpen(false)}
+        onNavigateToTab={(tab, payload) => {
+          if (tab === 'assistant') {
+            if (payload?.initialQuery) setAiInitialQuery(payload.initialQuery);
+            setActiveTab('assistant');
+          } else if (tab === 'exam') {
+            setActiveTab('exam');
+          } else if (tab === 'labs') {
+            setActiveTab('labs');
+          } else if (tab === 'notebook') {
+            setActiveTab('notebook');
+          }
+        }}
+        onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
+        onOpenExam={() => setActiveTab('exam')}
+        onOpenAssistant={(prompt) => {
+          if (prompt) setAiInitialQuery(prompt);
+          setActiveTab('assistant');
+        }}
+      />
     </div>
   );
 }

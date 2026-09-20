@@ -18,9 +18,11 @@ import {
   AlertCircle, 
   Loader2,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Eye
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useGiftEffect } from '../context/GiftEffectContext';
 import { GIFT_CATALOG } from '../data';
 import { GiftItem, AuthorGiftDonation, Track } from '../types';
 import { collection, query, orderBy, limit, getDocs, onSnapshot } from 'firebase/firestore';
@@ -59,6 +61,7 @@ export function AuthorGiftShopModal({
   preselectedAuthor
 }: AuthorGiftShopModalProps) {
   const { user, audioPoints, isVip, vipTier, sendGiftToAuthor } = useAuth();
+  const { triggerGiftEffect } = useGiftEffect();
 
   const [selectedGift, setSelectedGift] = useState<GiftItem>(GIFT_CATALOG[0]);
   const [selectedAuthor, setSelectedAuthor] = useState<{
@@ -159,6 +162,21 @@ export function AuthorGiftShopModal({
 
   const canAfford = audioPoints >= selectedGift.pointsCost;
 
+  const handlePreviewEffect = (gift: GiftItem) => {
+    triggerGiftEffect({
+      giftId: gift.id,
+      giftName: gift.name,
+      giftEmoji: gift.iconEmoji,
+      senderName: user?.displayName || 'Bạn (Xem trước)',
+      senderAvatar: user?.photoURL || undefined,
+      recipientName: selectedAuthor.stageName,
+      pointsCost: gift.pointsCost,
+      rarity: gift.rarity,
+      message: customMessage || 'Hiệu ứng tặng quà âm nhạc sống động!',
+      trackTitle: selectedAuthor.trackTitle
+    });
+  };
+
   const handleSendGift = async () => {
     if (!user) {
       onOpenAuth();
@@ -189,6 +207,21 @@ export function AuthorGiftShopModal({
           authorName: selectedAuthor.stageName,
           points: selectedGift.pointsCost
         });
+
+        // Trigger the spectacular global celebration gift effect
+        triggerGiftEffect({
+          giftId: selectedGift.id,
+          giftName: selectedGift.name,
+          giftEmoji: selectedGift.iconEmoji,
+          senderName: user.displayName || 'Thính giả Haevy',
+          senderAvatar: user.photoURL || undefined,
+          recipientName: selectedAuthor.stageName,
+          pointsCost: selectedGift.pointsCost,
+          rarity: selectedGift.rarity,
+          message: customMessage || 'Tặng tác giả món quà ủng hộ nhiệt tình từ thính giả!',
+          trackTitle: selectedAuthor.trackTitle
+        });
+
         setCustomMessage('');
       } else {
         alert(res.message);
@@ -423,9 +456,23 @@ export function AuthorGiftShopModal({
                           }`}>
                             {gift.tag}
                           </span>
-                          {isSelected && (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
-                          )}
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedGift(gift);
+                                handlePreviewEffect(gift);
+                              }}
+                              className="p-1 rounded-md text-slate-400 hover:text-amber-300 hover:bg-slate-700/60 transition-colors cursor-pointer"
+                              title="Xem trước hiệu ứng quà tặng này"
+                            >
+                              <Eye size={12} />
+                            </button>
+                            {isSelected && (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                            )}
+                          </div>
                         </div>
 
                         {/* Gift Icon & Emoji */}
@@ -456,7 +503,7 @@ export function AuthorGiftShopModal({
 
               {/* Selected Gift Details & Custom Message Form */}
               <div className="p-4.5 rounded-xl bg-gradient-to-b from-slate-800/80 to-slate-900 border border-slate-700/80 space-y-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-4xl p-2 bg-slate-800 rounded-xl border border-slate-700">
                       {selectedGift.iconEmoji}
@@ -473,6 +520,16 @@ export function AuthorGiftShopModal({
                       </p>
                     </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePreviewEffect(selectedGift)}
+                    className="self-start sm:self-center px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 border border-amber-500/30 text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer"
+                    title="Xem trước hoạt ảnh và âm thanh khi tặng món quà này"
+                  >
+                    <Eye size={13} className="text-amber-400" />
+                    <span>Xem trước hiệu ứng</span>
+                  </button>
                 </div>
 
                 {/* Quick Wish Chips */}

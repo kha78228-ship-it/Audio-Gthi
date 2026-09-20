@@ -82,6 +82,7 @@ import { HaevyAllModesInfoModal } from './HaevyAllModesInfoModal';
 import { HaevyUserDropdownMenu } from './HaevyUserDropdownMenu';
 import { NotificationsModal } from './NotificationsModal';
 import { InstallPwaModal } from './InstallPwaModal';
+import { HaevyMorningDashboard } from './morning/HaevyMorningDashboard';
 
 interface HaevyMorningViewProps {
   allTracks?: Track[];
@@ -99,6 +100,8 @@ interface HaevyMorningViewProps {
   isFullscreen?: boolean;
   onSelectMode?: (mode: EcosystemMode, tab?: ActiveTab) => void;
   onSelectTab?: (tab: ActiveTab) => void;
+  initialSubView?: 'portal' | 'canvas' | 'mascot' | 'magic_ar' | 'morning_dashboard';
+  activeSubTab?: string;
 }
 
 interface HandPoint {
@@ -287,7 +290,9 @@ export function HaevyMorningView({
   onToggleFullscreen,
   isFullscreen: externalIsFullscreen,
   onSelectMode,
-  onSelectTab
+  onSelectTab,
+  initialSubView,
+  activeSubTab
 }: HaevyMorningViewProps) {
   const { 
     user, 
@@ -393,9 +398,28 @@ export function HaevyMorningView({
     }
   };
 
-  // 🌟 HAEVY SPACE VIEW STATE: 'portal' (Cổng chọn 1 trong 3 mục) | 'canvas' (Mục 1: Bảng Vẽ 3D) | 'mascot' (Mục 2: Linh Vật 5D) | 'magic_ar' (Mục 3: Phép Thuật AR 2 Tay)
-  const [spaceView, setSpaceView] = useState<'portal' | 'canvas' | 'mascot' | 'magic_ar'>('portal');
+  // 🌟 HAEVY SPACE VIEW STATE: 'portal' | 'canvas' | 'mascot' | 'magic_ar' | 'morning_dashboard'
+  const [spaceView, setSpaceView] = useState<'portal' | 'canvas' | 'mascot' | 'magic_ar' | 'morning_dashboard'>('portal');
   const [isCameraPromptDismissed, setIsCameraPromptDismissed] = useState<boolean>(false);
+
+  // Synchronize spaceView with external tabs if provided
+  useEffect(() => {
+    if (initialSubView) {
+      setSpaceView(initialSubView);
+    } else if (activeSubTab) {
+      if (activeSubTab === 'morning_dashboard' || activeSubTab === 'dashboard') {
+        setSpaceView('morning_dashboard');
+      } else if (activeSubTab === 'canvas') {
+        setSpaceView('canvas');
+      } else if (activeSubTab === 'mascot') {
+        setSpaceView('mascot');
+      } else if (activeSubTab === 'magic_ar') {
+        setSpaceView('magic_ar');
+      } else if (activeSubTab === 'portal') {
+        setSpaceView('portal');
+      }
+    }
+  }, [initialSubView, activeSubTab]);
 
   // Core App & Workspace States
   const [internalIsFullscreen, setInternalIsFullscreen] = useState<boolean>(false);
@@ -4572,6 +4596,36 @@ export function HaevyMorningView({
             </button>
           )}
 
+          {/* Quick Switch to Morning Dashboard */}
+          {spaceView !== 'morning_dashboard' ? (
+            <button
+              onClick={() => {
+                setSpaceView('morning_dashboard');
+                setSnapshotToast('☀️ Đã mở Bảng Điều Khiển Buổi Sáng');
+                setTimeout(() => setSnapshotToast(null), 1800);
+              }}
+              className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/50 text-amber-300 font-bold text-xs shadow-lg backdrop-blur-md transition-all active:scale-95 group shrink-0"
+              title="Mở Bảng Điều Khiển Buổi Sáng (Tóm tắt Haevy Edu & Haevy Finance)"
+            >
+              <Sun size={13} className="text-amber-400 group-hover:rotate-45 transition-transform" />
+              <span className="hidden md:inline">Bảng Buổi Sáng</span>
+              <span className="md:hidden text-[11px]">Sáng ☀️</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setSpaceView('canvas');
+                setSnapshotToast('✍️ Đã chuyển sang Bảng Vẽ & Thư Pháp 3D');
+                setTimeout(() => setSnapshotToast(null), 1800);
+              }}
+              className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-black font-extrabold text-xs shadow-lg shadow-cyan-500/25 transition-all active:scale-95 shrink-0"
+              title="Mở Bảng Vẽ 3D"
+            >
+              <PenLine size={13} />
+              <span className="hidden md:inline">Bảng Vẽ 3D</span>
+            </button>
+          )}
+
           {/* Mode toggle between Canvas and Mascot */}
           {spaceView === 'canvas' && (
             <button
@@ -4828,7 +4882,7 @@ export function HaevyMorningView({
                 onSelectMode={(mode, tab) => {
                   setIsUserDropdownOpen(false);
                   if (onSelectMode) {
-                    onSelectMode(mode, tab);
+                    onSelectMode(mode, tab as any);
                   } else {
                     onGoToAudioHome();
                   }
@@ -4879,6 +4933,11 @@ export function HaevyMorningView({
             setSnapshotToast('🧙‍♂️ Đã vào Phép Thuật AR 2 Tay (Doctor Strange & Tia Sét Lượng Tử)');
             setTimeout(() => setSnapshotToast(null), 2000);
           }}
+          onSelectMorningDashboard={() => {
+            setSpaceView('morning_dashboard');
+            setSnapshotToast('☀️ Đã vào Bảng Điều Khiển Buổi Sáng');
+            setTimeout(() => setSnapshotToast(null), 2000);
+          }}
           onStartCamera={startCamera}
           isCameraActive={isCameraActive}
           isCameraLoading={isCameraLoading}
@@ -4899,6 +4958,37 @@ export function HaevyMorningView({
             setTimeout(() => setSnapshotToast(null), 3000);
           }}
         />
+      )}
+
+      {/* ========================================================================= */}
+      {/* ☀️ HAEVY MORNING DASHBOARD: TÓM TẮT NHIỆM VỤ EDU & NGÂN SÁCH FINANCE */}
+      {/* ========================================================================= */}
+      {spaceView === 'morning_dashboard' && (
+        <div className="relative z-20 w-full flex-1 overflow-y-auto pb-28 pt-16 sm:pt-20 px-2">
+          <HaevyMorningDashboard
+            onBackToPortal={() => {
+              setSpaceView('portal');
+              setSnapshotToast('🌌 Đã quay về Cổng Chọn Không Gian Haevy Space');
+              setTimeout(() => setSnapshotToast(null), 1800);
+            }}
+            onSelectSubView={(sv) => {
+              setSpaceView(sv);
+              if (sv === 'canvas') {
+                setSnapshotToast('✍️ Đã vào Bảng Vẽ & Thư Pháp 3D');
+              } else if (sv === 'mascot') {
+                setSnapshotToast('🐲 Đã vào Tương Tác Linh Vật 5D Haevy Son');
+              } else if (sv === 'magic_ar') {
+                setSnapshotToast('🧙‍♂️ Đã vào Phép Thuật AR 2 Tay');
+              }
+              setTimeout(() => setSnapshotToast(null), 1800);
+            }}
+            onNavigateToMode={(mode, tab) => {
+              if (onSelectMode) {
+                onSelectMode(mode as any, tab as any);
+              }
+            }}
+          />
+        </div>
       )}
 
       {/* ========================================================================= */}
