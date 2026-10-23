@@ -1,6 +1,6 @@
 import React from 'react';
 import { EcosystemMode, ActiveTab } from '../types';
-import { HaevyEcosystemQuickSwitcherModal } from './HaevyEcosystemQuickSwitcherModal';
+const HaevyEcosystemQuickSwitcherModal = React.lazy(() => import('./HaevyEcosystemQuickSwitcherModal').then(m => ({ default: m.HaevyEcosystemQuickSwitcherModal })));
 
 export interface HaevyAllModesInfoModalProps {
   isOpen: boolean;
@@ -23,16 +23,19 @@ export function HaevyAllModesInfoModal({
   onSelectDemoModal,
   onClaimGift,
 }: HaevyAllModesInfoModalProps) {
+  if (!isOpen) return null;
   return (
-    <HaevyEcosystemQuickSwitcherModal
-      isOpen={isOpen}
-      onClose={onClose}
-      currentMode={currentMode}
-      onSelectMode={onSelectMode}
-      onSelectDemoModal={onSelectDemoModal}
-      onClaimGift={onClaimGift}
-      initialViewMode="detailed"
-    />
+    <React.Suspense fallback={null}>
+      <HaevyEcosystemQuickSwitcherModal
+        isOpen={isOpen}
+        onClose={onClose}
+        currentMode={currentMode}
+        onSelectMode={onSelectMode}
+        onSelectDemoModal={onSelectDemoModal}
+        onClaimGift={onClaimGift}
+        initialViewMode="detailed"
+      />
+    </React.Suspense>
   );
 }
 

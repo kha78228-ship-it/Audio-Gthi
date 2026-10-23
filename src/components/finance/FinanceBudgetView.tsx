@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { FinanceBudget, FinanceCategory, FinanceTransaction } from '../../types';
 import { FinanceRechartsVisualization } from './FinanceRechartsVisualization';
+import { FinanceD3SunburstChart } from './FinanceD3SunburstChart';
+import { FinanceSixJarsSavingsGrowthChart } from './FinanceSixJarsSavingsGrowthChart';
 
 interface FinanceBudgetViewProps {
   budget?: FinanceBudget;
@@ -30,7 +32,7 @@ interface FinanceBudgetViewProps {
   transactions: FinanceTransaction[];
   selectedMonth: string;
   onSaveBudget: (budgetData: Partial<FinanceBudget>) => void;
-  defaultMode?: '6jars' | '50_30_20' | 'recharts_progress';
+  defaultMode?: '6jars' | 'd3_sunburst' | 'growth_30d' | '50_30_20' | 'recharts_progress';
   onOpenAiAdvisor?: () => void;
 }
 
@@ -43,7 +45,7 @@ export function FinanceBudgetView({
   defaultMode = '6jars',
   onOpenAiAdvisor
 }: FinanceBudgetViewProps) {
-  const [budgetFramework, setBudgetFramework] = useState<'6jars' | '50_30_20' | 'recharts_progress'>(defaultMode);
+  const [budgetFramework, setBudgetFramework] = useState<'6jars' | 'd3_sunburst' | 'growth_30d' | '50_30_20' | 'recharts_progress'>(defaultMode);
   const [monthlyLimit, setMonthlyLimit] = useState<number>(budget?.totalMonthlyLimit || 15000000);
   const [alertThreshold, setAlertThreshold] = useState<number>(budget?.alertThresholdPercent || 80);
   const [categoryLimits, setCategoryLimits] = useState<Record<string, number>>(
@@ -209,8 +211,38 @@ export function FinanceBudgetView({
             }`}
           >
             <Layers size={15} />
-            <span>🏺 Phương Pháp 6 Hũ Tiền (6 Jars)</span>
+            <span>🏺 Lưới 6 Hũ Tiền</span>
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-black/30 font-bold text-zinc-950">Ctrl+G</span>
+          </button>
+
+          <button
+            onClick={() => setBudgetFramework('growth_30d')}
+            className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+              budgetFramework === 'growth_30d'
+                ? 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-zinc-950 border border-emerald-300 shadow-emerald-500/20 scale-105 font-black'
+                : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
+            }`}
+          >
+            <TrendingUp size={15} />
+            <span>📈 Tăng Trưởng 6 Hũ (30 Ngày)</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 font-black">
+              Recharts
+            </span>
+          </button>
+
+          <button
+            onClick={() => setBudgetFramework('d3_sunburst')}
+            className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+              budgetFramework === 'd3_sunburst'
+                ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 text-zinc-950 border border-amber-300 shadow-amber-500/20 scale-105 font-black'
+                : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
+            }`}
+          >
+            <PieChart size={15} />
+            <span>☀️ Sunburst 6 Hũ (D3.js)</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 font-black">
+              Interactive
+            </span>
           </button>
 
           <button
@@ -254,6 +286,27 @@ export function FinanceBudgetView({
         </div>
       )}
 
+      {/* ================= RECHARTS 30-DAY 6-JARS SAVINGS GROWTH ================= */}
+      {budgetFramework === 'growth_30d' && (
+        <FinanceSixJarsSavingsGrowthChart
+          transactions={transactions}
+          categories={categories}
+          budget={budget}
+          onOpenAiAdvisor={onOpenAiAdvisor}
+        />
+      )}
+
+      {/* ================= D3.JS SUNBURST 6-JARS VISUALIZATION ================= */}
+      {budgetFramework === 'd3_sunburst' && (
+        <FinanceD3SunburstChart
+          transactions={transactions}
+          categories={categories}
+          budget={budget}
+          selectedMonth={selectedMonth}
+          onOpenAiAdvisor={onOpenAiAdvisor}
+        />
+      )}
+
       {/* ================= RECHARTS BUDGET PROGRESS VISUALIZATION ================= */}
       {budgetFramework === 'recharts_progress' && (
         <FinanceRechartsVisualization
@@ -286,15 +339,33 @@ export function FinanceBudgetView({
               </div>
             </div>
 
-            {onOpenAiAdvisor && (
+            <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
               <button
-                onClick={onOpenAiAdvisor}
-                className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:opacity-95 text-zinc-950 text-xs font-black flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer self-start sm:self-auto group"
+                onClick={() => setBudgetFramework('growth_30d')}
+                className="px-3.5 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
               >
-                <Sparkles size={14} className="group-hover:rotate-12 transition-transform" />
-                <span>AI Phân Tích &amp; Dự Báo 6 Hũ</span>
+                <TrendingUp size={14} className="text-emerald-400" />
+                <span>Xem Tăng Trưởng 30N (Recharts)</span>
               </button>
-            )}
+
+              <button
+                onClick={() => setBudgetFramework('d3_sunburst')}
+                className="px-3.5 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+              >
+                <PieChart size={14} className="text-amber-400" />
+                <span>Xem Biểu Đồ Sunburst (D3.js)</span>
+              </button>
+
+              {onOpenAiAdvisor && (
+                <button
+                  onClick={onOpenAiAdvisor}
+                  className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:opacity-95 text-zinc-950 text-xs font-black flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer group"
+                >
+                  <Sparkles size={14} className="group-hover:rotate-12 transition-transform" />
+                  <span>AI Phân Tích &amp; Dự Báo 6 Hũ</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 6 Jars Grid */}

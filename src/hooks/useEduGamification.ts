@@ -93,6 +93,16 @@ export const INITIAL_BADGES: EduBadge[] = [
     category: 'xp',
     progress: 0,
     maxProgress: 1000
+  },
+  {
+    id: 'daily_7_pillars_master',
+    name: 'Bậc Thầy 7 Trụ Cột',
+    description: 'Chinh phục trọn vẹn 7/7 trụ cột mục tiêu học tập trong ngày',
+    icon: '🎯',
+    unlocked: false,
+    category: 'streak',
+    progress: 0,
+    maxProgress: 1
   }
 ];
 
@@ -271,7 +281,7 @@ export function useEduGamification() {
    * Record a student activity in STEM Labs, Quizzes, or Utilities
    */
   const recordActivity = useCallback((params: {
-    type: 'lab_run' | 'lab_adjust' | 'lab_export' | 'lab_switch' | 'quiz_answer' | 'quiz_complete' | 'tool_use';
+    type: 'lab_run' | 'lab_adjust' | 'lab_export' | 'lab_switch' | 'quiz_answer' | 'quiz_complete' | 'tool_use' | 'daily_goal_complete' | 'daily_all_goals_complete';
     title: string;
     xpAmount?: number;
     category?: EduActivityCategory;
@@ -293,6 +303,8 @@ export function useEduGamification() {
       else if ((params.quizScore || 0) >= (params.quizTotal || 1) * 0.7) xp = params.xpAmount ?? 60;
       else xp = params.xpAmount ?? 30;
     } else if (params.type === 'tool_use') xp = params.xpAmount ?? 20;
+    else if (params.type === 'daily_goal_complete') xp = params.xpAmount ?? 25;
+    else if (params.type === 'daily_all_goals_complete') xp = params.xpAmount ?? 100;
 
     setProfile(prev => {
       // 1. Streak Calculation
@@ -365,6 +377,8 @@ export function useEduGamification() {
           currentProgress = newCounters.perfectQuizzes;
         } else if (b.id === 'xp_1000') {
           currentProgress = updatedTotalXp;
+        } else if (b.id === 'daily_7_pillars_master' && params.type === 'daily_all_goals_complete') {
+          currentProgress = 1;
         }
 
         const isNowUnlocked = currentProgress >= b.maxProgress;

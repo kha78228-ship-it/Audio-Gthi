@@ -23,6 +23,9 @@ export interface UserProfileData {
   coverUrl?: string;
   avatarFrameId?: AvatarFrameId;
   email?: string;
+  theme?: 'dark' | 'light';
+  themePreference?: 'dark' | 'light';
+  themeMode?: 'solar' | 'system' | 'light' | 'dark';
 }
 
 export type AvatarFrameId = 

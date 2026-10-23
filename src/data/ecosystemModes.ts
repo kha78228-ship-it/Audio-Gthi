@@ -26,7 +26,8 @@ import {
   Camera,
   Coins,
   GraduationCap,
-  MapPin
+  MapPin,
+  Globe
 } from 'lucide-react';
 import { EcosystemMode, ActiveTab } from '../types';
 
@@ -35,7 +36,7 @@ export interface EcosystemModeConfig {
   name: string;
   shortName: string;
   englishName: string;
-  category: 'hub' | 'audio' | 'ai' | 'spiritual' | 'family' | 'finance' | 'creative' | 'social' | 'games' | 'utility' | 'study' | 'maps';
+  category: 'hub' | 'audio' | 'ai' | 'spiritual' | 'family' | 'finance' | 'creative' | 'social' | 'games' | 'utility' | 'study' | 'maps' | 'internet';
   categoryLabel: string;
   icon: React.ElementType;
   badge: string;
@@ -505,6 +506,34 @@ export const ALL_ECOSYSTEM_MODES: EcosystemModeConfig[] = [
       { title: 'Bạn Đời & Người Yêu', desc: 'Không gian định vị cặp đôi, gửi tim & dẫn đường', tabKey: 'couple' },
       { title: 'Nhóm Gia Đình', desc: 'Theo dõi an toàn con cái, bố mẹ và ông bà', tabKey: 'family' },
       { title: 'Vùng An Toàn (Geofence)', desc: 'Nhà riêng, cơ quan, trường học & bệnh viện', tabKey: 'zones' }
+    ]
+  },
+  {
+    id: 'internet',
+    name: 'Haevy Internet (Trình Duyệt & Web 4.0)',
+    shortName: 'Haevy Internet',
+    englishName: 'Next-Gen Tabbed AI Web Browser',
+    category: 'internet',
+    categoryLabel: 'Trình Duyệt & Tìm Kiếm Web',
+    icon: Globe,
+    badge: 'Trình Duyệt Web 🌐',
+    badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+    color: 'from-sky-500 via-blue-600 to-indigo-600',
+    accentColor: 'text-sky-400',
+    borderColor: 'border-sky-500/30 hover:border-sky-400',
+    activeBorderColor: 'border-sky-400 ring-2 ring-sky-400/40 shadow-sky-500/20',
+    tagline: 'Trình duyệt web đa tab tách biệt từ Haevy AI, đọc báo sạch không quảng cáo & tóm tắt Gemini AI.',
+    description: 'Chế độ trình duyệt web đa tab độc lập tách biệt hoàn toàn từ Haevy AI: Tìm kiếm thông minh Google/Wikipedia/Bing, duyệt web HTTPS an toàn, chế độ đọc sạch Reader Mode loại bỏ quảng cáo, đọc to bài viết bằng giọng đọc tiếng Việt chuẩn và kết nối sâu với Gemini AI để tóm tắt, trích xuất dữ liệu trang web.',
+    defaultTab: 'internet' as ActiveTab,
+    shortcut: 'Alt + I',
+    shortcutAction: 'mode_internet',
+    keywords: ['internet', 'trình duyệt', 'browser', 'web', 'tìm kiếm', 'chrome', 'báo', 'tin tức', 'reader', 'wikipedia', 'google'],
+    subPages: [
+      { title: 'Trình Duyệt Đa Thẻ', desc: 'Duyệt mọi trang web độc lập với thanh URL HTTPS', tabKey: 'browser' },
+      { title: 'Tìm Kiếm AI Thông Minh', desc: 'Tra cứu thông tin chính xác từ nguồn Internet', tabKey: 'search' },
+      { title: 'Dấu Trang & Lịch Sử', desc: 'Quản lý kho website yêu thích theo danh mục', tabKey: 'bookmarks' },
+      { title: 'Bản Tin Xu Hướng 24h', desc: 'Cập nhật tin công nghệ, xã hội & khởi nghiệp', tabKey: 'news' },
+      { title: 'Chế Độ Đọc AI Reader', desc: 'Đọc sạch không quảng cáo & tóm tắt bản chất', tabKey: 'ai_reader' }
     ]
   }
 ];

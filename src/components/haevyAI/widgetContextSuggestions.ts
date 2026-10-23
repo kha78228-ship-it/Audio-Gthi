@@ -25,6 +25,14 @@ import {
   Gamepad2,
   Share2,
   ScrollText,
+  GraduationCap,
+  MapPin,
+  Map,
+  FlaskConical,
+  Calculator,
+  Lock,
+  Database,
+  Globe,
   LucideIcon
 } from 'lucide-react';
 import { EcosystemMode } from '../../types';
@@ -686,6 +694,203 @@ export const CONTEXT_SUGGESTIONS_MAP: Record<string, ModeContextInfo> = {
         actionType: 'custom_action'
       }
     ]
+  },
+
+  // 17. Haevy Edu - STEM Lab & Deep First-Principles Learning
+  edu: {
+    modeKey: 'edu',
+    modeName: 'Haevy Edu & STEM Lab',
+    badge: 'Deep Study AI',
+    iconName: 'GraduationCap',
+    accentGradient: 'from-cyan-400 via-blue-500 to-indigo-500',
+    themeColor: 'cyan',
+    suggestions: [
+      {
+        id: 'edu_first_principles',
+        title: 'Phân tích bản chất First Principles',
+        description: 'Giải thích nguyên lý gốc rễ, cạm bẫy học vẹt & tóm tắt cô đọng',
+        tag: 'Gemini 3.5 Flash',
+        iconName: 'BrainCircuit',
+        colorClass: 'text-cyan-400',
+        bgClass: 'bg-cyan-950/40',
+        borderClass: 'border-cyan-500/40 hover:border-cyan-400',
+        badge: 'Học sâu',
+        actionType: 'ai_prompt',
+        aiPrompt: 'Tôi muốn hiểu sâu theo nguyên lý đầu tiên (First Principles) về chủ đề này. Hãy phân tích bản chất logic, các cạm bẫy học vẹt cần tránh và tóm tắt cô đọng nhất.'
+      },
+      {
+        id: 'edu_casio_tactic',
+        title: 'Mở Casio fx-880 BTG & Công cụ thi',
+        description: 'Máy tính giải phương trình, bảng tuần hoàn & Pomodoro',
+        tag: 'Casio & Tools',
+        iconName: 'Calculator',
+        colorClass: 'text-amber-400',
+        bgClass: 'bg-amber-950/40',
+        borderClass: 'border-amber-500/40 hover:border-amber-400',
+        actionType: 'navigate_tab',
+        targetTab: 'tools'
+      },
+      {
+        id: 'edu_virtual_lab',
+        title: 'Vào Phòng Thí Nghiệm Ảo',
+        description: 'Mô phỏng tương tác Vật Lý, Hóa Học, Sinh Học thời gian thực',
+        tag: 'Interactive Lab',
+        iconName: 'FlaskConical',
+        colorClass: 'text-emerald-400',
+        bgClass: 'bg-emerald-950/40',
+        borderClass: 'border-emerald-500/40 hover:border-emerald-400',
+        actionType: 'navigate_tab',
+        targetTab: 'labs'
+      }
+    ]
+  },
+
+  // 18. Haevy Maps - Định vị an toàn Gia Đình & Cặp Đôi
+  maps: {
+    modeKey: 'maps',
+    modeName: 'Haevy Maps & Định Vị Gia Đình',
+    badge: 'Safe Geolocation',
+    iconName: 'MapPin',
+    accentGradient: 'from-emerald-400 to-teal-500',
+    themeColor: 'emerald',
+    suggestions: [
+      {
+        id: 'maps_safe_zone_ai',
+        title: 'AI Tư vấn điểm hẹn & Lộ trình an toàn',
+        description: 'Tính toán điểm giao cân bằng khoảng cách giữa các thành viên',
+        tag: 'Safe Routing',
+        iconName: 'Compass',
+        colorClass: 'text-teal-400',
+        bgClass: 'bg-teal-950/40',
+        borderClass: 'border-teal-500/40 hover:border-teal-400',
+        badge: 'Định vị AI',
+        actionType: 'ai_prompt',
+        aiPrompt: 'Hãy tư vấn cho tôi cách thiết lập bán kính an toàn Geofencing và lựa chọn địa điểm gặp gỡ thuận tiện nhất cho các thành viên trong gia đình.'
+      },
+      {
+        id: 'maps_family_zones',
+        title: 'Kiểm tra Vùng An Toàn Gia Đình',
+        description: 'Xem cảnh báo vào/ra trường học, nhà ở và cơ quan',
+        tag: 'Geofence Zones',
+        iconName: 'Map',
+        colorClass: 'text-emerald-400',
+        bgClass: 'bg-emerald-950/40',
+        borderClass: 'border-emerald-500/40 hover:border-emerald-400',
+        actionType: 'navigate_tab',
+        targetTab: 'zones'
+      }
+    ]
+  },
+
+  // 19. Haevy AI Hub & MCP Universe
+  haevy_ai: {
+    modeKey: 'haevy_ai',
+    modeName: 'Vũ Trụ Haevy AI & MCP Protocol',
+    badge: 'MCP & Omnibar',
+    iconName: 'BrainCircuit',
+    accentGradient: 'from-purple-500 via-pink-500 to-amber-500',
+    themeColor: 'purple',
+    suggestions: [
+      {
+        id: 'ai_mcp_security',
+        title: 'Quét An Toàn Bảo Mật MCP',
+        description: 'Kiểm tra token, rò rỉ dữ liệu context và quyền truy cập tool',
+        tag: 'Security Scanner',
+        iconName: 'ShieldCheck',
+        colorClass: 'text-rose-400',
+        bgClass: 'bg-rose-950/40',
+        borderClass: 'border-rose-500/40 hover:border-rose-400',
+        badge: 'Bảo mật E2EE',
+        actionType: 'ai_prompt',
+        aiPrompt: 'Hãy tiến hành quét kiểm tra an toàn dữ liệu Model Context Protocol (MCP) và đề xuất các biện pháp bảo vệ quyền riêng tư.'
+      },
+      {
+        id: 'ai_deep_first_principles',
+        title: 'Học sâu First Principles (Gemini 3.5)',
+        description: 'Chuyển ngay sang chế độ phân tích tài liệu và bản chất logic',
+        tag: 'First Principles',
+        iconName: 'GraduationCap',
+        colorClass: 'text-cyan-400',
+        bgClass: 'bg-cyan-950/40',
+        borderClass: 'border-cyan-500/40 hover:border-cyan-400',
+        actionType: 'navigate_mode',
+        targetMode: 'edu',
+        targetTab: 'assistant'
+      }
+    ]
+  },
+
+  // 20. Admin Management
+  admin: {
+    modeKey: 'admin',
+    modeName: 'Quản Trị Hệ Thống',
+    badge: 'System Admin',
+    iconName: 'Lock',
+    accentGradient: 'from-red-500 to-zinc-600',
+    themeColor: 'zinc',
+    suggestions: [
+      {
+        id: 'admin_audit_logs',
+        title: 'Kiểm tra nhật ký hệ thống & bảo mật',
+        description: 'Giám sát lưu lượng truy cập và tài nguyên máy chủ',
+        tag: 'Security Audit',
+        iconName: 'Database',
+        colorClass: 'text-zinc-300',
+        bgClass: 'bg-zinc-900/60',
+        borderClass: 'border-zinc-700 hover:border-zinc-500',
+        actionType: 'ai_prompt',
+        aiPrompt: 'Tóm tắt các chỉ số an toàn hệ thống, tỷ lệ tải CPU và khuyến nghị bảo mật máy chủ.'
+      }
+    ]
+  },
+
+  // 21. Haevy Internet - Trình duyệt Web đa tab, Tìm kiếm & AI Reader Mode
+  internet: {
+    modeKey: 'internet',
+    modeName: 'Haevy Internet',
+    badge: 'Web Browser Pro 🌐',
+    iconName: 'Globe',
+    accentGradient: 'from-sky-400 via-blue-500 to-indigo-500',
+    themeColor: 'sky',
+    suggestions: [
+      {
+        id: 'internet_summarize',
+        title: 'Tóm tắt trang web hiện tại',
+        description: 'Trích xuất ý chính, số liệu quan trọng & bản chất bài viết',
+        tag: 'AI Reader',
+        iconName: 'Sparkles',
+        colorClass: 'text-sky-400',
+        bgClass: 'bg-sky-950/40',
+        borderClass: 'border-sky-500/40 hover:border-sky-400',
+        badge: 'Tóm tắt AI',
+        actionType: 'ai_prompt',
+        aiPrompt: 'Hãy phân tích, tóm tắt cô đọng các luận điểm cốt lõi và số liệu quan trọng của trang web tôi đang đọc trong Haevy Internet.'
+      },
+      {
+        id: 'internet_reader_mode',
+        title: 'Chuyển Chế Độ Đọc Sạch Reader',
+        description: 'Loại bỏ quảng cáo, hình ảnh rác và tối ưu font chữ đọc sách',
+        tag: 'Clean View',
+        iconName: 'Feather',
+        colorClass: 'text-amber-400',
+        bgClass: 'bg-amber-950/40',
+        borderClass: 'border-amber-500/40 hover:border-amber-400',
+        actionType: 'navigate_tab',
+        targetTab: 'ai_reader'
+      },
+      {
+        id: 'internet_security_check',
+        title: 'Kiểm tra an toàn bảo mật URL & SSL',
+        description: 'Quét chứng chỉ HTTPS, đánh giá mức độ tin cậy tên miền',
+        tag: 'MCP Security',
+        iconName: 'ShieldCheck',
+        colorClass: 'text-emerald-400',
+        bgClass: 'bg-emerald-950/40',
+        borderClass: 'border-emerald-500/40 hover:border-emerald-400',
+        actionType: 'ai_prompt',
+        aiPrompt: 'Đánh giá mức độ an toàn bảo mật của trang web đang mở, kiểm tra chứng chỉ HTTPS và cảnh báo nếu có dấu hiệu phishing hoặc mã độc.'
+      }
+    ]
   }
 };
 
@@ -730,7 +935,15 @@ export function getContextIcon(name: string): LucideIcon {
     Calendar,
     Gamepad2,
     Share2,
-    ScrollText
+    ScrollText,
+    GraduationCap,
+    MapPin,
+    Map,
+    FlaskConical,
+    Calculator,
+    Lock,
+    Database,
+    Globe
   };
   return map[name] || Sparkles;
 }

@@ -13,7 +13,9 @@ import {
   TrendingUp,
   Receipt,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Mic,
+  ArrowRight
 } from 'lucide-react';
 import { FinanceWallet, FinanceCategory, FinanceTransaction, FamilyMember } from '../../types';
 
@@ -23,6 +25,7 @@ interface FinanceAddExpenseViewProps {
   currentUserId?: string;
   onAddTransaction: (tx: Omit<FinanceTransaction, 'id' | 'createdAt'>) => void;
   onSuccess?: () => void;
+  onOpenVoiceExpense?: () => void;
 }
 
 export function FinanceAddExpenseView({
@@ -31,6 +34,7 @@ export function FinanceAddExpenseView({
   currentUserId = 'user_haevy',
   onAddTransaction,
   onSuccess,
+  onOpenVoiceExpense,
 }: FinanceAddExpenseViewProps) {
   const formatVND = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Math.round(val));
@@ -156,6 +160,43 @@ export function FinanceAddExpenseView({
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-emerald-500 text-zinc-950 font-black text-sm flex items-center gap-2 shadow-2xl shadow-emerald-500/40 animate-in slide-in-from-top-4">
           <CheckCircle2 size={18} />
           <span>Đã lưu khoản {txType === 'expense' ? 'chi tiêu' : 'thu nhập'} thành công!</span>
+        </div>
+      )}
+
+      {/* Voice Expense Quick Action Banner */}
+      {onOpenVoiceExpense && (
+        <div 
+          onClick={onOpenVoiceExpense}
+          className="p-4 rounded-3xl bg-gradient-to-r from-emerald-950/60 via-zinc-900 to-teal-950/50 border border-emerald-500/40 hover:border-emerald-400 transition-all cursor-pointer shadow-xl group relative overflow-hidden active:scale-[0.99]"
+        >
+          <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-zinc-950 flex items-center justify-center font-black shadow-md shadow-emerald-500/25 group-hover:scale-105 transition-transform shrink-0">
+                <Mic size={20} className="animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs sm:text-sm font-black text-white group-hover:text-emerald-300 transition-colors">
+                    Nói Để Ghi Nhanh Chi Tiêu
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+                    Rảnh Tay
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  Đọc: "Ăn sáng 45k", "Đổ xăng 70 nghìn ví tiền mặt", "Cà phê 35k"...
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="px-3.5 py-2 rounded-xl bg-emerald-500 group-hover:bg-emerald-400 text-zinc-950 text-xs font-black transition-all flex items-center gap-1 shrink-0 shadow-md cursor-pointer"
+            >
+              <span>Nói Ngay</span>
+              <ArrowRight size={13} />
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,46 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Compass, 
-  Library, 
-  Users, 
-  MessageSquare, 
-  Heart, 
-  Wallet, 
-  ShieldCheck, 
-  Sparkles, 
-  Gamepad2, 
-  Crown, 
-  Headphones, 
-  Disc3, 
-  Radio, 
-  ChevronRight, 
-  Search, 
-  Plus, 
-  Flame, 
-  Coins, 
-  Sliders, 
-  User as UserIcon, 
-  KeyRound, 
-  Music, 
-  TrendingUp, 
-  Clock, 
-  ExternalLink,
-  ChevronLeft,
-  Volume2,
-  FolderHeart,
-  Zap,
-  ListMusic,
+import React, { useState } from 'react';
+import {
+  Bookmark,
+  BookOpen,
   BrainCircuit,
+  Calculator,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Coins,
+  Compass,
+  Crown,
+  Disc3,
+  Flame,
+  FlaskConical,
+  FolderHeart,
+  Gamepad2,
+  Gem,
+  Gift,
   GitFork,
-  Orbit,
-  Moon,
+  Globe,
   GraduationCap,
-  MapPin
+  Headphones,
+  Heart,
+  Home,
+  KeyRound,
+  Library,
+  MapPin,
+  MessageSquare,
+  Moon,
+  Music,
+  Newspaper,
+  Orbit,
+  PenLine,
+  PieChart,
+  Plus,
+  Radio,
+  Search,
+  ShieldCheck,
+  ShoppingBag,
+  SlidersHorizontal,
+  Sparkles,
+  Sun,
+  User as UserIcon,
+  Users,
+  Wallet,
+  Zap
 } from 'lucide-react';
 import { ActiveTab, EcosystemMode, Track } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useModeBadges } from '../context/ModeBadgeContext';
-import { HaevySpaceLogo } from './HaevySpaceLogo';
 import { CosmicAvatarFX } from './haevyLite/CosmicAvatarFX';
 
 interface DesktopSidebarProps {
@@ -57,7 +65,88 @@ interface DesktopSidebarProps {
   isPlaying: boolean;
   onPlayTrack: (track: Track) => void;
   onTogglePlay: () => void;
+  financeSubTab?: string;
+  onSelectFinanceSubTab?: (page: any) => void;
+  eduSubTab?: string;
+  onSelectEduSubTab?: (tab: any) => void;
+  messageSubTab?: string;
+  onSelectMessageSubTab?: (tab: any) => void;
+  coupleSubTab?: string;
+  onSelectCoupleSubTab?: (tab: any) => void;
+  gamesSubTab?: string;
+  onSelectGamesSubTab?: (tab: any) => void;
+  haevyAISubTab?: string;
+  onSelectHaevyAISubTab?: (tab: any) => void;
+  familyTreeSubTab?: string;
+  onSelectFamilyTreeSubTab?: (tab: any) => void;
+  spiritualSubTab?: string;
+  onSelectSpiritualSubTab?: (tab: any) => void;
+  haevyLiteSubTab?: string;
+  onSelectHaevyLiteSubTab?: (tab: any) => void;
+  adminSubTab?: string;
+  onSelectAdminSubTab?: (tab: any) => void;
+  studioSubTab?: string;
+  onSelectStudioSubTab?: (tab: any) => void;
+  mapsSubTab?: string;
+  onSelectMapsSubTab?: (tab: any) => void;
+  spaceSubTab?: string;
+  onSelectSpaceSubTab?: (tab: any) => void;
+  vipSubTab?: string;
+  onSelectVipSubTab?: (page: any) => void;
+  internetSubTab?: string;
+  onSelectInternetSubTab?: (tab: any) => void;
 }
+
+interface SidebarModeItem {
+  id: EcosystemMode;
+  label: string;
+  icon: any;
+  defaultTab: ActiveTab;
+}
+
+const SIDEBAR_GROUPS: Array<{
+  title: string;
+  items: SidebarModeItem[];
+}> = [
+  {
+    title: 'Trọng tâm',
+    items: [
+      { id: 'portal', label: 'Cổng Trung Tâm', icon: Home, defaultTab: 'portal' },
+      { id: 'haevy_ai', label: 'Haevy AI Master', icon: BrainCircuit, defaultTab: 'haevy_ai' },
+      { id: 'internet', label: 'Haevy Internet', icon: Globe, defaultTab: 'internet' as any },
+      { id: 'edu', label: 'Haevy Edu & STEM', icon: GraduationCap, defaultTab: 'edu' as any }
+    ]
+  },
+  {
+    title: 'Gia đình & Đời sống',
+    items: [
+      { id: 'maps', label: 'Haevy Maps GPS', icon: MapPin, defaultTab: 'maps' as any },
+      { id: 'couple', label: 'I Love Haevy', icon: Heart, defaultTab: 'couple' },
+      { id: 'family_tree', label: 'Gia Phả Dòng Tộc', icon: GitFork, defaultTab: 'family_tree' },
+      { id: 'finance', label: 'Tài Chính 6 Hũ', icon: Wallet, defaultTab: 'finance' },
+      { id: 'messages', label: 'Tin Nhắn & Bạn Bè', icon: MessageSquare, defaultTab: 'messages' }
+    ]
+  },
+  {
+    title: 'Sáng tạo & Thư giãn',
+    items: [
+      { id: 'audio', label: 'Haevy Audio Hi-Fi', icon: Headphones, defaultTab: 'home' },
+      { id: 'studio', label: 'Phòng Thu AI', icon: Sparkles, defaultTab: 'studio' },
+      { id: 'space', label: 'Không Gian 3D AR', icon: Compass, defaultTab: 'space' as any },
+      { id: 'spiritual', label: 'Chiêm Nghiệm', icon: Moon, defaultTab: 'spiritual' },
+      { id: 'games', label: 'Đấu Trường Game', icon: Gamepad2, defaultTab: 'games' }
+    ]
+  },
+  {
+    title: 'Tài khoản & Hệ thống',
+    items: [
+      { id: 'haevy_lite', label: 'Cửa Hàng Xu Lite', icon: Orbit, defaultTab: 'haevy_lite' as any },
+      { id: 'vip', label: 'Hội Viên VIP', icon: Crown, defaultTab: 'vip' },
+      { id: 'support', label: 'Trung Tâm Hỗ Trợ', icon: Headphones, defaultTab: 'support' },
+      { id: 'admin', label: 'Quản Trị Hệ Thống', icon: ShieldCheck, defaultTab: 'admin' }
+    ]
+  }
+];
 
 export function DesktopSidebar({
   currentMode,
@@ -66,20 +155,46 @@ export function DesktopSidebar({
   onSelectTab,
   onOpenAuth,
   onOpenAnonPass,
-  onOpenStudioAudio,
   onOpenVipHub,
   allTracks,
   currentTrack,
   isPlaying,
   onPlayTrack,
-  onTogglePlay
+  financeSubTab,
+  onSelectFinanceSubTab,
+  eduSubTab,
+  onSelectEduSubTab,
+  messageSubTab,
+  onSelectMessageSubTab,
+  coupleSubTab,
+  onSelectCoupleSubTab,
+  gamesSubTab,
+  onSelectGamesSubTab,
+  haevyAISubTab,
+  onSelectHaevyAISubTab,
+  familyTreeSubTab,
+  onSelectFamilyTreeSubTab,
+  spiritualSubTab,
+  onSelectSpiritualSubTab,
+  haevyLiteSubTab,
+  onSelectHaevyLiteSubTab,
+  adminSubTab,
+  onSelectAdminSubTab,
+  studioSubTab,
+  onSelectStudioSubTab,
+  mapsSubTab,
+  onSelectMapsSubTab,
+  spaceSubTab,
+  onSelectSpaceSubTab,
+  vipSubTab,
+  onSelectVipSubTab,
+  internetSubTab,
+  onSelectInternetSubTab
 }: DesktopSidebarProps) {
-  const { 
-    user, 
-    isVip, 
-    isAuthorVerified, 
-    isAdmin, 
-    audioPoints, 
+  const {
+    user,
+    isVip,
+    audioPoints,
     favorites,
     userProfile,
     displayName: authDisplayName,
@@ -89,188 +204,14 @@ export function DesktopSidebar({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
 
-  const effectiveDisplayName = userProfile?.displayName || authDisplayName || user?.displayName || user?.email?.split('@')[0] || 'Thành Viên';
+  const effectiveDisplayName =
+    userProfile?.displayName ||
+    authDisplayName ||
+    user?.displayName ||
+    user?.email?.split('@')[0] ||
+    'Thành Viên';
   const effectivePhotoURL = userProfile?.photoURL || authPhotoURL || user?.photoURL;
 
-  // Primary Ecosystem Modes Navigation
-  const ecosystemModes: Array<{
-    id: EcosystemMode;
-    label: string;
-    subLabel: string;
-    icon: any;
-    colorClass: string;
-    activeBg: string;
-    defaultTab: ActiveTab;
-    badge?: string;
-  }> = [
-    {
-      id: 'portal',
-      label: 'Hệ Sinh Thái Hub',
-      subLabel: 'Trang chủ & Tổng hợp',
-      icon: Sparkles,
-      colorClass: 'text-amber-400',
-      activeBg: 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold',
-      defaultTab: 'portal',
-      badge: 'Hub'
-    },
-    {
-      id: 'haevy_ai',
-      label: 'Haevy AI Master',
-      subLabel: 'Tâm sự & Thông tin cập nhật',
-      icon: BrainCircuit,
-      colorClass: 'text-purple-400',
-      activeBg: 'bg-purple-500/20 border-purple-500/50 text-purple-300 font-bold shadow-lg shadow-purple-900/30',
-      defaultTab: 'haevy_ai',
-      badge: 'AI Pro'
-    },
-    {
-      id: 'audio',
-      label: 'Haevy Audio',
-      subLabel: 'Âm nhạc & Podcast Lossless',
-      icon: Headphones,
-      colorClass: 'text-amber-400',
-      activeBg: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
-      defaultTab: 'home',
-      badge: 'Hi-Fi'
-    },
-    {
-      id: 'messages',
-      label: 'Haevy Message',
-      subLabel: 'Tin nhắn & Bạn bè trực tuyến',
-      icon: MessageSquare,
-      colorClass: 'text-sky-400',
-      activeBg: 'bg-sky-500/15 border-sky-500/40 text-sky-300',
-      defaultTab: 'messages'
-    },
-    {
-      id: 'couple',
-      label: 'I Love Haevy',
-      subLabel: 'Không gian tình nhân & Kỷ niệm',
-      icon: Heart,
-      colorClass: 'text-rose-400',
-      activeBg: 'bg-rose-500/15 border-rose-500/40 text-rose-300',
-      defaultTab: 'couple',
-      badge: 'Love'
-    },
-    {
-      id: 'maps',
-      label: 'Haevy Maps 📍',
-      subLabel: 'Vị trí bạn đời & Gia đình GPS',
-      icon: MapPin,
-      colorClass: 'text-emerald-400',
-      activeBg: 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold shadow-lg shadow-emerald-900/30',
-      defaultTab: 'maps' as any,
-      badge: 'Live GPS'
-    },
-    {
-      id: 'finance',
-      label: 'Haevy Finance',
-      subLabel: 'Sổ thu chi & Ví tiết kiệm',
-      icon: Wallet,
-      colorClass: 'text-emerald-400',
-      activeBg: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300',
-      defaultTab: 'finance'
-    },
-    {
-      id: 'studio',
-      label: 'Haevy Studio',
-      subLabel: 'Giọng đọc AI & Thu âm',
-      icon: Sparkles,
-      colorClass: 'text-purple-400',
-      activeBg: 'bg-purple-500/15 border-purple-500/40 text-purple-300',
-      defaultTab: 'studio',
-      badge: 'AI'
-    },
-    {
-      id: 'games',
-      label: 'Haevy Games',
-      subLabel: 'Game Center & Vòng quay',
-      icon: Gamepad2,
-      colorClass: 'text-indigo-400',
-      activeBg: 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300',
-      defaultTab: 'games'
-    },
-    {
-      id: 'morning',
-      label: 'Haevy Space 🌌',
-      subLabel: '3D Hologram & Air Studio',
-      icon: Sparkles,
-      colorClass: 'text-cyan-400',
-      activeBg: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300',
-      defaultTab: 'morning',
-      badge: '3D'
-    },
-    {
-      id: 'spiritual',
-      label: 'Haevy Spiritual 🔮',
-      subLabel: 'Tarot, Tử Vi 2026 & Chiêm Tinh',
-      icon: Sparkles,
-      colorClass: 'text-purple-400',
-      activeBg: 'bg-purple-500/20 border-purple-500/50 text-purple-300 font-bold',
-      defaultTab: 'spiritual',
-      badge: 'Tâm Linh'
-    },
-    {
-      id: 'family_tree',
-      label: 'Haevy Family Tree 👑',
-      subLabel: 'Cây Phả Hệ & Lịch Giỗ Dòng Tộc',
-      icon: GitFork,
-      colorClass: 'text-amber-400',
-      activeBg: 'bg-amber-500/15 border-amber-500/40 text-amber-300 font-bold',
-      defaultTab: 'family_tree',
-      badge: 'Gia Phả'
-    },
-    {
-      id: 'haevy_lite',
-      label: 'Xu Haevy Lite ✨',
-      subLabel: 'Combo Vũ Trụ & Hoạt Ảnh Động',
-      icon: Orbit,
-      colorClass: 'text-purple-400',
-      activeBg: 'bg-purple-500/20 border-purple-500/50 text-purple-300 font-bold shadow-lg shadow-purple-900/30',
-      defaultTab: 'haevy_lite' as any,
-      badge: 'Xu Lite'
-    },
-    {
-      id: 'edu',
-      label: 'Haevy Edu 🎓',
-      subLabel: 'Lab ảo & Lộ trình học tập',
-      icon: GraduationCap,
-      colorClass: 'text-emerald-400',
-      activeBg: 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold shadow-lg shadow-emerald-900/30',
-      defaultTab: 'edu' as any,
-      badge: 'STEM'
-    },
-    {
-      id: 'vip',
-      label: 'Haevy VIP Hub',
-      subLabel: 'Đặc quyền thành viên & Nạp xu',
-      icon: Crown,
-      colorClass: 'text-amber-400',
-      activeBg: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
-      defaultTab: 'vip',
-      badge: 'VIP'
-    },
-    {
-      id: 'support',
-      label: 'Haevy Hỗ Trợ',
-      subLabel: 'Trung tâm trợ giúp & CSKH',
-      icon: Headphones,
-      colorClass: 'text-teal-400',
-      activeBg: 'bg-teal-500/15 border-teal-500/40 text-teal-300',
-      defaultTab: 'support'
-    },
-    {
-      id: 'admin',
-      label: 'Haevy Quản Trị',
-      subLabel: 'Bảng điều khiển hệ thống',
-      icon: ShieldCheck,
-      colorClass: 'text-amber-400',
-      activeBg: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
-      defaultTab: 'admin'
-    }
-  ];
-
-  // Quick Navigation Tabs for the Current Selected Mode
   const getSubTabs = () => {
     switch (currentMode) {
       case 'audio':
@@ -279,314 +220,422 @@ export function DesktopSidebar({
           { id: 'library' as ActiveTab, label: 'Kho Audio Lossless', icon: Library },
           { id: 'community' as ActiveTab, label: 'Thảo Luận Âm Nhạc', icon: Users },
           { id: 'player' as ActiveTab, label: 'Trình Phát Studio', icon: Disc3 },
-          { id: 'vip' as ActiveTab, label: 'Nâng Cấp VIP Hub', icon: Crown }
-        ];
-      case 'messages':
-        return [
-          { id: 'messages' as ActiveTab, label: 'Tin Nhắn & Bạn Bè', icon: MessageSquare },
-          { id: 'community' as ActiveTab, label: 'Cộng Đồng Chung', icon: Users }
-        ];
-      case 'couple':
-        return [
-          { id: 'couple' as ActiveTab, label: 'Không Gian Tình Yêu', icon: Heart },
-          { id: 'library' as ActiveTab, label: 'Kho Nhạc Kỷ Niệm', icon: Disc3 }
+          { id: 'vip' as ActiveTab, label: 'Hội Viên VIP', icon: Crown }
         ];
       case 'finance':
         return [
-          { id: 'finance' as ActiveTab, label: 'Sổ Sách & Thu Chi', icon: Wallet },
-          { id: 'vip' as ActiveTab, label: 'Điểm Thưởng & Nạp VIP', icon: Coins }
+          { id: 'finance' as ActiveTab, subTabId: 'page1', label: '01. Tổng Quan Thu Chi', icon: Wallet },
+          { id: 'finance' as ActiveTab, subTabId: 'page2', label: '02. Phân Bổ 6 Hũ', icon: PieChart },
+          { id: 'finance' as ActiveTab, subTabId: 'page3', label: '03. Ghi Chép Giao Dịch', icon: Plus },
+          { id: 'finance' as ActiveTab, subTabId: 'page4', label: '04. Quỹ Gia Đình', icon: Home },
+          { id: 'finance' as ActiveTab, subTabId: 'page5', label: '05. Công Cụ Tính Lãi', icon: Calculator }
         ];
-      case 'studio':
+      case 'edu':
         return [
-          { id: 'studio' as ActiveTab, label: 'Bàn Trộn & Giọng Nói AI', icon: Sparkles },
-          { id: 'library' as ActiveTab, label: 'Kho Nhạc Tác Quyền', icon: Library }
+          { id: 'edu' as any, subTabId: 'workspace', label: '01. Bàn Học Tập Trung', icon: GraduationCap },
+          { id: 'edu' as any, subTabId: 'sun_study', label: '02. Kỷ Luật & Xếp Hạng', icon: Sun },
+          { id: 'edu' as any, subTabId: 'labs', label: '03. Phòng Lab 3D STEM', icon: FlaskConical },
+          { id: 'edu' as any, subTabId: 'assistant', label: '04. AI Gia Sư Nguyên Lý', icon: BrainCircuit },
+          { id: 'edu' as any, subTabId: 'tools', label: '05. Phòng Thi & Casio', icon: Calculator }
         ];
-      case 'games':
+      case 'messages':
         return [
-          { id: 'games' as ActiveTab, label: 'Game Center & Mini Games', icon: Gamepad2 }
+          { id: 'messages' as ActiveTab, subTabId: 'chat', label: 'Hộp Thư Trò Chuyện', icon: MessageSquare },
+          { id: 'messages' as ActiveTab, subTabId: 'feed', label: 'Nhật Ký Khoảnh Khắc', icon: Sparkles },
+          { id: 'messages' as ActiveTab, subTabId: 'friends', label: 'Danh Bạ Bạn Bè', icon: Users }
         ];
-      case 'vip':
+      case 'couple':
         return [
-          { id: 'vip' as ActiveTab, label: 'Gói Hội Viên VIP', icon: Crown },
-          { id: 'profile' as ActiveTab, label: 'Hồ Sơ & Ví Điểm', icon: UserIcon }
-        ];
-      case 'admin':
-        return [
-          { id: 'admin' as ActiveTab, label: 'Admin Dashboard', icon: ShieldCheck },
-          { id: 'library' as ActiveTab, label: 'Quản Lý Audio', icon: Library }
+          { id: 'couple' as ActiveTab, subTabId: 'page1', label: '01. Hành Trình Yêu', icon: Heart },
+          { id: 'couple' as ActiveTab, subTabId: 'page2', label: '02. Chu Kỳ & Chăm Sóc', icon: Calendar },
+          { id: 'couple' as ActiveTab, subTabId: 'page3', label: '03. Lịch Hẹn & Kỷ Niệm', icon: BookOpen },
+          { id: 'couple' as ActiveTab, subTabId: 'page4', label: '04. Hộp Thư Tình Yêu', icon: Sparkles }
         ];
       case 'haevy_ai':
         return [
-          { id: 'haevy_ai' as ActiveTab, label: 'Haevy AI Master Hub', icon: BrainCircuit }
+          { id: 'haevy_ai' as ActiveTab, subTabId: 'chat', label: 'Đối Thoại Chuyên Sâu', icon: BrainCircuit },
+          { id: 'haevy_ai' as ActiveTab, subTabId: 'overview', label: 'Tổng Quan Trí Tuệ', icon: Compass },
+          { id: 'haevy_ai' as ActiveTab, subTabId: 'updates', label: 'Nhật Ký Hệ Thống', icon: Sparkles }
+        ];
+      case 'games':
+        return [
+          { id: 'games' as ActiveTab, subTabId: 'home', label: 'Sảnh Đấu Trường', icon: Gamepad2 },
+          { id: 'games' as ActiveTab, subTabId: 'quests', label: 'Nhiệm Vụ Hằng Ngày', icon: Flame },
+          { id: 'games' as ActiveTab, subTabId: 'leaderboard', label: 'Bảng Xếp Hạng', icon: Crown }
+        ];
+      case 'family_tree':
+        return [
+          { id: 'family_tree' as ActiveTab, subTabId: 'tree', label: 'Sơ Đồ Phả Hệ', icon: GitFork },
+          { id: 'family_tree' as ActiveTab, subTabId: 'records', label: 'Gia Sử & Sắc Phong', icon: BookOpen },
+          { id: 'family_tree' as ActiveTab, subTabId: 'anniversaries', label: 'Lịch Giỗ Tổ Tiên', icon: Calendar },
+          { id: 'family_tree' as ActiveTab, subTabId: 'ancestors', label: 'Danh Mục Tiền Nhân', icon: Users }
         ];
       case 'spiritual':
         return [
-          { id: 'spiritual' as ActiveTab, label: 'Tâm Linh & Tử Vi 2026', icon: Moon }
+          { id: 'spiritual' as ActiveTab, subTabId: 'tarot', label: 'Bài Tarot 3D', icon: Sparkles },
+          { id: 'spiritual' as ActiveTab, subTabId: 'tuvi', label: 'Lá Số Tử Vi 2026', icon: Moon },
+          { id: 'spiritual' as ActiveTab, subTabId: 'astrology', label: 'Bản Đồ Sao', icon: Compass },
+          { id: 'spiritual' as ActiveTab, subTabId: 'soundscapes', label: 'Sóng Âm Thiền Định', icon: Radio }
         ];
-      case 'support':
+      case 'haevy_lite':
         return [
-          { id: 'support' as ActiveTab, label: 'Trung Tâm Hỗ Trợ', icon: Headphones }
+          { id: 'haevy_lite' as ActiveTab, subTabId: 'shop', label: '01. Cửa Hàng Trang Bị', icon: ShoppingBag },
+          { id: 'haevy_lite' as ActiveTab, subTabId: 'customize', label: '02. Tùy Chỉnh Hiệu Ứng', icon: SlidersHorizontal },
+          { id: 'haevy_lite' as ActiveTab, subTabId: 'topup_and_ads', label: '03. Nạp Xu & Nhiệm Vụ', icon: Coins }
+        ];
+      case 'admin':
+        return [
+          { id: 'admin' as ActiveTab, subTabId: 'page1', label: 'Tổng Quan Máy Chủ', icon: ShieldCheck },
+          { id: 'admin' as ActiveTab, subTabId: 'page2', label: 'Quản Lý Thành Viên', icon: Crown },
+          { id: 'admin' as ActiveTab, subTabId: 'page3', label: 'Kiểm Duyệt Tác Giả', icon: ShieldCheck },
+          { id: 'admin' as ActiveTab, subTabId: 'page4', label: 'Điều Phối Ngân Quỹ', icon: Coins }
+        ];
+      case 'studio':
+        return [
+          { id: 'studio' as ActiveTab, subTabId: 'page1', label: 'Bàn Trộn & Giọng AI', icon: Sparkles },
+          { id: 'studio' as ActiveTab, subTabId: 'page2', label: 'Phòng Thu Trực Tiếp', icon: Radio },
+          { id: 'studio' as ActiveTab, subTabId: 'page3', label: 'Tác Phẩm Đã Xuất Bản', icon: Library }
+        ];
+      case 'maps':
+        return [
+          { id: 'maps' as any, subTabId: 'all', label: 'Tất Cả Thành Viên', icon: MapPin },
+          { id: 'maps' as any, subTabId: 'couple', label: 'Vị Trí Người Thương', icon: Heart },
+          { id: 'maps' as any, subTabId: 'family', label: 'Vị Trí Gia Đình', icon: Home },
+          { id: 'maps' as any, subTabId: 'zones', label: 'Vùng An Toàn & SOS', icon: ShieldCheck }
+        ];
+      case 'vip':
+        return [
+          { id: 'vip' as ActiveTab, subTabId: 'page1', label: '01. Đặc Quyền Hội Viên', icon: Crown },
+          { id: 'vip' as ActiveTab, subTabId: 'page2', label: '02. Nâng Cấp Gói VIP', icon: Zap },
+          { id: 'vip' as ActiveTab, subTabId: 'page3', label: '03. Nạp Xu Haevy', icon: Coins },
+          { id: 'vip' as ActiveTab, subTabId: 'page4', label: '04. Quà Tặng Tri Ân', icon: Gift },
+          { id: 'vip' as ActiveTab, subTabId: 'page5', label: '05. Đặc Quyền AI Pro', icon: BrainCircuit },
+          { id: 'vip' as ActiveTab, subTabId: 'page6', label: '06. Phòng Hội Viên', icon: Gem }
+        ];
+      case 'internet':
+        return [
+          { id: 'internet' as any, subTabId: 'browser', label: '01. Trình Duyệt Đa Tab', icon: Globe },
+          { id: 'internet' as any, subTabId: 'search', label: '02. Tìm Kiếm Nguyên Lý', icon: Search },
+          { id: 'internet' as any, subTabId: 'bookmarks', label: '03. Dấu Trang Đã Lưu', icon: Bookmark },
+          { id: 'internet' as any, subTabId: 'news', label: '04. Điểm Tin Chọn Lọc', icon: Newspaper },
+          { id: 'internet' as any, subTabId: 'ai_reader', label: '05. Chế Độ Đọc Sạch', icon: BookOpen }
         ];
       case 'morning':
       case 'space':
         return [
-          { id: 'morning' as ActiveTab, label: 'Không Gian 3D Air Studio', icon: Sparkles }
-        ];
-      case 'family_tree':
-        return [
-          { id: 'family_tree' as ActiveTab, label: 'Gia Phả Dòng Họ', icon: GitFork }
-        ];
-      case 'haevy_lite':
-        return [
-          { id: 'haevy_lite' as ActiveTab, label: 'Combo Vũ Trụ', icon: Orbit },
-          { id: 'vip' as ActiveTab, label: 'Nạp VIP', icon: Crown }
+          { id: 'space' as any, subTabId: 'morning_dashboard', label: 'Không Gian Buổi Sáng', icon: Sun },
+          { id: 'space' as any, subTabId: 'portal', label: 'Cổng Không Gian 3D', icon: Sparkles },
+          { id: 'space' as any, subTabId: 'canvas', label: 'Bảng Vẽ Chiều Sâu', icon: PenLine },
+          { id: 'space' as any, subTabId: 'mascot', label: 'Linh Vật Tương Tác', icon: Flame },
+          { id: 'space' as any, subTabId: 'magic_ar', label: 'Cử Chỉ Tay Camera AR', icon: Zap }
         ];
       default:
-        return [
-          { id: 'home' as ActiveTab, label: 'Trang Chủ', icon: Compass },
-          { id: 'library' as ActiveTab, label: 'Kho Audio', icon: Library }
-        ];
+        return [];
+    }
+  };
+
+  const handleSubTabClick = (tab: any) => {
+    if (currentMode === 'finance') {
+      if (tab.id === 'vip') {
+        onSelectTab('vip');
+      } else {
+        onSelectTab('finance' as ActiveTab);
+        if (onSelectFinanceSubTab && tab.subTabId) onSelectFinanceSubTab(tab.subTabId);
+      }
+    } else if (currentMode === 'edu') {
+      onSelectTab('edu' as any);
+      if (onSelectEduSubTab && tab.subTabId) onSelectEduSubTab(tab.subTabId);
+    } else if (currentMode === 'messages') {
+      onSelectTab('messages' as any);
+      if (onSelectMessageSubTab && tab.subTabId) onSelectMessageSubTab(tab.subTabId);
+    } else if (currentMode === 'couple') {
+      onSelectTab('couple' as any);
+      if (onSelectCoupleSubTab && tab.subTabId) onSelectCoupleSubTab(tab.subTabId);
+    } else if (currentMode === 'games') {
+      onSelectTab('games' as any);
+      if (onSelectGamesSubTab && tab.subTabId) onSelectGamesSubTab(tab.subTabId);
+    } else if (currentMode === 'haevy_ai') {
+      onSelectTab('haevy_ai' as any);
+      if (onSelectHaevyAISubTab && tab.subTabId) onSelectHaevyAISubTab(tab.subTabId);
+    } else if (currentMode === 'family_tree') {
+      onSelectTab('family_tree' as any);
+      if (onSelectFamilyTreeSubTab && tab.subTabId) onSelectFamilyTreeSubTab(tab.subTabId);
+    } else if (currentMode === 'spiritual') {
+      onSelectTab('spiritual' as any);
+      if (onSelectSpiritualSubTab && tab.subTabId) onSelectSpiritualSubTab(tab.subTabId);
+    } else if (currentMode === 'haevy_lite') {
+      onSelectTab('haevy_lite' as any);
+      if (onSelectHaevyLiteSubTab && tab.subTabId) onSelectHaevyLiteSubTab(tab.subTabId);
+    } else if (currentMode === 'admin') {
+      onSelectTab('admin' as any);
+      if (onSelectAdminSubTab && tab.subTabId) onSelectAdminSubTab(tab.subTabId);
+    } else if (currentMode === 'studio') {
+      onSelectTab('studio' as any);
+      if (onSelectStudioSubTab && tab.subTabId) onSelectStudioSubTab(tab.subTabId);
+    } else if (currentMode === 'maps') {
+      onSelectTab('maps' as any);
+      if (onSelectMapsSubTab && tab.subTabId) onSelectMapsSubTab(tab.subTabId);
+    } else if (currentMode === 'space' || currentMode === 'morning') {
+      onSelectTab('space' as any);
+      if (onSelectSpaceSubTab && tab.subTabId) onSelectSpaceSubTab(tab.subTabId);
+    } else if (currentMode === 'vip') {
+      onSelectTab('vip' as any);
+      if (onSelectVipSubTab && tab.subTabId) onSelectVipSubTab(tab.subTabId);
+    } else if (currentMode === 'internet') {
+      onSelectTab('internet' as any);
+      if (onSelectInternetSubTab && tab.subTabId) onSelectInternetSubTab(tab.subTabId);
+    } else {
+      onSelectTab(tab.id);
     }
   };
 
   const subTabs = getSubTabs();
 
-  // Favorite / Quick Tracks
-  const favoriteTracks = allTracks.filter(t => favorites.includes(t.id)).slice(0, 6);
+  const favoriteTracks = allTracks.filter((t) => favorites.includes(t.id)).slice(0, 5);
   const filteredQuickTracks = sidebarSearch.trim()
-    ? allTracks.filter(t => 
-        t.title.toLowerCase().includes(sidebarSearch.toLowerCase()) || 
-        t.artist.toLowerCase().includes(sidebarSearch.toLowerCase())
-      ).slice(0, 8)
-    : favoriteTracks.length > 0 
-      ? favoriteTracks 
-      : allTracks.slice(0, 6);
+    ? allTracks
+        .filter(
+          (t) =>
+            t.title.toLowerCase().includes(sidebarSearch.toLowerCase()) ||
+            t.artist.toLowerCase().includes(sidebarSearch.toLowerCase())
+        )
+        .slice(0, 6)
+    : favoriteTracks.length > 0
+    ? favoriteTracks
+    : allTracks.slice(0, 5);
 
   return (
-    <aside 
+    <aside
       id="desktop-pro-sidebar"
-      className={`hidden lg:flex flex-col shrink-0 bg-zinc-950/90 backdrop-blur-xl border-r border-zinc-800/80 transition-all duration-300 z-30 select-none ${
-        isCollapsed ? 'w-20' : 'w-72 xl:w-80'
+      className={`flex flex-col shrink-0 bg-[#0b0c10] border-r border-white/7 transition-all duration-200 z-30 select-none ${
+        isCollapsed ? 'w-16' : 'w-60 xl:w-64'
       }`}
-      style={{ height: 'calc(100vh - 2rem)', position: 'sticky', top: '1rem' }}
+      style={{ height: 'calc(100vh - 3.25rem)', position: 'sticky', top: '3.25rem' }}
     >
-      {/* Sidebar Header & Toggle */}
-      <div className="p-4 border-b border-zinc-800/80 flex items-center justify-between gap-2">
+      {/* Top Rail Header */}
+      <div className="px-3.5 py-3 border-b border-white/7 flex items-center justify-between gap-2">
         {!isCollapsed && (
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 p-[1px] shadow-md shadow-amber-500/20">
-              <div className="w-full h-full bg-zinc-950 rounded-xl flex items-center justify-center">
-                <Music size={16} className="text-amber-400" />
-              </div>
-            </div>
-            <div>
-              <h2 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-1.5">
-                Haevy Universe
-                <span className="text-[9px] bg-amber-500/20 text-amber-300 font-black px-1.5 py-0.2 rounded border border-amber-500/30">
-                  DESKTOP
-                </span>
-              </h2>
-              <p className="text-[11px] text-zinc-400 truncate max-w-[140px]">
-                Hệ Sinh Thái Đa Tiện Ích
-              </p>
-            </div>
-          </div>
+          <span className="text-xs font-medium text-zinc-400 truncate">
+            Không gian làm việc
+          </span>
         )}
-
         <button
           type="button"
           id="collapse-sidebar-btn"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-colors cursor-pointer ml-auto"
-          title={isCollapsed ? 'Mở rộng thanh menu (Desktop)' : 'Thu gọn thanh menu'}
+          className="w-7 h-7 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-white/8 flex items-center justify-center transition-colors cursor-pointer ml-auto"
+          title={isCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'}
         >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
       </div>
 
       {/* Scrollable Navigation Body */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-5 custom-scrollbar">
-        {/* SECTION 1: 6 ECOSYSTEM MODES */}
-        <div>
-          {!isCollapsed && (
-            <div className="px-2 mb-2 flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                Hệ Sinh Thái
-              </span>
-              <span className="text-[10px] text-zinc-600 font-mono">7 Không Gian</span>
-            </div>
-          )}
-
-          <div className="space-y-1">
-            {ecosystemModes.map((mode) => {
-              const Icon = mode.icon;
-              const isActive = currentMode === mode.id;
-              const unreadCount = getBadgeForMode(mode.id);
-
-              return (
-                <button
-                  key={mode.id}
-                  type="button"
-                  id={`sidebar-mode-${mode.id}`}
-                  onClick={() => {
-                    markModeAsViewed(mode.id, mode.defaultTab);
-                    onSelectMode(mode.id, mode.defaultTab);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all text-left cursor-pointer group border ${
-                    isActive
-                      ? `${mode.activeBg} font-bold shadow-lg shadow-black/40`
-                      : 'border-transparent text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/80 hover:border-zinc-800/80'
-                  }`}
-                  title={`${mode.label}${unreadCount > 0 ? ` (${unreadCount} thông báo mới)` : ''}`}
-                >
-                  <div className={`relative p-1.5 rounded-xl transition-transform group-hover:scale-110 ${
-                    isActive ? 'bg-black/30' : 'bg-zinc-900 border border-zinc-800'
-                  }`}>
-                    {mode.id === 'morning' ? (
-                      <HaevySpaceLogo variant="icon" size="sm" animated={isActive} />
-                    ) : (
-                      <Icon size={18} className={mode.colorClass} />
-                    )}
-                    {unreadCount > 0 && isCollapsed && (
-                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-lg shadow-rose-500/50 border border-zinc-950 animate-pulse">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </span>
-                    )}
-                  </div>
-
-                  {!isCollapsed && (
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold truncate flex items-center justify-between gap-1">
-                        <span className="truncate">{mode.label}</span>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {unreadCount > 0 && (
-                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-500 text-white shadow-md shadow-rose-500/40 animate-pulse">
-                              {unreadCount > 99 ? '99+' : unreadCount}
-                            </span>
-                          )}
-                          {isActive && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-zinc-500 truncate group-hover:text-zinc-400 transition-colors">
-                        {mode.subLabel}
-                      </p>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* SECTION 2: SUB-NAVIGATION OF CURRENT MODE */}
-        <div>
-          {!isCollapsed && (
-            <div className="px-2 mb-2 flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                Menu Chức Năng
-              </span>
-            </div>
-          )}
-
-          <div className="space-y-1">
-            {subTabs.map((tab) => {
-              const TabIcon = tab.icon;
-              const isTabActive = activeTab === tab.id;
-
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  id={`sidebar-tab-${tab.id}`}
-                  onClick={() => onSelectTab(tab.id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
-                    isTabActive
-                      ? 'bg-zinc-800 text-white border-zinc-700 shadow-sm'
-                      : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
-                  }`}
-                  title={tab.label}
-                >
-                  <TabIcon size={16} className={isTabActive ? 'text-amber-400' : 'text-zinc-500'} />
-                  {!isCollapsed && <span className="truncate">{tab.label}</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* SECTION 3: QUICK DESKTOP PLAYLIST / FAVORITES */}
-        {!isCollapsed && (
-          <div className="pt-2 border-t border-zinc-800/80">
-            <div className="px-2 mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                <FolderHeart size={13} className="text-amber-400" />
-                <span>{favorites.length > 0 ? 'Nhạc Yêu Thích & Gợi Ý' : 'Khám Phá Nhanh'}</span>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 space-y-5 custom-scrollbar">
+        {/* Contextual Sub-Navigation when inside a specific subsystem */}
+        {subTabs.length > 0 && (
+          <div className="pb-3 border-b border-white/7">
+            {!isCollapsed && (
+              <div className="px-2.5 mb-1.5 text-[11px] font-medium text-amber-300/90">
+                Mục đang mở
               </div>
-              <span className="text-[10px] text-zinc-600 font-mono">
-                {filteredQuickTracks.length} tracks
+            )}
+            <div className="space-y-0.5">
+              {subTabs.map((tab) => {
+                const TabIcon = tab.icon;
+                const isTabActive = (() => {
+                  if (currentMode === 'finance') {
+                    if (tab.id === 'vip') return activeTab === 'vip';
+                    return financeSubTab
+                      ? tab.subTabId === financeSubTab
+                      : tab.subTabId === 'page1' && activeTab === 'finance';
+                  }
+                  if (currentMode === 'edu') {
+                    return eduSubTab ? tab.subTabId === eduSubTab : tab.subTabId === 'workspace';
+                  }
+                  if (currentMode === 'messages') {
+                    return messageSubTab ? tab.subTabId === messageSubTab : tab.id === activeTab;
+                  }
+                  if (currentMode === 'couple') {
+                    return coupleSubTab ? tab.subTabId === coupleSubTab : tab.id === activeTab;
+                  }
+                  if (currentMode === 'games') {
+                    return gamesSubTab ? tab.subTabId === gamesSubTab : tab.id === activeTab;
+                  }
+                  if (currentMode === 'haevy_ai') {
+                    return haevyAISubTab ? tab.subTabId === haevyAISubTab : tab.id === activeTab;
+                  }
+                  if (currentMode === 'family_tree') {
+                    return familyTreeSubTab
+                      ? tab.subTabId === familyTreeSubTab
+                      : tab.id === activeTab;
+                  }
+                  if (currentMode === 'spiritual') {
+                    return spiritualSubTab ? tab.subTabId === spiritualSubTab : tab.id === activeTab;
+                  }
+                  if (currentMode === 'haevy_lite') {
+                    return haevyLiteSubTab ? tab.subTabId === haevyLiteSubTab : tab.id === activeTab;
+                  }
+                  if (currentMode === 'admin') {
+                    return adminSubTab ? tab.subTabId === adminSubTab : tab.id === activeTab;
+                  }
+                  if (currentMode === 'studio') {
+                    return studioSubTab ? tab.subTabId === studioSubTab : tab.id === activeTab;
+                  }
+                  if (currentMode === 'maps') {
+                    return mapsSubTab ? tab.subTabId === mapsSubTab : tab.subTabId === 'all';
+                  }
+                  if (currentMode === 'space' || currentMode === 'morning') {
+                    return spaceSubTab ? tab.subTabId === spaceSubTab : tab.subTabId === 'portal';
+                  }
+                  if (currentMode === 'vip') {
+                    return vipSubTab ? tab.subTabId === vipSubTab : tab.subTabId === 'page1';
+                  }
+                  if (currentMode === 'internet') {
+                    return internetSubTab
+                      ? tab.subTabId === internetSubTab
+                      : tab.subTabId === 'browser';
+                  }
+                  return activeTab === tab.id;
+                })();
+
+                return (
+                  <button
+                    key={`${tab.id}-${tab.subTabId || ''}`}
+                    type="button"
+                    onClick={() => handleSubTabClick(tab)}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                      isTabActive
+                        ? 'bg-white/10 text-white font-semibold'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/4'
+                    }`}
+                    title={tab.label}
+                  >
+                    <TabIcon
+                      size={15}
+                      className={isTabActive ? 'text-amber-300 shrink-0' : 'text-zinc-500 shrink-0'}
+                    />
+                    {!isCollapsed && <span className="truncate">{tab.label}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Categorized Ecosystem Navigation Groups */}
+        {SIDEBAR_GROUPS.map((group) => (
+          <div key={group.title} className="space-y-1">
+            {!isCollapsed && (
+              <div className="px-2.5 text-[11px] font-medium text-zinc-500">{group.title}</div>
+            )}
+            <div className="space-y-0.5">
+              {group.items.map((mode) => {
+                const Icon = mode.icon;
+                const isActive =
+                  currentMode === mode.id ||
+                  (mode.id === 'space' && currentMode === 'morning');
+                const unreadCount = getBadgeForMode(mode.id);
+
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    id={`sidebar-mode-${mode.id}`}
+                    onClick={() => {
+                      markModeAsViewed(mode.id, mode.defaultTab);
+                      onSelectMode(mode.id, mode.defaultTab);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-colors text-left cursor-pointer group ${
+                      isActive
+                        ? 'bg-white/10 text-white font-semibold'
+                        : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/4'
+                    }`}
+                    title={mode.label}
+                  >
+                    <Icon
+                      size={16}
+                      className={`shrink-0 transition-colors ${
+                        isActive ? 'text-amber-300' : 'text-zinc-500 group-hover:text-zinc-300'
+                      }`}
+                    />
+                    {!isCollapsed && (
+                      <div className="min-w-0 flex-1 flex items-center justify-between gap-1.5">
+                        <span className="truncate">{mode.label}</span>
+                        {unreadCount > 0 && (
+                          <span className="font-mono-tabular text-[10px] text-amber-300">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Quick Audio Queue (Only when expanded) */}
+        {!isCollapsed && (
+          <div className="pt-3 border-t border-white/7">
+            <div className="px-2.5 mb-2 flex items-center justify-between text-[11px] text-zinc-500">
+              <span className="font-medium">
+                {favorites.length > 0 ? 'Bản âm yêu thích' : 'Gợi ý nghe nhanh'}
               </span>
+              <span className="font-mono-tabular">{filteredQuickTracks.length}</span>
             </div>
 
-            {/* Micro search in sidebar */}
-            <div className="px-1 mb-2">
+            <div className="px-1.5 mb-2">
               <div className="relative">
-                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <Search
+                  size={12}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500"
+                />
                 <input
                   type="text"
                   value={sidebarSearch}
                   onChange={(e) => setSidebarSearch(e.target.value)}
-                  placeholder="Tìm nhanh bài hát..."
-                  className="w-full bg-zinc-900/80 border border-zinc-800/80 rounded-xl pl-7 pr-2.5 py-1 text-[11px] text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-500/50"
+                  placeholder="Lọc nhanh bản âm..."
+                  className="w-full bg-zinc-900/70 border border-white/7 rounded-lg pl-7 pr-2.5 py-1 text-[11px] text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-white/20"
                 />
               </div>
             </div>
 
-            {/* Quick Tracks List */}
-            <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+            <div className="space-y-0.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
               {filteredQuickTracks.map((t) => {
                 const isCurrent = currentTrack?.id === t.id;
                 return (
-                  <div
+                  <button
                     key={t.id}
+                    type="button"
                     onClick={() => onPlayTrack(t)}
-                    className={`flex items-center gap-2 p-1.5 rounded-xl cursor-pointer transition-all group ${
-                      isCurrent 
-                        ? 'bg-amber-500/10 border border-amber-500/30' 
-                        : 'hover:bg-zinc-900 border border-transparent'
+                    className={`w-full flex items-center gap-2 p-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                      isCurrent ? 'bg-white/10 text-white' : 'hover:bg-white/4 text-zinc-300'
                     }`}
                   >
-                    <div className="w-7 h-7 rounded-lg overflow-hidden bg-zinc-800 shrink-0 relative">
+                    <div className="w-6 h-6 rounded bg-zinc-800 overflow-hidden shrink-0 flex items-center justify-center">
                       {t.coverUrl ? (
-                        <img src={t.coverUrl} alt={t.title} className="w-full h-full object-cover" />
+                        <img
+                          src={t.coverUrl}
+                          alt={t.title}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                          <Music size={12} />
-                        </div>
-                      )}
-                      {isCurrent && isPlaying && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                        </div>
+                        <Music size={11} className="text-zinc-500" />
                       )}
                     </div>
-
                     <div className="min-w-0 flex-1">
-                      <h5 className={`text-[11px] font-bold truncate ${
-                        isCurrent ? 'text-amber-300' : 'text-zinc-300 group-hover:text-white'
-                      }`}>
-                        {t.title}
-                      </h5>
-                      <p className="text-[9px] text-zinc-500 truncate">{t.artist}</p>
+                      <div className="text-[11px] font-medium truncate">{t.title}</div>
+                      <div className="text-[10px] text-zinc-500 truncate">{t.artist}</div>
                     </div>
-
-                    {t.isVipOnly && (
-                      <span className="text-[8px] bg-amber-500/20 text-amber-300 px-1 py-0.2 rounded font-extrabold shrink-0">
-                        VIP
+                    {isCurrent && isPlaying && (
+                      <span className="text-[10px] font-mono-tabular text-amber-300 shrink-0">
+                        Đang phát
                       </span>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -594,94 +643,77 @@ export function DesktopSidebar({
         )}
       </div>
 
-      {/* Sidebar Footer: User Status & VIP Topup */}
-      <div className="p-3 border-t border-zinc-800/80 bg-zinc-950/60">
+      {/* Sidebar Footer */}
+      <div className="p-2.5 border-t border-white/7 bg-[#090a0d]">
         {!isCollapsed ? (
-          <div className="space-y-2">
-            {user ? (
-              <div 
+          user ? (
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
                 onClick={() => onSelectTab('profile')}
-                className="flex items-center gap-2.5 p-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-all cursor-pointer group"
-                title="Bấm để xem hồ sơ cá nhân"
+                className="flex-1 min-w-0 flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 transition-colors text-left cursor-pointer"
+                title="Mở hồ sơ cá nhân"
               >
-                <div className="shrink-0">
-                  <CosmicAvatarFX
-                    photoURL={effectivePhotoURL}
-                    displayName={effectiveDisplayName}
-                    isVip={isVip}
-                    size="xs"
-                    showBadge={false}
-                  />
-                </div>
-
+                <CosmicAvatarFX
+                  photoURL={effectivePhotoURL}
+                  displayName={effectiveDisplayName}
+                  isVip={isVip}
+                  size="xxs"
+                  showBadge={false}
+                />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-white truncate group-hover:text-amber-300 transition-colors">
-                      {effectiveDisplayName}
-                    </span>
-                    {isVip && (
-                      <Crown size={12} className="text-amber-400 fill-amber-400 shrink-0" />
-                    )}
+                  <div className="text-xs font-medium text-zinc-200 truncate">
+                    {effectiveDisplayName}
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-amber-400/90 font-mono">
-                    <Coins size={10} />
-                    <span>{audioPoints.toLocaleString('vi-VN')} điểm</span>
+                  <div className="text-[10px] font-mono-tabular text-zinc-400">
+                    {audioPoints.toLocaleString('vi-VN')} Xu
                   </div>
                 </div>
+              </button>
 
-                <ChevronRight size={14} className="text-zinc-600 group-hover:text-zinc-400" />
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
+              {onOpenVipHub && !isVip && (
                 <button
                   type="button"
-                  id="sidebar-signin-btn"
-                  onClick={onOpenAuth}
-                  className="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:brightness-110 text-black text-xs font-extrabold transition-all shadow-md cursor-pointer text-center"
+                  onClick={onOpenVipHub}
+                  className="px-2.5 py-1.5 rounded-lg bg-white/8 hover:bg-white/14 text-amber-300 text-[11px] font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
-                  Đăng Nhập
+                  Nâng VIP
                 </button>
-                {onOpenAnonPass && (
-                  <button
-                    type="button"
-                    id="sidebar-anon-btn"
-                    onClick={onOpenAnonPass}
-                    className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-amber-300 border border-zinc-800 transition-all cursor-pointer"
-                    title="Nhập mã thẻ VIP"
-                  >
-                    <KeyRound size={15} />
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Quick VIP Topup Promo */}
-            {onOpenVipHub && !isVip && (
-              <div 
-                onClick={onOpenVipHub}
-                className="p-2 rounded-xl bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/20 flex items-center justify-between cursor-pointer hover:border-amber-500/40 transition-all"
-                title="Mở gói nâng cấp Studio Lossless"
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                id="sidebar-signin-btn"
+                onClick={onOpenAuth}
+                className="flex-1 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-semibold transition-colors cursor-pointer text-center whitespace-nowrap"
               >
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300">
-                  <Crown size={13} className="text-amber-400 fill-amber-400 animate-bounce" />
-                  <span>Nâng VIP Studio</span>
-                </div>
-                <span className="text-[9px] bg-amber-500 text-black font-extrabold px-1.5 py-0.2 rounded">
-                  24-bit Hi-Fi
-                </span>
-              </div>
-            )}
-          </div>
+                Đăng nhập
+              </button>
+              {onOpenAnonPass && (
+                <button
+                  type="button"
+                  id="sidebar-anon-btn"
+                  onClick={onOpenAnonPass}
+                  className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/8 transition-colors cursor-pointer"
+                  title="Nhập mã thẻ VIP"
+                >
+                  <KeyRound size={14} />
+                </button>
+              )}
+            </div>
+          )
         ) : (
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex justify-center">
             <button
               type="button"
               id="sidebar-collapsed-profile-btn"
               onClick={() => onSelectTab('profile')}
-              className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-zinc-800 transition-colors cursor-pointer"
-              title="Hồ sơ tài khoản"
+              className="w-8 h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-white/8 flex items-center justify-center transition-colors cursor-pointer"
+              title="Hồ sơ cá nhân"
             >
-              <UserIcon size={18} />
+              <UserIcon size={15} />
             </button>
           </div>
         )}

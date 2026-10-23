@@ -62,18 +62,31 @@ import {
   PanelLeft,
   GraduationCap,
   FileText,
-  Cpu
+  Cpu,
+  Globe,
+  Lightbulb,
+  Star,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { HaevyAIMessage, HaevyAIChatSession, FinanceTransaction, FinanceWallet, Track } from '../types';
+import { HaevyAIMessage, HaevyAIChatSession, FinanceTransaction, FinanceWallet, Track, QuickNote, QuickNoteTag } from '../types';
+import { 
+  subscribeToQuickNotes, 
+  QUICK_NOTE_TAGS, 
+  deleteQuickNote, 
+  toggleStarQuickNote, 
+  createQuickNote,
+  formatQuickNotePromptForAI 
+} from '../services/quickNotesService';
 import { haptics } from '../utils/haptics';
 import { doc, setDoc, deleteDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { HaevyAIChatHistorySidebar } from './HaevyAIChatHistorySidebar';
 import { GoogleDocsExportModal } from './google/GoogleDocsExportModal';
 import { GoogleDocExportOptions } from '../services/googleDocsService';
-import { HaevyMCPProtocolModal } from './haevyAI/HaevyMCPProtocolModal';
-import { getStoredMCPSession, gatherFullMCPUserContext } from '../services/mcpContextService';
+import { HaevyChromeBrowserModal } from './haevyAI/HaevyChromeBrowserModal';
+import { gatherFullMCPUserContext, getStoredMCPSession } from '../services/mcpContextService';
 import {
   parseEcosystemNaturalCommand,
   executeAddFamilyMembers,
@@ -146,8 +159,10 @@ export function HaevyAIHubView({
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false);
-  const [isMCPModalOpen, setIsMCPModalOpen] = useState(false);
-  const [mcpSession, setMcpSession] = useState(() => getStoredMCPSession());
+  const [isChromeOpen, setIsChromeOpen] = useState(false);
+  const [chromeUrl, setChromeUrl] = useState('https://vi.wikipedia.org/wiki/Albert_Einstein');
+  const [chromeTitle, setChromeTitle] = useState('Trang web');
+  const [chromeContent, setChromeContent] = useState<string | undefined>(undefined);
   const [sessions, setSessions] = useState<HaevyAIChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isSavingSession, setIsSavingSession] = useState(false);
@@ -158,12 +173,15 @@ export function HaevyAIHubView({
     return {
       id: `welcome_${Date.now()}`,
       sender: 'ai',
-      text: `Xin chào **${userName}**! ✨ Tôi là **Haevy AI Master** - Trợ Lý Thông Minh & Bạn Đồng Hành Toàn Năng của Hệ Sinh Thái Haevy.\n\nTôi có thể trò chuyện, tâm sự thấu cảm, đồng thời **trực tiếp thực hiện mọi nhiệm vụ theo lệnh của bạn**:\n- ⚡ **Giao diện MCP (Model Context Protocol)**: Đọc dữ liệu người dùng thời gian thực sau bước xác thực thông tin đăng nhập, truy cứu thông tin cá nhân, cấp độ LV, ví 6 hũ và gia phả.\n- 📊 **Kiểm tra lượt nghe Audio hôm nay**: Thống kê số lượng người nghe, thời lượng và bài hát thịnh hành.\n- 💖 **Đếm ngày yêu nhau**: Tính toán chính xác số ngày bên nhau của cặp đôi và nhắc mốc kỷ niệm.\n- 💰 **Tự động thêm giao dịch nhận lương / chi tiêu**: Ghi sổ thu chi, cập nhật số dư ví và phân bổ 6 Hũ thông minh tức thì.\n- 🎵 **Gợi ý & Phát nhạc**: Bật nhạc Lo-Fi, truyện audio, không gian thư giãn.\n\nHãy nhắn tin hoặc chọn nhanh các nhiệm vụ bên dưới để tôi hỗ trợ bạn ngay nhé! 🚀`,
+      text: `Xin chào **${userName}**! ✨ Tôi là **Haevy AI Master** - Trợ Lý Thông Minh & Bạn Đồng Hành Toàn Năng của Hệ Sinh Thái Haevy.\n\nTôi có thể trò chuyện, tâm sự thấu cảm, đồng thời **trực tiếp thực hiện mọi nhiệm vụ theo lệnh của bạn**:\n- ⚡ **Hệ Sinh Thái Thông Minh**: Đọc dữ liệu người dùng thời gian thực sau bước xác thực thông tin đăng nhập, truy cứu thông tin cá nhân, cấp độ LV, ví 6 hũ và gia phả.\n- 📊 **Kiểm tra lượt nghe Audio hôm nay**: Thống kê số lượng người nghe, thời lượng và bài hát thịnh hành.\n- 💖 **Đếm ngày yêu nhau**: Tính toán chính xác số ngày bên nhau của cặp đôi và nhắc mốc kỷ niệm.\n- 💰 **Tự động thêm giao dịch nhận lương / chi tiêu**: Ghi sổ thu chi, cập nhật số dư ví và phân bổ 6 Hũ thông minh tức thì.\n- 🎵 **Gợi ý & Phát nhạc**: Bật nhạc Lo-Fi, truyện audio, không gian thư giãn.\n\nHãy nhắn tin hoặc chọn nhanh các nhiệm vụ bên dưới để tôi hỗ trợ bạn ngay nhé! 🚀`,
       timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       category: 'general',
       suggestedActions: [
-        { label: '⚡ Giao Diện MCP Tra Cứu Dữ Liệu', actionType: 'prompt_preset', target: 'Hãy truy cứu toàn bộ thông tin cá nhân, cấp độ LV và ví tài chính của tôi qua giao thức MCP.', icon: 'Cpu' },
-        { label: '🎖️ Kiểm Tra Cấp Độ LV & EXP', actionType: 'prompt_preset', target: 'Kiểm tra cấp độ LV, điểm EXP và quà tặng chờ nhận của tôi qua MCP.', icon: 'Award' },
+        { label: '🧠 Học Sâu First Principles (Gemini 3.5)', actionType: 'navigate_mode', target: 'edu', icon: 'GraduationCap' },
+        { label: '🌐 Mở Chế Độ Haevy Internet', actionType: 'navigate_mode', target: 'internet', icon: 'Globe' },
+        { label: '🛡️ Quét An Toàn Bảo Mật MCP', actionType: 'prompt_preset', target: 'Tiến hành quét kiểm tra an toàn dữ liệu Model Context Protocol (MCP) và đề xuất các biện pháp bảo vệ tài khoản.', icon: 'ShieldCheck' },
+        { label: '⚡ Tra Cứu Dữ Liệu & Thông Tin', actionType: 'prompt_preset', target: 'Hãy kiểm tra tổng quan tài chính, cấp độ thành viên và thông tin cá nhân của tôi.', icon: 'Cpu' },
+        { label: '🎖️ Kiểm Tra Cấp Độ LV & EXP', actionType: 'prompt_preset', target: 'Kiểm tra cấp độ LV, điểm EXP và quà tặng chờ nhận của tôi.', icon: 'Award' },
         { label: '📊 Kiểm Tra Lượt Nghe Hôm Nay', actionType: 'prompt_preset', target: 'Kiểm tra lượt nghe audio hôm nay có bao nhiêu người nghe và thời lượng phát sóng?', icon: 'Headphones' },
         { label: '💖 Ngày Yêu Cặp Đôi', actionType: 'prompt_preset', target: 'Hôm nay là ngày thứ bao nhiêu hai đứa mình yêu nhau rồi?', icon: 'Heart' },
         { label: '💰 Tự Động Thêm Nhận Lương 50Tr', actionType: 'prompt_preset', target: 'Tự động thêm giao dịch nhận lương 50 triệu vào sổ thu chi và phân bổ 6 hũ tài chính thông minh giúp mình.', icon: 'Wallet' },
@@ -173,6 +191,19 @@ export function HaevyAIHubView({
   };
 
   const [messages, setMessages] = useState<HaevyAIMessage[]>(() => [createWelcomeMessage(user?.displayName)]);
+
+  // Realtime Persistent Quick Notes State (from Haevy Portal & Firestore)
+  const [quickNotes, setQuickNotes] = useState<QuickNote[]>([]);
+  const [isQuickNotesShelfOpen, setIsQuickNotesShelfOpen] = useState(false);
+  const [quickNotesFilter, setQuickNotesFilter] = useState<'all' | 'starred' | QuickNoteTag>('all');
+
+  // Realtime subscription to Quick Notes in Firestore & LocalStorage
+  useEffect(() => {
+    const unsub = subscribeToQuickNotes(user?.uid, (notes) => {
+      setQuickNotes(notes);
+    });
+    return () => unsub();
+  }, [user?.uid]);
 
   // 1. Initial load chat sessions from localStorage on mount
   useEffect(() => {
@@ -1014,6 +1045,20 @@ export function HaevyAIHubView({
         case 'delete_friend':
           res = executeDeleteFriend(action.fullName || '');
           break;
+        case 'add_quick_note':
+          createQuickNote(user?.uid, {
+            content: action.content || action.text || '',
+            tag: action.tag || 'idea'
+          });
+          res = {
+            success: true,
+            actionType: 'add_quick_note',
+            targetMode: 'portal',
+            message: `Đã lưu ý tưởng thoáng qua vào Firestore và đồng bộ trên Haevy Portal.`,
+            affectedCount: 1,
+            dataSummary: action
+          };
+          break;
         case 'reward_points':
           if (addAudioPoints) {
             addAudioPoints(action.amount || 150, action.reason || 'Thưởng tương tác cùng Haevy AI', 'game_reward');
@@ -1145,10 +1190,11 @@ export function HaevyAIHubView({
 
     try {
       const fullMcpContext = gatherFullMCPUserContext(auth);
+      const currentMCPSession = getStoredMCPSession();
       const payload = {
         message: textToSend,
         conversationHistory: messages.slice(-10),
-        mcpSession: mcpSession || null,
+        mcpSession: currentMCPSession || null,
         userContext: {
           displayName: user?.displayName || 'Thành viên Haevy',
           accountId: accountId || 'HV-MEMBER',
@@ -1167,14 +1213,15 @@ export function HaevyAIHubView({
           lockLevel: '6-layer fortress',
           isAuthorVerified: isAuthorVerified,
           stageName: authorStageName,
-          mcpActive: Boolean(mcpSession),
-          mcpGrantedScopes: mcpSession?.grantedScopes || [],
+          mcpActive: Boolean(currentMCPSession),
+          mcpGrantedScopes: currentMCPSession?.grantedScopes || [],
           mcpDataSnapshot: fullMcpContext,
           coupleInfo: {
             isCoupled: true,
             partnerName: 'Em Yêu',
             anniversaryDate: '2024-05-20'
-          }
+          },
+          quickNotes: quickNotes.slice(0, 20)
         },
         selectedMood: selectedMood
       };
@@ -1459,83 +1506,26 @@ export function HaevyAIHubView({
   }, [initialPrompt]);
 
   return (
-    <div className="flex flex-col h-screen h-[100dvh] max-h-[100dvh] w-full bg-zinc-950 text-white overflow-hidden select-none">
+    <div className="flex flex-col h-full flex-1 w-full bg-zinc-950 text-white overflow-hidden select-none">
       
-      {/* Top Header Bar - Dedicated Haevy AI Session Header */}
-      <header className="flex-none h-14 sm:h-16 px-3 sm:px-6 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl flex items-center justify-between z-30 shadow-md">
+      {/* AI Workspace Command Strip - Sits seamlessly under the synchronized global top taskbar */}
+      <div className="flex-none px-3 sm:px-6 py-2 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl flex items-center justify-between z-30 shadow-sm gap-2 flex-wrap sm:flex-nowrap">
         
-        {/* Left: Back + Haevy AI Logo & Model Badge */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          {onBackToPortal && (
-            <button 
-              onClick={onBackToPortal}
-              className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 transition shrink-0"
-              title="Quay lại Cổng Hệ Sinh Thái"
-            >
-              <ArrowLeft size={16} />
-            </button>
-          )}
-
-          {/* Dedicated Haevy AI Logo Mark */}
-          <div 
-            onClick={onOpenEcosystemDrawer}
-            className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group shrink min-w-0 select-none"
-            title="Haevy AI Master - Bấm để mở menu chế độ"
-          >
-            <div className="relative shrink-0">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-purple-500 via-indigo-500 to-pink-500 p-[1px] shadow-lg shadow-purple-500/25 group-hover:scale-105 transition-all">
-                <div className="w-full h-full bg-zinc-950 rounded-[11px] flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-purple-500/15 animate-pulse" />
-                  <BrainCircuit size={17} className="text-purple-300 animate-pulse relative z-10" />
-                </div>
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-zinc-950 flex items-center justify-center">
-                <span className="w-1 h-1 rounded-full bg-white animate-ping"></span>
-              </span>
-            </div>
-
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm sm:text-base font-black text-white tracking-tight group-hover:text-zinc-100 transition-colors truncate">
-                  Haevy <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">AI</span>
-                </span>
-                <span className="hidden xs:inline-flex px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-300 text-[10px] font-bold border border-purple-500/30">
-                  Gemini 3.5 Flash
-                </span>
-              </div>
-              <span className="text-[10px] text-zinc-400 hidden sm:flex items-center gap-1 truncate">
-                <span className="w-1 h-1 rounded-full bg-emerald-400 inline-block"></span>
-                Trợ lý Thông minh & Thực thi Tác vụ 24/7
-              </span>
-            </div>
+        {/* Left: Model Badge & Session Controls */}
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-purple-500/15 text-purple-300 text-xs font-bold border border-purple-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Gemini 3.5 Flash</span>
           </div>
-        </div>
 
-        {/* Right: History Toggle, Mood Selector, Token Points, Modes Drawer, New Chat */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-
-          {/* Model Context Protocol (MCP) Interface Button */}
+          {/* New Chat / Reset Session Button */}
           <button
-            type="button"
-            id="haevy_mcp_protocol_toggle_btn"
-            onClick={() => {
-              haptics.selection();
-              setIsMCPModalOpen(true);
-            }}
-            className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
-              mcpSession
-                ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/25 shadow-sm shadow-cyan-900/30'
-                : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800'
-            }`}
-            title="Mở giao diện MCP Context Protocol cho AI truy cứu thông tin người dùng"
+            onClick={handleStartNewSession}
+            className="px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer active:scale-95"
+            title="Bắt đầu phiên chat mới"
           >
-            <Cpu size={14} className={mcpSession ? "text-cyan-400" : "text-zinc-400"} />
-            <span className="hidden xs:inline">Giao Diện MCP</span>
-            {mcpSession ? (
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            ) : (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            )}
+            <Plus size={13} />
+            <span>Phiên Mới</span>
           </button>
 
           {/* Chat History Sidebar Toggle Button */}
@@ -1546,27 +1536,30 @@ export function HaevyAIHubView({
               haptics.selection();
               setIsHistorySidebarOpen(prev => !prev);
             }}
-            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1.5 shrink-0 ${
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 ${
               isHistorySidebarOpen
                 ? 'bg-purple-600/30 text-purple-200 border-purple-500/60 shadow-sm shadow-purple-900/30'
                 : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800'
             }`}
             title={isHistorySidebarOpen ? "Đóng thanh Lịch Sử Chat" : "Mở thanh Lịch Sử Chat"}
           >
-            <Clock size={14} className={isHistorySidebarOpen ? "text-purple-400" : "text-zinc-400"} />
-            <span className="hidden sm:inline">Lịch Sử Chat</span>
+            <Clock size={13} className={isHistorySidebarOpen ? "text-purple-400" : "text-zinc-400"} />
+            <span className="hidden sm:inline">Lịch Sử</span>
             {sessions.length > 0 && (
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
                 {sessions.length}
               </span>
             )}
           </button>
-          
+        </div>
+
+        {/* Right: Mood Selector & Haevy Internet Quick Jump */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Mood Selector Dropdown */}
           <div className="relative">
             <button
               onClick={() => setIsMoodPickerOpen(!isMoodPickerOpen)}
-              className="px-2 sm:px-2.5 py-1 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-medium text-zinc-300 hover:text-white transition flex items-center gap-1 shrink-0"
+              className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-medium text-zinc-300 hover:text-white transition flex items-center gap-1 shrink-0 cursor-pointer"
               title="Chọn tâm trạng của trợ lý AI"
             >
               <Smile size={13} className="text-purple-400" />
@@ -1586,7 +1579,7 @@ export function HaevyAIHubView({
                       setIsMoodPickerOpen(false);
                       haptics.light();
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs flex items-center justify-between transition ${
+                    className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
                       selectedMood === mood.label
                         ? 'bg-purple-600/20 text-purple-300 font-bold border border-purple-500/30'
                         : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
@@ -1600,34 +1593,22 @@ export function HaevyAIHubView({
             )}
           </div>
 
-          {/* Xu Points Pill */}
-          <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs">
-            <Coins className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-amber-300 font-black">{audioPoints.toLocaleString('vi-VN')}</span>
-          </div>
-
-          {/* Ecosystem Switcher Drawer Trigger */}
-          {onOpenEcosystemDrawer && (
-            <button
-              onClick={onOpenEcosystemDrawer}
-              className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 border border-zinc-800 transition"
-              title="Menu 6 chế độ Hệ Sinh Thái"
-            >
-              <LayoutGrid size={15} />
-            </button>
-          )}
-
-          {/* New Chat / Reset Session Button */}
+          {/* Dedicated Haevy Internet Mode Switcher Button */}
           <button
-            onClick={handleStartNewSession}
-            className="px-2.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold transition flex items-center gap-1 shadow-sm"
-            title="Bắt đầu phiên chat mới"
+            type="button"
+            id="haevy_internet_mode_toggle_btn"
+            onClick={() => {
+              haptics.selection();
+              onSelectMode('internet');
+            }}
+            className="px-2.5 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-sm shadow-sky-900/30 cursor-pointer active:scale-95"
+            title="Mở chế độ Haevy Internet riêng biệt - Trình duyệt đa tab, tìm kiếm AI & Reader mode"
           >
-            <Plus size={14} />
-            <span className="hidden sm:inline">Phiên Mới</span>
+            <Globe size={13} className="text-sky-400" />
+            <span className="hidden sm:inline">Haevy Internet</span>
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Main Body Layout: Chat History Sidebar + Content Pane */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
@@ -2472,9 +2453,47 @@ export function HaevyAIHubView({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Prompts Chip Bar */}
+      {/* Quick Prompts & Quick Notes Chip Bar */}
       <div className="flex-none px-3 sm:px-6 py-1.5 bg-zinc-950/95 border-t border-zinc-800/60 overflow-x-auto scrollbar-none flex items-center gap-1.5 sm:gap-2">
-        <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1 flex-none">
+        {/* Quick Notes Hub Access Trigger Pill */}
+        <button
+          onClick={() => {
+            setIsQuickNotesShelfOpen(prev => !prev);
+            haptics.selection();
+          }}
+          className={`flex-none px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 transition hover:scale-[1.02] active:scale-95 cursor-pointer backdrop-blur-md ${
+            isQuickNotesShelfOpen
+              ? 'bg-amber-500/25 border-amber-500 text-amber-200 shadow-sm shadow-amber-500/20'
+              : 'bg-zinc-900 border-amber-500/30 text-amber-300 hover:border-amber-400'
+          }`}
+          title="Mở Sổ Ý Tưởng & Ghi Chú Nhanh đã lưu từ Haevy Portal"
+        >
+          <Lightbulb size={12} className={quickNotes.length > 0 ? 'text-amber-400 fill-amber-400' : 'text-zinc-400'} />
+          <span>Ý Tưởng Portal</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-amber-500/30 text-amber-200 text-[10px] font-black border border-amber-500/40">
+            {quickNotes.length}
+          </span>
+        </button>
+
+        {/* Dynamic Quick Prompt for Latest Note (if any) */}
+        {quickNotes.length > 0 && (
+          <button
+            onClick={() => {
+              const prompt = formatQuickNotePromptForAI(quickNotes[0]);
+              handleSendMessage(prompt);
+            }}
+            disabled={isLoading}
+            className="flex-none px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 transition hover:scale-[1.02] active:scale-95 bg-gradient-to-r from-amber-600/30 to-yellow-600/30 text-amber-200 border-amber-500/40 backdrop-blur-md cursor-pointer"
+            title={`Phân tích ý tưởng mới nhất: "${quickNotes[0].content}"`}
+          >
+            <span>✨</span>
+            <span className="truncate max-w-[160px] sm:max-w-[220px]">
+              Phân tích: "{quickNotes[0].content}"
+            </span>
+          </button>
+        )}
+
+        <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1 flex-none ml-1">
           <Zap size={12} className="text-amber-400" /> Gợi ý:
         </span>
         {QUICK_PROMPTS.map((qp, idx) => {
@@ -2493,10 +2512,219 @@ export function HaevyAIHubView({
         })}
       </div>
 
+      {/* QUICK NOTES SHELF (Tra cứu & tương tác ghi chú nhanh từ Haevy Portal & Firestore) */}
+      {isQuickNotesShelfOpen && (
+        <div className="flex-none px-3 sm:px-6 py-3 bg-zinc-950/98 border-t border-amber-500/30 backdrop-blur-2xl shadow-2xl space-y-2.5">
+          {/* Header */}
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center font-bold">
+                <Lightbulb size={13} />
+              </div>
+              <div>
+                <span className="text-xs font-black text-white flex items-center gap-1.5">
+                  <span>Sổ Ý Tưởng &amp; Ghi Chú Nhanh Portal</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    Firestore Live
+                  </span>
+                </span>
+                <p className="text-[10px] text-zinc-400">Các suy nghĩ thoáng qua lưu từ Haevy Portal sẵn sàng để AI phân tích</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {quickNotes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.selection();
+                    const prompt = `Tổng hợp và phân tích toàn bộ ${quickNotes.length} ý tưởng, câu hỏi và suy nghĩ thoáng qua của tôi từ Haevy Portal:
+${quickNotes.map((n, i) => `${i + 1}. [${n.tagLabel || n.tag}] "${n.content}"`).join('\n')}
+
+Hãy chỉ ra các sợi dây liên kết logic cốt lõi, loại trừ thiên kiến và xây dựng một lộ trình hành động tinh gọn theo phương pháp First Principles.`;
+                    handleSendMessage(prompt);
+                    setIsQuickNotesShelfOpen(false);
+                  }}
+                  className="px-2.5 py-1 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                  title="Gửi toàn bộ ghi chú để AI tổng hợp"
+                >
+                  <BrainCircuit size={11} className="text-purple-300" />
+                  <span>AI Tổng Hợp Tất Cả</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsQuickNotesShelfOpen(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar text-[10px]">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setQuickNotesFilter('all')}
+                className={`px-2 py-0.5 rounded-lg font-bold transition cursor-pointer ${
+                  quickNotesFilter === 'all' ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'
+                }`}
+              >
+                Tất cả ({quickNotes.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickNotesFilter('starred')}
+                className={`px-2 py-0.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${
+                  quickNotesFilter === 'starred' ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'
+                }`}
+              >
+                <Star size={10} className="fill-amber-400 text-amber-400" />
+                <span>Đã ghim</span>
+              </button>
+              {QUICK_NOTE_TAGS.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setQuickNotesFilter(t.id)}
+                  className={`px-2 py-0.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer shrink-0 ${
+                    quickNotesFilter === t.id ? `${t.bg} ${t.color} border ${t.border}` : 'bg-zinc-900 text-zinc-400 border border-zinc-800'
+                  }`}
+                >
+                  <span>{t.icon}</span>
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes Scroll Area */}
+          <div className="max-w-4xl mx-auto max-h-52 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
+            {quickNotes.length === 0 ? (
+              <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 text-center text-xs text-zinc-400">
+                Chưa có ý tưởng nào được lưu từ Portal. Bạn có thể gõ ngay trên góc dưới Haevy Portal hoặc yêu cầu AI: "Ghi nhanh ý tưởng: [nội dung]"!
+              </div>
+            ) : (
+              quickNotes
+                .filter(n => {
+                  if (quickNotesFilter === 'starred') return Boolean(n.isStarred);
+                  if (quickNotesFilter !== 'all') return n.tag === quickNotesFilter;
+                  return true;
+                })
+                .map(note => {
+                  const tagInfo = QUICK_NOTE_TAGS.find(t => t.id === note.tag) || QUICK_NOTE_TAGS[0];
+                  return (
+                    <div
+                      key={note.id}
+                      className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition flex items-start justify-between gap-3 group"
+                    >
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <span className={`px-1.5 py-0.2 rounded font-bold ${tagInfo.bg} ${tagInfo.color} border ${tagInfo.border} flex items-center gap-0.5`}>
+                            <span>{tagInfo.icon}</span>
+                            <span>{tagInfo.label}</span>
+                          </span>
+                          <span className="text-zinc-500 font-mono">
+                            {new Date(note.createdAt).toLocaleDateString('vi-VN')}
+                          </span>
+                          {note.isStarred && <Star size={10} className="fill-amber-400 text-amber-400" />}
+                        </div>
+                        <p className="text-xs text-zinc-200 font-sans leading-relaxed whitespace-pre-wrap">
+                          {note.content}
+                        </p>
+                      </div>
+
+                      {/* Fast Action Buttons */}
+                      <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            haptics.selection();
+                            setInputMessage(prev => prev ? `${prev}\n"${note.content}"` : `"${note.content}"`);
+                            if (textareaRef.current) textareaRef.current.focus();
+                          }}
+                          className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                          title="Chèn nội dung ghi chú vào ô soạn thảo"
+                        >
+                          <Plus size={10} />
+                          <span>Chèn</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            haptics.impact('medium');
+                            const prompt = `Hãy phân tích sâu và gợi ý hướng thực thi theo phương pháp First Principles cho ý tưởng này từ sổ tay Haevy Portal: "${note.content}"`;
+                            handleSendMessage(prompt);
+                            setIsQuickNotesShelfOpen(false);
+                          }}
+                          className="px-2 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                          title="Hỏi AI phân tích ngay"
+                        >
+                          <BrainCircuit size={10} />
+                          <span>Hỏi AI</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            haptics.selection();
+                            toggleStarQuickNote(user?.uid, note.id, !note.isStarred);
+                          }}
+                          className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-amber-400 transition cursor-pointer"
+                          title="Ghim ghi chú"
+                        >
+                          <Star size={12} className={note.isStarred ? 'fill-amber-400 text-amber-400' : ''} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            haptics.impact('light');
+                            deleteQuickNote(user?.uid, note.id);
+                          }}
+                          className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 transition cursor-pointer"
+                          title="Xóa ghi chú"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Chat Input Box Section */}
       <div className="flex-none p-2 sm:p-3 bg-zinc-950/95 border-t border-zinc-800/80 backdrop-blur-xl z-20">
         <div className="max-w-4xl mx-auto flex items-end gap-1.5 sm:gap-2">
           
+          {/* Quick Notes Toggle Button */}
+          <button
+            onClick={() => {
+              setIsQuickNotesShelfOpen(prev => !prev);
+              haptics.selection();
+            }}
+            className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl flex-none border transition cursor-pointer relative ${
+              isQuickNotesShelfOpen
+                ? 'bg-amber-500/25 border-amber-500 text-amber-300'
+                : 'bg-zinc-900 text-zinc-300 hover:text-white border-zinc-800 hover:bg-zinc-800'
+            }`}
+            title="Sổ Ý Tưởng & Ghi Chú Nhanh Portal"
+          >
+            <Lightbulb size={17} className={quickNotes.length > 0 ? 'text-amber-400' : 'text-zinc-400'} />
+            {quickNotes.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-zinc-950 text-[9px] font-black flex items-center justify-center">
+                {quickNotes.length > 9 ? '9+' : quickNotes.length}
+              </span>
+            )}
+          </button>
+
           {/* Voice Input Button */}
           <button
             onClick={handleToggleMic}
@@ -2714,14 +2942,18 @@ export function HaevyAIHubView({
         options={docsExportOptions}
       />
 
-      {/* Model Context Protocol (MCP) Interface Modal */}
-      <HaevyMCPProtocolModal
-        isOpen={isMCPModalOpen}
-        onClose={() => {
-          setIsMCPModalOpen(false);
-          setMcpSession(getStoredMCPSession());
-        }}
-        onRunChatPrompt={(prompt) => {
+
+      {/* Google Chrome Browser Simulator Modal */}
+      <HaevyChromeBrowserModal
+        isOpen={isChromeOpen}
+        onClose={() => setIsChromeOpen(false)}
+        initialUrl={chromeUrl}
+        initialTitle={chromeTitle}
+        initialContent={chromeContent}
+        onOpenHaevyInternetMode={() => onSelectMode('internet')}
+        onAskAIAboutPage={(title, url, content) => {
+          setIsChromeOpen(false);
+          const prompt = `Hãy giải thích và phân tích chi tiết nội dung trang web "${title}" (${url}) đã đọc được:\n\n${content.slice(0, 2500)}`;
           setInputMessage(prompt);
           handleSendMessage(prompt);
         }}

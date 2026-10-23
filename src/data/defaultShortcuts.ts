@@ -111,6 +111,30 @@ export const DEFAULT_SHORTCUTS_CONFIG: ShortcutsConfig = {
     allowAltOrCtrl: true,
     enabled: true
   },
+  mode_next: {
+    id: 'mode_next',
+    action: 'mode_next',
+    label: 'Chuyển Phân Hệ Kế Tiếp',
+    desc: '➡️ Chuyển sang phân hệ kế tiếp trong hệ sinh thái (Alt + ►)',
+    category: 'navigation',
+    code: 'ArrowRight',
+    keyChar: '→',
+    allowAltOrCtrl: true,
+    altKey: true,
+    enabled: true
+  },
+  mode_prev: {
+    id: 'mode_prev',
+    action: 'mode_prev',
+    label: 'Chuyển Phân Hệ Trước Đó',
+    desc: '⬅️ Chuyển về phân hệ trước đó trong hệ sinh thái (Alt + ◄)',
+    category: 'navigation',
+    code: 'ArrowLeft',
+    keyChar: '←',
+    allowAltOrCtrl: true,
+    altKey: true,
+    enabled: true
+  },
   open_mode_switcher: {
     id: 'open_mode_switcher',
     action: 'open_mode_switcher',

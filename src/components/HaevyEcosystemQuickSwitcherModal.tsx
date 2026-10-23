@@ -8,9 +8,6 @@ import {
   ArrowRight,
   ChevronRight,
   ChevronDown,
-  LayoutGrid,
-  BookOpen,
-  History,
   Command,
   Radio,
   ExternalLink,
@@ -94,6 +91,31 @@ export const MODE_HIGHLIGHTS: Partial<Record<EcosystemMode, string[]>> = {
     'Định vị thời gian thực kết nối vị trí bạn đời, người yêu và gia đình',
     'Theo dõi dung lượng pin, tốc độ di chuyển, khoảng cách và thời gian đến nơi',
     'Gửi nhịp tim rung chuông yêu thương, quản lý vùng an toàn Geofencing và SOS khẩn cấp'
+  ],
+  vip: [
+    'Đặc quyền hội viên VIP: Âm thanh vòm Spatial 3D Hi-Fi, biểu tượng vương miện vàng phát sáng',
+    'Nạp Xu & tích điểm thăng cấp, tặng quà bài hát độc quyền và hỗ trợ ưu tiên 24/7',
+    'Báo cáo trí tuệ nhân tạo VIP Intelligence phân tích toàn diện trải nghiệm hệ sinh thái'
+  ],
+  haevy_lite: [
+    'Tích lũy Xu Haevy Lite miễn phí với phần thưởng xem video tương tác ngắn 30s (+50 Xu)',
+    'Cửa hàng vật phẩm và combo vũ trụ độc quyền: Hào quang avatar quỹ đạo 3D, hiệu ứng cổng chào',
+    'Tùy chỉnh diện mạo cá nhân trên toàn bộ hệ sinh thái với phong cách Cyber Neon & Galaxy'
+  ],
+  support: [
+    'Trung tâm trợ giúp và giải đáp thắc mắc 24/7 với kho tri thức FAQ phong phú',
+    'Hướng dẫn sử dụng chi tiết từng phân hệ: Âm nhạc, Bản đồ, Tài chính, Cặp đôi, Lab STEM',
+    'Gửi yêu cầu hỗ trợ trực tiếp và nhận phản hồi tức thì từ đội ngũ kỹ sư vận hành'
+  ],
+  profile: [
+    'Quản lý hồ sơ cá nhân, cấp bậc huy hiệu Level và phần thưởng thăng hạng danh vọng',
+    'Bảo mật 6 lớp tài khoản, xác thực sinh trắc học và lịch sử hoạt động an toàn',
+    'Kho lưu trữ tác phẩm, bài viết tâm sự và lịch sử giao dịch Xu minh bạch'
+  ],
+  internet: [
+    'Trình duyệt web đa tab độc lập tách biệt từ Haevy AI với thanh địa chỉ HTTPS bảo mật',
+    'Chế độ đọc sạch AI Reader loại bỏ quảng cáo, tối ưu cỡ chữ và đọc to tiếng Việt',
+    'Công cụ tìm kiếm thông minh và kết nối trực tiếp với Gemini AI để tóm tắt nội dung trang'
   ]
 };
 
@@ -238,7 +260,7 @@ export function HaevyEcosystemQuickSwitcherModal({
       <div
         id="unified-ecosystem-modal-container"
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-4xl max-h-[92vh] bg-zinc-950 border border-zinc-800/90 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden z-10 ring-1 ring-white/10 animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-6xl max-h-[94vh] bg-zinc-950 border border-zinc-800/90 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden z-10 ring-1 ring-white/10 animate-in zoom-in-95 duration-200"
       >
         {/* Top Header Bar */}
         <div className="p-3.5 sm:p-5 border-b border-zinc-800/80 bg-gradient-to-r from-zinc-900/95 via-zinc-950 to-zinc-900/95 flex flex-wrap items-center justify-between gap-3 shrink-0">
@@ -272,56 +294,6 @@ export function HaevyEcosystemQuickSwitcherModal({
           </div>
 
           <div className="flex items-center gap-2 ml-auto shrink-0">
-            {/* View Mode Toggle: Quick vs Detailed */}
-            <div className="flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800">
-              <button
-                type="button"
-                onClick={() => {
-                  haptics.light();
-                  setViewMode('quick');
-                }}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'quick'
-                    ? 'bg-amber-500 text-black shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-                title="Xem lưới chuyển nhanh với phím tắt và lối tắt"
-              >
-                <LayoutGrid size={13} />
-                <span className="hidden sm:inline">Chuyển nhanh</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  haptics.light();
-                  setViewMode('detailed');
-                }}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'detailed'
-                    ? 'bg-amber-500 text-black shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-                title="Xem giới thiệu chi tiết 3 tính năng nổi bật của từng chế độ"
-              >
-                <BookOpen size={13} />
-                <span className="hidden sm:inline">Chi tiết</span>
-              </button>
-            </div>
-
-            {/* Quick return button */}
-            {previousMode && previousMode !== currentMode && (
-              <button
-                type="button"
-                onClick={() => handleSelect(previousMode)}
-                className="hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
-                title={`Quay lại: ${getEcosystemModeConfig(previousMode).name}`}
-              >
-                <History size={13} className="text-amber-400" />
-                <span>Quay lại</span>
-              </button>
-            )}
-
             {/* Claim gift button if provided */}
             {onClaimGift && (
               <button

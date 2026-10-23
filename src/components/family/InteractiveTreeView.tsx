@@ -29,12 +29,18 @@ import {
   MapPin,
   CheckCircle2,
   ChevronUp,
-  Minus
+  Minus,
+  Cake,
+  Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { FamilyEvent } from '../../types';
+import { FamilyCalendarIntegration } from './FamilyCalendarIntegration';
+import { getCombinedCalendarItems } from '../../utils/familyCalendarUtils';
 
 interface InteractiveTreeViewProps {
   members: FamilyMember[];
+  events?: FamilyEvent[];
   userRole: FamilyRole;
   selectedBranch: string;
   onSelectBranch: (branch: string) => void;
@@ -44,10 +50,13 @@ interface InteractiveTreeViewProps {
   onAddSpouseFor: (member: FamilyMember) => void;
   onOpenProposalFor: (member: FamilyMember) => void;
   onAddNewMember?: () => void;
+  onAddEvent?: (event: FamilyEvent) => void;
+  onDeleteEvent?: (eventId: string) => void;
 }
 
 export const InteractiveTreeView: React.FC<InteractiveTreeViewProps> = ({
   members,
+  events = [],
   userRole,
   selectedBranch,
   onSelectBranch,
@@ -57,7 +66,20 @@ export const InteractiveTreeView: React.FC<InteractiveTreeViewProps> = ({
   onAddSpouseFor,
   onOpenProposalFor,
   onAddNewMember,
+  onAddEvent,
+  onDeleteEvent,
 }) => {
+  // Trạng thái mở Lịch sự kiện & sinh nhật trực tiếp trên sơ đồ gia phả
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  // Tính toán các sự kiện và sinh nhật sắp tới
+  const calendarItems = useMemo(() => {
+    return getCombinedCalendarItems(events || [], members, new Date());
+  }, [events, members]);
+
+  const nextUpcomingItem = useMemo(() => {
+    return calendarItems.length > 0 ? calendarItems[0] : null;
+  }, [calendarItems]);
   // Sơ đồ view mode: 'tree' (Sơ đồ cây nối cành) | 'ladder' (Sơ đồ phân tầng các đời) | 'compact' (Sổ gia phả giản lược)
   const [viewMode, setViewMode] = useState<'tree' | 'ladder' | 'compact'>('tree');
   
@@ -213,6 +235,18 @@ export const InteractiveTreeView: React.FC<InteractiveTreeViewProps> = ({
     const childList = members.filter(child => child.fatherId === m.id || child.motherId === m.id);
     // Sắp xếp theo thứ tự con trưởng -> con thứ
     return childList.sort((a, b) => (a.orderInFamily || 1) - (b.orderInFamily || 1));
+  };
+
+  // Khi chọn một thành viên từ Lịch Sự Kiện & Sinh Nhật
+  const handleCalendarSelectMember = (targetMember: FamilyMember) => {
+    setFocusedMemberId(targetMember.id);
+    setIsCalendarOpen(false);
+    setTimeout(() => {
+      const el = document.getElementById(`card-member-${targetMember.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      }
+    }, 250);
   };
 
   // Thành viên gốc đời 1 (Root Ancestors)
@@ -662,6 +696,28 @@ export const InteractiveTreeView: React.FC<InteractiveTreeViewProps> = ({
               </button>
             )}
 
+            {/* Nút Mở Lịch Gia Tộc & Sinh Nhật Thành Viên */}
+            <button
+              id="btn-tree-calendar-toggle"
+              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer shrink-0 ${
+                isCalendarOpen
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-lg shadow-amber-500/25'
+                  : 'bg-slate-900 text-amber-300 border-amber-500/30 hover:border-amber-400 hover:bg-slate-800'
+              }`}
+              title="Xem lịch sự kiện gia tộc và sinh nhật chung của các thành viên"
+            >
+              <Calendar className="w-3.5 h-3.5 text-amber-400" />
+              <span>Lịch & Sinh Nhật</span>
+              {calendarItems.length > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                  isCalendarOpen ? 'bg-slate-950 text-amber-300' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                }`}>
+                  {calendarItems.length}
+                </span>
+              )}
+            </button>
+
             <button
               id="btn-toggle-simple-mode"
               onClick={() => setIsSimpleMode(!isSimpleMode)}
@@ -776,25 +832,53 @@ export const InteractiveTreeView: React.FC<InteractiveTreeViewProps> = ({
             ))}
           </div>
 
-          {/* Tìm kiếm người trong gia phả */}
-          <div className="relative flex items-center min-w-[200px] sm:w-64 w-full sm:w-auto">
-            <Search className="w-3.5 h-3.5 text-amber-400 absolute left-2.5 pointer-events-none" />
-            <input
-              id="tree-search-member"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm tên cụ tổ, con cháu..."
-              className="w-full bg-slate-950 border border-amber-500/30 rounded-xl pl-8 pr-7 py-1.5 text-xs text-amber-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 text-xs text-slate-400 hover:text-white"
+          {/* Hộp bên phải: Ticker sự kiện sắp tới + Tìm kiếm */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quick Pill: Sự kiện hoặc Sinh nhật sắp tới */}
+            {nextUpcomingItem && nextUpcomingItem.isSoon && (
+              <button
+                id="btn-quick-upcoming-pill"
+                onClick={() => setIsCalendarOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500/15 via-amber-500/15 to-rose-500/15 border border-rose-500/30 hover:border-rose-400 text-xs text-rose-200 transition-all cursor-pointer shadow-sm"
+                title="Bấm để mở lịch sự kiện và sinh nhật chi tiết"
               >
-                ✕
+                {nextUpcomingItem.itemType === 'birthday' ? (
+                  <Cake className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
+                ) : (
+                  <Flame className="w-3.5 h-3.5 text-amber-400" />
+                )}
+                <span className="font-bold text-amber-300">
+                  {nextUpcomingItem.itemType === 'birthday' ? '🎂 Sinh nhật sắp tới:' : '🕊️ Ngày giỗ sắp tới:'}
+                </span>
+                <span className="font-medium text-white truncate max-w-[140px]">
+                  {nextUpcomingItem.member ? nextUpcomingItem.member.fullName : nextUpcomingItem.title}
+                </span>
+                <span className="px-1.5 py-0.2 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-mono font-bold">
+                  {nextUpcomingItem.isToday ? 'Hôm nay! 🎉' : `còn ${nextUpcomingItem.daysRemaining} ngày`}
+                </span>
               </button>
             )}
+
+            {/* Tìm kiếm người trong gia phả */}
+            <div className="relative flex items-center min-w-[200px] sm:w-64 w-full sm:w-auto">
+              <Search className="w-3.5 h-3.5 text-amber-400 absolute left-2.5 pointer-events-none" />
+              <input
+                id="tree-search-member"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm tên cụ tổ, con cháu..."
+                className="w-full bg-slate-950 border border-amber-500/30 rounded-xl pl-8 pr-7 py-1.5 text-xs text-amber-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-colors"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 text-xs text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1077,6 +1161,35 @@ export const InteractiveTreeView: React.FC<InteractiveTreeViewProps> = ({
           <span>💡 Bấm vào bất kỳ người nào để mở bảng thông tin đầy đủ chi tiết</span>
         </div>
       </div>
+
+      {/* 4. MODAL / SLIDE-OVER CALENDAR INTEGRATION */}
+      <AnimatePresence>
+        {isCalendarOpen && (
+          <div 
+            id="tree-calendar-modal-backdrop"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto"
+            onClick={() => setIsCalendarOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-4xl my-auto"
+            >
+              <FamilyCalendarIntegration
+                events={events || []}
+                members={members}
+                userRole={userRole}
+                onAddEvent={onAddEvent}
+                onDeleteEvent={onDeleteEvent}
+                onSelectMember={handleCalendarSelectMember}
+                onClose={() => setIsCalendarOpen(false)}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

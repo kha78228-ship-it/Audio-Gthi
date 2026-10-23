@@ -45,7 +45,8 @@ import {
   Orbit,
   Tv,
   GraduationCap,
-  FlaskConical
+  FlaskConical,
+  Globe
 } from 'lucide-react';
 import { ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -422,6 +423,29 @@ export function HaevyEcosystemDrawer({
         { title: 'Sổ Tay Nghiên Cứu', desc: 'Ghi chép công thức, nhật ký thực nghiệm & sơ đồ tư duy', icon: Layers, tabKey: 'edu' as any }
       ],
       highlights: ['Phòng Lab HTML5 Canvas', 'AI Gia Sư First Principles', 'Đọc File & Lộ Trình', 'Thí Nghiệm Tương Tác']
+    },
+    {
+      id: 'internet',
+      name: 'Haevy Internet',
+      englishName: 'Next-Gen Tabbed AI Web Browser',
+      subtitle: 'Trình Duyệt Web Đa Thẻ, Tìm Kiếm AI & Đọc Sạch Reader Mode',
+      description: 'Chế độ trình duyệt web đa tab độc lập tách biệt từ Haevy AI: Đọc báo không quảng cáo, tìm kiếm Google/Wikipedia/Bing, đọc to tiếng Việt và kết nối trực tiếp với Gemini AI để tóm tắt nội dung.',
+      icon: Globe,
+      badge: 'Trình Duyệt Web 🌐',
+      badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+      themeGradient: 'from-sky-950/40 via-blue-950/40 to-zinc-950',
+      accentColor: 'text-sky-400',
+      borderColor: 'border-sky-500/30 hover:border-sky-400',
+      activeBorderColor: 'border-sky-400 ring-2 ring-sky-400/40 shadow-sky-500/20',
+      iconBg: 'bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-500 text-slate-950',
+      defaultTab: 'internet' as any,
+      subPages: [
+        { title: 'Trình Duyệt Web Đa Tab', desc: 'Duyệt mọi trang web độc lập với thanh HTTPS', icon: Globe, tabKey: 'browser' as any },
+        { title: 'Tìm Kiếm AI Thông Minh', desc: 'Tra cứu thông tin chính xác từ nguồn Internet', icon: Sparkles, tabKey: 'search' as any },
+        { title: 'Dấu Trang & Lịch Sử', desc: 'Quản lý kho website yêu thích theo danh mục', icon: Layers, tabKey: 'bookmarks' as any },
+        { title: 'Chế Độ Đọc AI Reader', desc: 'Đọc sạch không quảng cáo & tóm tắt Gemini AI', icon: BookOpen, tabKey: 'ai_reader' as any }
+      ],
+      highlights: ['Trình Duyệt Đa Thẻ', 'Đọc Sạch Reader Mode', 'Tìm Kiếm Thông Minh', 'Tóm Tắt Gemini AI']
     }
   ];
 

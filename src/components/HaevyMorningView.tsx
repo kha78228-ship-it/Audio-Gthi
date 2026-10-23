@@ -78,10 +78,10 @@ import { HaevySonMascot3D } from './HaevySonMascot3D';
 import { HaevySpacePortalHub } from './HaevySpacePortalHub';
 import { HaevyMagicShieldAR } from './HaevyMagicShieldAR';
 import { HaevySpaceLogo } from './HaevySpaceLogo';
-import { HaevyAllModesInfoModal } from './HaevyAllModesInfoModal';
+const HaevyAllModesInfoModal = React.lazy(() => import('./HaevyAllModesInfoModal').then(m => ({ default: m.HaevyAllModesInfoModal })));
 import { HaevyUserDropdownMenu } from './HaevyUserDropdownMenu';
-import { NotificationsModal } from './NotificationsModal';
-import { InstallPwaModal } from './InstallPwaModal';
+const NotificationsModal = React.lazy(() => import('./NotificationsModal').then(m => ({ default: m.NotificationsModal })));
+const InstallPwaModal = React.lazy(() => import('./InstallPwaModal').then(m => ({ default: m.InstallPwaModal })));
 import { HaevyMorningDashboard } from './morning/HaevyMorningDashboard';
 
 interface HaevyMorningViewProps {
@@ -6175,38 +6175,50 @@ export function HaevyMorningView({
       />
 
       {/* 🌟 HAEVY ALL MODES INFO MODAL (TRIGGERED FROM SMARTPHONE BUTTON OR AVATAR) */}
-      <HaevyAllModesInfoModal
-        isOpen={isEcosystemDrawerOpen}
-        onClose={() => setIsEcosystemDrawerOpen(false)}
-        onSelectMode={(mode, tab) => {
-          setIsEcosystemDrawerOpen(false);
-          if (onSelectMode) {
-            onSelectMode(mode, tab);
-          } else if (onGoToAudioHome) {
-            onGoToAudioHome();
-          }
-        }}
-      />
+      {isEcosystemDrawerOpen && (
+        <React.Suspense fallback={null}>
+          <HaevyAllModesInfoModal
+            isOpen={isEcosystemDrawerOpen}
+            onClose={() => setIsEcosystemDrawerOpen(false)}
+            onSelectMode={(mode, tab) => {
+              setIsEcosystemDrawerOpen(false);
+              if (onSelectMode) {
+                onSelectMode(mode, tab);
+              } else if (onGoToAudioHome) {
+                onGoToAudioHome();
+              }
+            }}
+          />
+        </React.Suspense>
+      )}
 
       {/* 🔔 NOTIFICATIONS MODAL */}
-      <NotificationsModal
-        isOpen={isNotificationsModalOpen}
-        onClose={() => setIsNotificationsModalOpen(false)}
-        onSelectTab={(tab) => {
-          setIsNotificationsModalOpen(false);
-          onSelectTab?.(tab);
-        }}
-        onSelectMode={(mode, tab) => {
-          setIsNotificationsModalOpen(false);
-          onSelectMode?.(mode, tab);
-        }}
-      />
+      {isNotificationsModalOpen && (
+        <React.Suspense fallback={null}>
+          <NotificationsModal
+            isOpen={isNotificationsModalOpen}
+            onClose={() => setIsNotificationsModalOpen(false)}
+            onSelectTab={(tab) => {
+              setIsNotificationsModalOpen(false);
+              onSelectTab?.(tab);
+            }}
+            onSelectMode={(mode, tab) => {
+              setIsNotificationsModalOpen(false);
+              onSelectMode?.(mode, tab);
+            }}
+          />
+        </React.Suspense>
+      )}
 
       {/* 📱 INSTALL PWA MODAL */}
-      <InstallPwaModal
-        isOpen={isInstallPwaModalOpen}
-        onClose={() => setIsInstallPwaModalOpen(false)}
-      />
+      {isInstallPwaModalOpen && (
+        <React.Suspense fallback={null}>
+          <InstallPwaModal
+            isOpen={isInstallPwaModalOpen}
+            onClose={() => setIsInstallPwaModalOpen(false)}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 }

@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { GoogleDriveDocumentPickerModal } from './google/GoogleDriveDocumentPickerModal';
 import { GoogleDriveDocumentItem } from '../services/googleDriveService';
+import { geminiProcessorService } from '../services/geminiProcessorService';
 
 interface HaevyAIStudyViewProps {
   onBackToPortal: () => void;
@@ -112,6 +113,14 @@ Bản chất logic: Giá cả là tín hiệu truyền tải thông tin về s�
     setAnalysisResult(null);
 
     try {
+      // First try via dedicated GeminiProcessorService (gemini-3.5-flash with First Principles system prompt)
+      const processorResult = await geminiProcessorService.processDocumentData(textToAnalyze, requestToRun);
+      if (processorResult && processorResult.trim()) {
+        setAnalysisResult(processorResult.trim());
+        setIsLoading(false);
+        return;
+      }
+
       // Direct call to Gemini chat assistant API with the system prompt for GeminiProcessorService
       const systemInstruction = `Bạn là trợ lý AI học tập chuyên sâu của Hệ sinh thái Haevy (Mô hình tối ưu Gemini 3.5 Flash).
 Nhiệm vụ của bạn:

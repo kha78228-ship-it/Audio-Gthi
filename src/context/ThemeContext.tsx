@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 import {
   calculateSolarTimes,
   getStoredSolarCoordinates,
@@ -34,6 +37,9 @@ export interface ThemeContextType {
   solarLocation: SolarLocation | null; // current GPS/cached/fallback coordinates
   solarLoading: boolean; // true while requesting browser geolocation
   solarError: string | null; // error message if geolocation permission denied or timed out
+  isCloudSynced: boolean; // true if theme is saved & synchronized with Firestore
+  isSyncingToCloud: boolean; // true while saving to Firestore
+  lastCloudSyncTime: Date | null; // timestamp of last Firestore sync
   refreshSolarTimes: () => void; // recalculate with current clock/coords
   requestSolarLocation: () => Promise<void>; // explicitly trigger browser GPS prompt
   setTheme: (mode: ThemeMode | EffectiveTheme) => void;
@@ -42,6 +48,7 @@ export interface ThemeContextType {
   resetToSolar: () => void; // clears manual override and resumes solar sunset/sunrise automatic mode
   resetToSystem: () => void; // clears manual override and resumes following OS preference
   clearManualOverride: () => void; // alias for resetToSolar
+  saveThemeToFirestore: (theme: EffectiveTheme, mode?: ThemeMode) => Promise<boolean>;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -333,36 +340,175 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     };
   }, [effectiveTheme]);
 
-  // Set theme mode (manual override 'light' | 'dark', 'solar', or 'system')
-  const setThemeMode = (mode: ThemeMode) => {
+  // Cloud Firestore Persistence & Real-time Ecosystem Sync State
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
+  const [isSyncingToCloud, setIsSyncingToCloud] = useState<boolean>(false);
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<Date | null>(null);
+  const [authUid, setAuthUid] = useState<string | null>(null);
+  const lastPushedModeRef = useRef<string | null>(null);
+
+  // Function to persistently save user's chosen theme ('dark' or 'light') to Firestore
+  const saveThemeToFirestore = useCallback(async (
+    targetEffectiveTheme: EffectiveTheme,
+    targetMode?: ThemeMode,
+    targetUid?: string
+  ): Promise<boolean> => {
+    const uid = targetUid || authUid || auth.currentUser?.uid;
+    if (!uid) return false;
+
+    const modeToSave = targetMode || (targetEffectiveTheme as ThemeMode);
+
+    setIsSyncingToCloud(true);
+    try {
+      const userRef = doc(db, 'users', uid);
+      await setDoc(userRef, {
+        theme: targetEffectiveTheme, // Persistently save chosen theme ('dark' or 'light')
+        themePreference: targetEffectiveTheme,
+        themeMode: modeToSave,
+        themeUpdatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      setIsCloudSynced(true);
+      setLastCloudSyncTime(new Date());
+      return true;
+    } catch (err) {
+      console.warn('Unable to persist chosen theme to Firestore:', err);
+      return false;
+    } finally {
+      setIsSyncingToCloud(false);
+    }
+  }, [authUid]);
+
+  // Set theme mode (manual override 'light' | 'dark', 'solar', or 'system') and synchronize to Firestore across user's devices
+  const setThemeMode = useCallback((mode: ThemeMode) => {
     setThemeModeState(mode);
     try {
       localStorage.setItem(THEME_STORAGE_KEY, mode);
     } catch (e) {
       console.warn('Unable to persist themeMode to localStorage', e);
     }
-  };
+
+    // Determine the user's chosen/effective visual theme ('dark' or 'light')
+    let chosenTheme: EffectiveTheme;
+    if (mode === 'light') {
+      chosenTheme = 'light';
+    } else if (mode === 'dark') {
+      chosenTheme = 'dark';
+    } else if (mode === 'solar') {
+      chosenTheme = solarDetectedTheme;
+    } else {
+      chosenTheme = systemDetectedTheme;
+    }
+
+    // Persist to Firestore if user is authenticated
+    const currentUid = auth.currentUser?.uid || authUid;
+    if (currentUid) {
+      lastPushedModeRef.current = mode;
+      saveThemeToFirestore(chosenTheme, mode, currentUid);
+    }
+  }, [solarDetectedTheme, systemDetectedTheme, authUid, saveThemeToFirestore]);
 
   // Standard setTheme function accepting 'solar', 'system', 'light', or 'dark'
-  const setTheme = (mode: ThemeMode | EffectiveTheme) => {
+  const setTheme = useCallback((mode: ThemeMode | EffectiveTheme) => {
     setThemeMode(mode as ThemeMode);
-  };
+  }, [setThemeMode]);
 
   // Toggle manually switches to the opposite of current active theme
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const nextManualTheme: EffectiveTheme = effectiveTheme === 'dark' ? 'light' : 'dark';
     setThemeMode(nextManualTheme);
-  };
+  }, [effectiveTheme, setThemeMode]);
 
   // Reset to solar sunset/sunrise automatic mode
-  const resetToSolar = () => {
+  const resetToSolar = useCallback(() => {
     setThemeMode('solar');
-  };
+  }, [setThemeMode]);
 
   // Reset to OS preference mode
-  const resetToSystem = () => {
+  const resetToSystem = useCallback(() => {
     setThemeMode('system');
-  };
+  }, [setThemeMode]);
+
+  // Real-time synchronization across all devices via Firebase Auth & Firestore onSnapshot
+  useEffect(() => {
+    let unsubscribeSnapshot: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user: User | null) => {
+      // Clean up previous snapshot listener
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+
+      if (!user) {
+        setAuthUid(null);
+        setIsCloudSynced(false);
+        return;
+      }
+
+      setAuthUid(user.uid);
+      const userRef = doc(db, 'users', user.uid);
+
+      // Realtime listener across all devices
+      unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+
+        // Extract chosen theme ('dark' or 'light') and themeMode from Firestore
+        const cloudTheme = data.theme || data.themePreference;
+        const cloudMode = data.themeMode;
+
+        // Valid mode candidates
+        const hasValidCloudTheme = cloudTheme === 'dark' || cloudTheme === 'light';
+        const hasValidCloudMode = 
+          cloudMode === 'dark' || cloudMode === 'light' || cloudMode === 'solar' || cloudMode === 'system';
+
+        if (hasValidCloudMode || hasValidCloudTheme) {
+          const targetMode: ThemeMode = hasValidCloudMode 
+            ? cloudMode 
+            : (cloudTheme as ThemeMode);
+
+          // Avoid feedback loop if this is the mode we just pushed
+          if (lastPushedModeRef.current === targetMode) {
+            lastPushedModeRef.current = null;
+            setIsCloudSynced(true);
+            setLastCloudSyncTime(new Date());
+            return;
+          }
+
+          setThemeModeState((prev) => {
+            if (prev !== targetMode) {
+              try {
+                localStorage.setItem(THEME_STORAGE_KEY, targetMode);
+              } catch (e) {
+                console.warn('Unable to persist synced theme to localStorage', e);
+              }
+              return targetMode;
+            }
+            return prev;
+          });
+
+          setIsCloudSynced(true);
+          setLastCloudSyncTime(new Date());
+        } else {
+          // Document exists but no theme has been saved yet -> persist local preference to user's Firestore profile
+          const currentMode = themeMode;
+          const currentChosenTheme: EffectiveTheme = 
+            currentMode === 'light' ? 'light' : currentMode === 'dark' ? 'dark' : solarDetectedTheme;
+          saveThemeToFirestore(currentChosenTheme, currentMode, user.uid);
+        }
+      }, (err) => {
+        console.warn('Notice: Firestore theme synchronization listener:', err);
+      });
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+    };
+  }, [solarDetectedTheme, themeMode, saveThemeToFirestore]);
 
   return (
     <ThemeContext.Provider
@@ -379,6 +525,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         solarLocation,
         solarLoading,
         solarError,
+        isCloudSynced,
+        isSyncingToCloud,
+        lastCloudSyncTime,
         refreshSolarTimes: () => refreshSolarTimes(),
         requestSolarLocation,
         setTheme,
@@ -387,6 +536,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         resetToSolar,
         resetToSystem,
         clearManualOverride: resetToSolar,
+        saveThemeToFirestore,
       }}
     >
       {children}

@@ -14,7 +14,9 @@ import {
   Waves,
   BarChart2,
   TrendingUp,
-  Headphones
+  Headphones,
+  Volume2,
+  Check
 } from 'lucide-react';
 import { 
   webAudioEqualizer, 
@@ -27,16 +29,19 @@ interface VisualEqualizerProps {
   isPlaying: boolean;
   isVip?: boolean;
   className?: string;
+  onAuditionSample?: (presetKey: EqualizerPresetKey) => void;
 }
 
 export function VisualEqualizer({
   isPlaying,
   isVip = false,
-  className = ''
+  className = '',
+  onAuditionSample
 }: VisualEqualizerProps) {
   const [currentPreset, setCurrentPreset] = useState<EqualizerPresetKey>(webAudioEqualizer.getCurrentPreset());
   const [gains, setGains] = useState<number[]>(webAudioEqualizer.getCurrentGains());
   const [isEnabled, setIsEnabled] = useState<boolean>(webAudioEqualizer.getIsActive());
+  const [isAuditioning, setIsAuditioning] = useState<boolean>(webAudioEqualizer.getIsAuditionPlaying());
   const [visualMode, setVisualMode] = useState<'bars' | 'wave' | 'curve'>('bars');
   const [activeHoverBand, setActiveHoverBand] = useState<number | null>(null);
 
@@ -49,6 +54,7 @@ export function VisualEqualizer({
       setCurrentPreset(webAudioEqualizer.getCurrentPreset());
       setGains(webAudioEqualizer.getCurrentGains());
       setIsEnabled(webAudioEqualizer.getIsActive());
+      setIsAuditioning(webAudioEqualizer.getIsAuditionPlaying());
     });
     return () => unsubscribe();
   }, []);
@@ -71,6 +77,13 @@ export function VisualEqualizer({
   const handleReset = () => {
     webAudioEqualizer.resetToFlat();
     webAudioEqualizer.resume();
+  };
+
+  const handlePlayAudition = () => {
+    webAudioEqualizer.playAuditionSample();
+    if (onAuditionSample) {
+      onAuditionSample(currentPreset);
+    }
   };
 
   // Canvas visualizer loop
@@ -355,6 +368,22 @@ export function VisualEqualizer({
             </button>
           </div>
 
+          {/* Audition Sample Preview Button */}
+          <button
+            type="button"
+            id="eq-audition-btn"
+            onClick={handlePlayAudition}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+              isAuditioning
+                ? 'bg-amber-500 text-black border-amber-300 shadow-md animate-pulse'
+                : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30'
+            }`}
+            title="Phát đoạn âm thanh mẫu để nghe thử hiệu ứng EQ Web Audio API ngay lập tức"
+          >
+            <Volume2 size={13} className={isAuditioning ? 'animate-bounce' : ''} />
+            <span>{isAuditioning ? 'Đang thử EQ...' : 'Nghe thử'}</span>
+          </button>
+
           {/* Reset button */}
           <button
             type="button"
@@ -466,6 +495,47 @@ export function VisualEqualizer({
             );
           })}
         </div>
+
+        {/* Selected Preset Acoustic Profile Highlights */}
+        {EQUALIZER_PRESETS[currentPreset] && (
+          <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-zinc-950 border border-zinc-700/60 shrink-0">
+                {currentPreset === 'bass_boost' && <Flame size={16} className="text-orange-400" />}
+                {currentPreset === 'acoustic' && <Music size={16} className="text-cyan-400" />}
+                {currentPreset === 'vocal' && <Mic size={16} className="text-purple-400" />}
+                {currentPreset === 'electronic' && <Zap size={16} className="text-pink-400" />}
+                {currentPreset === 'rock' && <Radio size={16} className="text-amber-400" />}
+                {currentPreset === 'flat' && <Equal size={16} className="text-zinc-400" />}
+                {currentPreset === 'custom' && <Sliders size={16} className="text-blue-400" />}
+              </div>
+              <div className="min-w-0">
+                <div className="font-extrabold text-white flex items-center gap-1.5 flex-wrap">
+                  <span>{EQUALIZER_PRESETS[currentPreset].name}</span>
+                  <span className="text-[10px] text-zinc-400 font-normal">
+                    • {EQUALIZER_PRESETS[currentPreset].bestFor}
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-0.5 line-clamp-2">
+                  {EQUALIZER_PRESETS[currentPreset].description}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handlePlayAudition}
+              className={`shrink-0 px-3 py-1.5 rounded-xl font-bold transition-all border flex items-center gap-1.5 cursor-pointer text-xs ${
+                isAuditioning
+                  ? 'bg-amber-400 text-black border-amber-300 shadow-md animate-pulse'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700'
+              }`}
+            >
+              <Volume2 size={13} className={isAuditioning ? 'text-black' : 'text-amber-400'} />
+              <span>{isAuditioning ? 'Đang phát mẫu...' : 'Nghe thử âm sắc'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 6-Band Graphic Equalizer Faders */}

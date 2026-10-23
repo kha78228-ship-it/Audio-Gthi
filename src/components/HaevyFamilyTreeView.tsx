@@ -13,18 +13,19 @@ import {
   SAMPLE_FAMILY_EVENTS, 
   SAMPLE_FAMILY_PROPOSALS 
 } from '../data/sampleFamilyTree';
-import { InteractiveTreeView } from './family/InteractiveTreeView';
-import { FamilyMembersListView } from './family/FamilyMembersListView';
-import { MemberProfileModal } from './family/MemberProfileModal';
-import { FamilyEventsCalendarView } from './family/FamilyEventsCalendarView';
-import { FamilyProposalsQueueView } from './family/FamilyProposalsQueueView';
-import { FamilyDataArchitectureModal } from './family/FamilyDataArchitectureModal';
-import { PhaTueAIView } from './family/PhaTueAIView';
-import { FamilyHistoryHeritageView } from './family/FamilyHistoryHeritageView';
-import { GlobalFamilyConnectView } from './family/GlobalFamilyConnectView';
-import { AddMemberModal } from './family/AddMemberModal';
+// Lazy-loaded child modules & heavy tabs to optimize initial bundle size & rendering speed
+const InteractiveTreeView = React.lazy(() => import('./family/InteractiveTreeView').then(m => ({ default: m.InteractiveTreeView })));
+const FamilyMembersListView = React.lazy(() => import('./family/FamilyMembersListView').then(m => ({ default: m.FamilyMembersListView })));
+const MemberProfileModal = React.lazy(() => import('./family/MemberProfileModal').then(m => ({ default: m.MemberProfileModal })));
+const FamilyEventsCalendarView = React.lazy(() => import('./family/FamilyEventsCalendarView').then(m => ({ default: m.FamilyEventsCalendarView })));
+const FamilyProposalsQueueView = React.lazy(() => import('./family/FamilyProposalsQueueView').then(m => ({ default: m.FamilyProposalsQueueView })));
+const FamilyDataArchitectureModal = React.lazy(() => import('./family/FamilyDataArchitectureModal').then(m => ({ default: m.FamilyDataArchitectureModal })));
+const PhaTueAIView = React.lazy(() => import('./family/PhaTueAIView').then(m => ({ default: m.PhaTueAIView })));
+const FamilyHistoryHeritageView = React.lazy(() => import('./family/FamilyHistoryHeritageView').then(m => ({ default: m.FamilyHistoryHeritageView })));
+const GlobalFamilyConnectView = React.lazy(() => import('./family/GlobalFamilyConnectView').then(m => ({ default: m.GlobalFamilyConnectView })));
+const AddMemberModal = React.lazy(() => import('./family/AddMemberModal').then(m => ({ default: m.AddMemberModal })));
 import { HaevyClanAICommandBar } from './family/HaevyClanAICommandBar';
-import { ClanDirectChatModal } from './family/ClanDirectChatModal';
+const ClanDirectChatModal = React.lazy(() => import('./family/ClanDirectChatModal').then(m => ({ default: m.ClanDirectChatModal })));
 import { 
   Crown, 
   GitFork, 
@@ -853,7 +854,7 @@ export const HaevyFamilyTreeView: React.FC<HaevyFamilyTreeViewProps> = ({
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
-              <span>Lễ Giỗ ({events.length})</span>
+              <span>Lịch & Sinh Nhật 📅</span>
             </button>
 
             {/* Tab 5: Gia Sử & Di Sản Số */}
@@ -923,190 +924,220 @@ export const HaevyFamilyTreeView: React.FC<HaevyFamilyTreeViewProps> = ({
           onUpdateMember={handleUpdateMember}
         />
 
-        <AnimatePresence mode="wait">
-          {activeTab === 'tree' && (
-            <motion.div
-              key="view-tree"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <InteractiveTreeView
-                members={members}
-                userRole={userRole}
-                selectedBranch={selectedBranch}
-                onSelectBranch={setSelectedBranch}
-                branches={treeInfo.branches}
-                onOpenMemberProfile={handleOpenMemberProfile}
-                onAddNewMemberUnder={handleAddNewMemberUnder}
-                onAddSpouseFor={handleAddSpouseFor}
-                onAddNewMember={() => handleOpenAddModal(null, null)}
-                onOpenProposalFor={(m) => {
-                  setSelectedMemberForProfile(m);
-                  setActiveTab('proposals');
-                }}
-              />
-            </motion.div>
-          )}
+        <React.Suspense fallback={
+          <div className="w-full min-h-[380px] flex flex-col items-center justify-center p-8 bg-slate-900/60 rounded-2xl border border-slate-800/80 animate-pulse">
+            <div className="w-10 h-10 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mb-3" />
+            <p className="text-xs text-amber-300 font-medium">Đang tải phân hệ phả hệ...</p>
+            <p className="text-[11px] text-slate-400 mt-1">Tải động theo yêu cầu (Lazy Loading)</p>
+          </div>
+        }>
+          <AnimatePresence mode="wait">
+            {activeTab === 'tree' && (
+              <motion.div
+                key="view-tree"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <InteractiveTreeView
+                  members={members}
+                  events={events}
+                  userRole={userRole}
+                  selectedBranch={selectedBranch}
+                  onSelectBranch={setSelectedBranch}
+                  branches={treeInfo.branches}
+                  onOpenMemberProfile={handleOpenMemberProfile}
+                  onAddNewMemberUnder={handleAddNewMemberUnder}
+                  onAddSpouseFor={handleAddSpouseFor}
+                  onAddNewMember={() => handleOpenAddModal(null, null)}
+                  onAddEvent={handleAddEvent}
+                  onDeleteEvent={handleDeleteEvent}
+                  onOpenProposalFor={(m) => {
+                    setSelectedMemberForProfile(m);
+                    setActiveTab('proposals');
+                  }}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'members' && (
-            <motion.div
-              key="view-members"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <FamilyMembersListView
-                members={members}
-                userRole={userRole}
-                branches={treeInfo.branches}
-                onOpenMemberProfile={handleOpenMemberProfile}
-                onAddNewMember={handleAddNewMember}
-                onEditMember={handleOpenMemberProfile}
-                onDeleteMember={handleDeleteMember}
-                onJumpToTree={handleJumpToTree}
-                onOpenProposalFor={(m) => {
-                  setSelectedMemberForProfile(m);
-                  setActiveTab('proposals');
-                }}
-              />
-            </motion.div>
-          )}
+            {activeTab === 'members' && (
+              <motion.div
+                key="view-members"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <FamilyMembersListView
+                  members={members}
+                  userRole={userRole}
+                  branches={treeInfo.branches}
+                  onOpenMemberProfile={handleOpenMemberProfile}
+                  onAddNewMember={handleAddNewMember}
+                  onEditMember={handleOpenMemberProfile}
+                  onDeleteMember={handleDeleteMember}
+                  onJumpToTree={handleJumpToTree}
+                  onOpenProposalFor={(m) => {
+                    setSelectedMemberForProfile(m);
+                    setActiveTab('proposals');
+                  }}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'events' && (
-            <motion.div
-              key="view-events"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <FamilyEventsCalendarView
-                events={events}
-                members={members}
-                userRole={userRole}
-                onAddEvent={handleAddEvent}
-                onDeleteEvent={handleDeleteEvent}
-              />
-            </motion.div>
-          )}
+            {activeTab === 'events' && (
+              <motion.div
+                key="view-events"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <FamilyEventsCalendarView
+                  events={events}
+                  members={members}
+                  userRole={userRole}
+                  onAddEvent={handleAddEvent}
+                  onDeleteEvent={handleDeleteEvent}
+                  onSelectMember={(m) => {
+                    handleOpenMemberProfile(m);
+                  }}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'phatue_ai' && (
-            <motion.div
-              key="view-phatue-ai"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <PhaTueAIView
-                members={members}
-                treeInfo={treeInfo}
-                selectedMemberId={phaTueSelectedMemberId}
-                onSelectMember={(m) => handleOpenMemberProfile(m)}
-              />
-            </motion.div>
-          )}
+            {activeTab === 'phatue_ai' && (
+              <motion.div
+                key="view-phatue-ai"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <PhaTueAIView
+                  members={members}
+                  treeInfo={treeInfo}
+                  selectedMemberId={phaTueSelectedMemberId}
+                  onSelectMember={(m) => handleOpenMemberProfile(m)}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'heritage' && (
-            <motion.div
-              key="view-heritage"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <FamilyHistoryHeritageView
-                treeInfo={treeInfo}
-                members={members}
-                userRole={userRole}
-              />
-            </motion.div>
-          )}
+            {activeTab === 'heritage' && (
+              <motion.div
+                key="view-heritage"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <FamilyHistoryHeritageView
+                  treeInfo={treeInfo}
+                  members={members}
+                  userRole={userRole}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'global_connect' && (
-            <motion.div
-              key="view-global-connect"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <GlobalFamilyConnectView
-                treeInfo={treeInfo}
-                members={members}
-              />
-            </motion.div>
-          )}
+            {activeTab === 'global_connect' && (
+              <motion.div
+                key="view-global-connect"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <GlobalFamilyConnectView
+                  treeInfo={treeInfo}
+                  members={members}
+                />
+              </motion.div>
+            )}
 
-          {activeTab === 'proposals' && (
-            <motion.div
-              key="view-proposals"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <FamilyProposalsQueueView
-                proposals={proposals}
-                userRole={userRole}
-                onChangeUserRole={setUserRole}
-                onApproveProposal={handleApproveProposal}
-                onRejectProposal={handleRejectProposal}
-                onSubmitNewProposal={handleSubmitNewProposal}
-                allMembers={members}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {activeTab === 'proposals' && (
+              <motion.div
+                key="view-proposals"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <FamilyProposalsQueueView
+                  proposals={proposals}
+                  userRole={userRole}
+                  onChangeUserRole={setUserRole}
+                  onApproveProposal={handleApproveProposal}
+                  onRejectProposal={handleRejectProposal}
+                  onSubmitNewProposal={handleSubmitNewProposal}
+                  allMembers={members}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </React.Suspense>
       </main>
 
       {/* Profile Detail & Edit Modal */}
-      <MemberProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        member={selectedMemberForProfile}
-        allMembers={members}
-        userRole={userRole}
-        branches={treeInfo.branches}
-        tracks={tracks}
-        onPlayTrack={onPlayTrack}
-        onOpenChatWithMember={(m) => setDirectChatMember(m)}
-        onNavigateToMode={onNavigateToMode}
-        onSaveMember={handleSaveMember}
-        onDeleteMember={handleDeleteMember}
-        onAnalyzePhaTueAI={handleJumpToPhaTueAI}
-        onOpenProposalFor={(m) => {
-          setIsProfileModalOpen(false);
-          setActiveTab('proposals');
-        }}
-      />
+      {isProfileModalOpen && (
+        <React.Suspense fallback={null}>
+          <MemberProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+            member={selectedMemberForProfile}
+            allMembers={members}
+            userRole={userRole}
+            branches={treeInfo.branches}
+            tracks={tracks}
+            onPlayTrack={onPlayTrack}
+            onOpenChatWithMember={(m) => setDirectChatMember(m)}
+            onNavigateToMode={onNavigateToMode}
+            onSaveMember={handleSaveMember}
+            onDeleteMember={handleDeleteMember}
+            onAnalyzePhaTueAI={handleJumpToPhaTueAI}
+            onOpenProposalFor={(m) => {
+              setIsProfileModalOpen(false);
+              setActiveTab('proposals');
+            }}
+          />
+        </React.Suspense>
+      )}
 
       {/* Clan Direct Messaging Modal */}
-      <ClanDirectChatModal
-        isOpen={Boolean(directChatMember)}
-        onClose={() => setDirectChatMember(null)}
-        member={directChatMember}
-        currentUserId="user"
-        tracks={tracks}
-        onPlayTrack={onPlayTrack}
-        onNavigateToMode={onNavigateToMode}
-      />
+      {Boolean(directChatMember) && (
+        <React.Suspense fallback={null}>
+          <ClanDirectChatModal
+            isOpen={Boolean(directChatMember)}
+            onClose={() => setDirectChatMember(null)}
+            member={directChatMember}
+            currentUserId="user"
+            tracks={tracks}
+            onPlayTrack={onPlayTrack}
+            onNavigateToMode={onNavigateToMode}
+          />
+        </React.Suspense>
+      )}
 
       {/* Database Architecture Modal (Neo4j & Closure Table & GEDCOM) */}
-      <FamilyDataArchitectureModal
-        isOpen={isArchitectureModalOpen}
-        onClose={() => setIsArchitectureModalOpen(false)}
-        members={members}
-        familyTree={treeInfo}
-      />
+      {isArchitectureModalOpen && (
+        <React.Suspense fallback={null}>
+          <FamilyDataArchitectureModal
+            isOpen={isArchitectureModalOpen}
+            onClose={() => setIsArchitectureModalOpen(false)}
+            members={members}
+            familyTree={treeInfo}
+          />
+        </React.Suspense>
+      )}
 
       {/* Add New Member Modal (Do người dùng chủ động thêm vào) */}
-      <AddMemberModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        allMembers={members}
-        branches={treeInfo.branches}
-        treeId={treeInfo.id}
-        onSaveMember={handleSaveNewMember}
-        defaultParent={defaultParentForAdd}
-        defaultSpouse={defaultSpouseForAdd}
-      />
+      {isAddModalOpen && (
+        <React.Suspense fallback={null}>
+          <AddMemberModal
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            allMembers={members}
+            branches={treeInfo.branches}
+            treeId={treeInfo.id}
+            onSaveMember={handleSaveNewMember}
+            defaultParent={defaultParentForAdd}
+            defaultSpouse={defaultSpouseForAdd}
+          />
+        </React.Suspense>
+      )}
 
       {/* Edit Clan Info Modal */}
       {isClanModalOpen && (

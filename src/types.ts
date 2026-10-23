@@ -226,12 +226,68 @@ export interface CommunityPost {
   isHidden?: boolean;
 }
 
-export type EcosystemMode = 'portal' | 'audio' | 'messages' | 'couple' | 'finance' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'vip' | 'support' | 'profile' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu' | 'maps';
+export type EcosystemMode = 'portal' | 'audio' | 'messages' | 'couple' | 'finance' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'vip' | 'support' | 'profile' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu' | 'maps' | 'internet';
 
-export type ActiveTab = 'portal' | 'home' | 'library' | 'player' | 'community' | 'messages' | 'couple' | 'finance' | 'topup' | 'vip' | 'profile' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'support' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu' | 'maps';
+export type ActiveTab = 'portal' | 'home' | 'library' | 'player' | 'community' | 'messages' | 'couple' | 'finance' | 'topup' | 'vip' | 'profile' | 'admin' | 'studio' | 'games' | 'morning' | 'space' | 'support' | 'audio_library' | 'haevy_ai' | 'spiritual' | 'family_tree' | 'haevy_lite' | 'edu' | 'maps' | 'internet';
+
+export type InternetSubTab = 'browser' | 'search' | 'bookmarks' | 'news' | 'ai_reader';
 
 export type EduLabSubject = 'dashboard' | 'physics' | 'chemistry' | 'biology';
-export type EduSubTab = 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'lab' | 'tools';
+export type EduSubTab = 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'lab' | 'tools' | 'exam' | 'goals';
+
+// 7 Exam Prep Pillars for GDPT 2018 & THPT 2027
+export type EduExamPrepPillarKey =
+  | 'pillar_foundation'       // 1. Khởi Động Nền Tảng GDPT 2018 & Khái Niệm Gốc (First Principles)
+  | 'pillar_true_false'       // 2. Chinh Phục Câu Hỏi Đúng/Sai 4 Ý GDPT 2018 (Phân tích 4 mệnh đề)
+  | 'pillar_casio_speed'      // 3. Tốc Độ Bấm Máy Casio fx-880 BTG (Table, Solver, Hệ pt, 30s/câu)
+  | 'pillar_virtual_labs'     // 4. Thực Hành Thí Nghiệm Ảo STEM Thực Nghiệm (11+ mô phỏng tương tác)
+  | 'pillar_timed_mock'       // 5. Thi Thử Bấm Giờ 50 Phút & Áp Lực Phòng Thi (Đồng hồ đếm ngược)
+  | 'pillar_notebook_review'  // 6. Sổ Tay Nghiên Cứu & Vá Lỗ Hổng Kiến Thức (Ghi chép bẫy đề, chống học vẹt)
+  | 'pillar_quick_eval';      // 7. Đánh Giá Năng Lực Nhanh & Phản Biện Socratic (Quiz nhanh & AI phản biện)
+
+export interface EduPillarDefinition {
+  id: EduExamPrepPillarKey;
+  orderNumber: number;
+  title: string;
+  shortTitle: string;
+  subtitle: string;
+  description: string;
+  defaultGoalTitle: string;
+  targetMinutes: number;
+  badge: string;
+  iconName: string;
+  accentColor: string;
+  gradientBg: string;
+  borderColor: string;
+  textColor: string;
+  tags: string[];
+  action: {
+    tab: EduSubTab;
+    label: string;
+    payload?: any;
+  };
+}
+
+export interface EduDailyGoalItem {
+  pillarKey: EduExamPrepPillarKey;
+  customGoalTitle?: string;
+  notes?: string;
+  isCompleted: boolean;
+  completedAt?: string;
+  targetMinutes: number;
+  actualMinutes?: number;
+}
+
+export interface EduDailyGoalsRecord {
+  date: string; // YYYY-MM-DD
+  items: Record<EduExamPrepPillarKey, EduDailyGoalItem>;
+  allCompleted: boolean;
+  completedCount: number;
+  totalCount: number; // usually 7
+  completionCelebrated?: boolean;
+  streakCount: number;
+  updatedAt: string;
+}
 
 export interface StemModuleQuiz {
   moduleId: string;
@@ -2840,6 +2896,42 @@ export interface UserExpTransaction {
   title: string;
   createdAt: any;
 }
+
+// ==========================================
+// HAEVY SPIRITUAL: MOOD JOURNAL & SENTIMENT
+// ==========================================
+
+export interface MoodJournalEntry {
+  id: string;
+  userId: string;
+  emoji: string;
+  moodLabel: string;
+  sentimentScore: number; // 1 to 5
+  note: string; // 1-sentence note
+  tag?: string;
+  date: string; // YYYY-MM-DD
+  createdAt: any;
+}
+
+// ==========================================
+// HAEVY PORTAL: PERSISTENT QUICK NOTES (FLEETING THOUGHTS)
+// ==========================================
+
+export type QuickNoteTag = 'idea' | 'thought' | 'todo' | 'question' | 'spark';
+
+export interface QuickNote {
+  id: string;
+  userId: string;
+  content: string;
+  tag: QuickNoteTag;
+  tagLabel: string;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+  isStarred?: boolean;
+  color?: string; // Tailwind color accent
+  syncedWithAI?: boolean;
+}
+
 
 
 

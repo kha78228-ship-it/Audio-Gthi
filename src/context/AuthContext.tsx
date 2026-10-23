@@ -905,7 +905,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               coverUrl: data.coverUrl || '',
               avatarFrameId: data.avatarFrameId || 'dragon_gold',
               photoURL: data.photoURL || currentUser.photoURL || '',
-              email: currentEmail
+              email: currentEmail,
+              theme: data.theme || (data.themePreference as any),
+              themePreference: data.themePreference || (data.theme as any),
+              themeMode: data.themeMode
             };
             setUserProfile(syncedProfile);
 
@@ -1022,7 +1025,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             coverUrl: data.coverUrl || '',
             avatarFrameId: data.avatarFrameId || 'dragon_gold',
             photoURL: data.photoURL || user.photoURL || '',
-            email: currentEmail
+            email: currentEmail,
+            theme: data.theme || (data.themePreference as any),
+            themePreference: data.themePreference || (data.theme as any),
+            themeMode: data.themeMode
           };
           setUserProfile(syncedProfile);
 
@@ -4609,6 +4615,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (updates.joinedDate !== undefined) firestorePayload.joinedDate = updates.joinedDate;
       if (updates.coverUrl !== undefined) firestorePayload.coverUrl = updates.coverUrl;
       if (updates.avatarFrameId !== undefined) firestorePayload.avatarFrameId = updates.avatarFrameId;
+      if (updates.theme !== undefined) firestorePayload.theme = updates.theme;
+      if (updates.themePreference !== undefined) firestorePayload.themePreference = updates.themePreference;
+      if (updates.themeMode !== undefined) firestorePayload.themeMode = updates.themeMode;
 
       await setDoc(userRef, firestorePayload, { merge: true });
 

@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Play, 
   Pause, 
   SkipBack, 
   SkipForward, 
+  Volume1,
   Volume2, 
   VolumeX, 
+  Minus,
+  Plus,
   ListMusic, 
   Disc3, 
   Search, 
@@ -36,7 +39,13 @@ import {
   Waves,
   Bookmark,
   BookmarkCheck,
-  BookmarkPlus
+  BookmarkPlus,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  Power,
+  Check,
+  Info
 } from 'lucide-react';
 import { Track, AudioBookmark } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -44,12 +53,16 @@ import { VisualEqualizer } from './VisualEqualizer';
 import { AudioDynamicVisualizer, VisualizerMode } from './AudioDynamicVisualizer';
 import { AudioBookmarksTab } from './AudioBookmarksTab';
 import { audioBookmarkService } from '../services/audioBookmarkService';
+import { offlineAudioService } from '../services/offlineAudioService';
 import { 
   webAudioEqualizer, 
   EQUALIZER_PRESETS, 
+  EQUALIZER_BANDS,
   EqualizerPresetKey 
 } from '../lib/webAudioEqualizer';
 import { ShuffleMode, RepeatMode } from '../services/smartShuffleService';
+import { useHoldToAccelerate } from '../hooks/useHoldToAccelerate';
+import { haptics } from '../utils/haptics';
 
 interface AudioPlayerProps {
   playlist: Track[];
@@ -112,18 +125,222 @@ export function AudioPlayer({
   const [rightPanelTab, setRightPanelTab] = useState<'queue' | 'equalizer' | 'bookmarks'>('queue');
   const [displayMode, setDisplayMode] = useState<'artwork' | 'visualizer'>('artwork');
   const [currentEqPreset, setCurrentEqPreset] = useState<EqualizerPresetKey>(webAudioEqualizer.getCurrentPreset());
+  const [isEqEnabled, setIsEqEnabled] = useState<boolean>(webAudioEqualizer.getIsActive());
+  const [eqGains, setEqGains] = useState<number[]>(webAudioEqualizer.getCurrentGains());
+  const [isEqualizerExpanded, setIsEqualizerExpanded] = useState<boolean>(false);
+  const [isAuditionPlaying, setIsAuditionPlaying] = useState<boolean>(webAudioEqualizer.getIsAuditionPlaying());
+  const [eqVisualMode, setEqVisualMode] = useState<'curve' | 'bars'>('curve');
+  const [activeHoverBand, setActiveHoverBand] = useState<number | null>(null);
   const [activeTrackBookmarks, setActiveTrackBookmarks] = useState<AudioBookmark[]>([]);
   const [allBookmarksCount, setAllBookmarksCount] = useState<number>(0);
 
   const activeTrack = currentTrack || playlist[0];
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const eqCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Sync EQ preset state
+  // Offline Audio Playback Resolution (indexedDB blob / Cache API / network URL)
+  const [resolvedAudioUrl, setResolvedAudioUrl] = useState<string | undefined>(activeTrack?.url);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!activeTrack) {
+      setResolvedAudioUrl(undefined);
+      return;
+    }
+
+    offlineAudioService.getPlayableUrl(activeTrack).then((url) => {
+      if (isMounted) {
+        setResolvedAudioUrl(url);
+      }
+    }).catch(() => {
+      if (isMounted) {
+        setResolvedAudioUrl(activeTrack.url);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTrack?.id, activeTrack?.url]);
+
+  // Sync EQ manager state (preset, gains, active, audition)
   useEffect(() => {
     const unsubscribe = webAudioEqualizer.subscribe(() => {
       setCurrentEqPreset(webAudioEqualizer.getCurrentPreset());
+      setEqGains(webAudioEqualizer.getCurrentGains());
+      setIsEqEnabled(webAudioEqualizer.getIsActive());
+      setIsAuditionPlaying(webAudioEqualizer.getIsAuditionPlaying());
     });
     return () => unsubscribe();
   }, []);
+
+  // Initialize Web Audio API on the audioElement ref
+  useEffect(() => {
+    if (audioElementRef.current) {
+      webAudioEqualizer.init(audioElementRef.current);
+    }
+  }, []);
+
+  // Sync isPlaying with HTMLAudioElement
+  useEffect(() => {
+    const audio = audioElementRef.current;
+    if (!audio) return;
+    if (isPlaying && (resolvedAudioUrl || activeTrack?.url)) {
+      webAudioEqualizer.resume();
+      audio.play().catch(e => {
+        console.warn('HTML audio play notice:', e);
+      });
+    } else {
+      audio.pause();
+    }
+  }, [isPlaying, resolvedAudioUrl, activeTrack?.url]);
+
+  // Sync volume and mute with HTMLAudioElement
+  useEffect(() => {
+    const audio = audioElementRef.current;
+    if (!audio) return;
+    audio.volume = isMuted ? 0 : volume;
+  }, [volume, isMuted]);
+
+  // Live Canvas Visualizer for Equalizer Control Panel (Curve / Bars)
+  useEffect(() => {
+    if (!isEqualizerExpanded) return;
+    const canvas = eqCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let phase = 0;
+    const freqData = new Uint8Array(64);
+
+    const render = () => {
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+
+      webAudioEqualizer.getFrequencyData(freqData);
+      let hasRealAudio = false;
+      for (let i = 0; i < 16; i++) {
+        if (freqData[i] > 10) {
+          hasRealAudio = true;
+          break;
+        }
+      }
+
+      phase += 0.05;
+
+      if (eqVisualMode === 'bars') {
+        const barCount = 24;
+        const barWidth = (width / barCount) - 3;
+        for (let i = 0; i < barCount; i++) {
+          let value = 0;
+          if (isPlaying || isAuditionPlaying) {
+            if (hasRealAudio) {
+              const dataIdx = Math.floor((i / barCount) * (freqData.length / 2));
+              value = freqData[dataIdx] / 255;
+            } else {
+              const bandIdx = Math.min(5, Math.floor((i / barCount) * 6));
+              const boost = (eqGains[bandIdx] + 12) / 24;
+              const wave1 = Math.sin(phase * 1.5 + i * 0.3) * 0.3 + 0.5;
+              value = Math.max(0.08, wave1 * boost * 0.85);
+            }
+          } else {
+            value = 0.05 + Math.sin(phase * 0.5 + i * 0.2) * 0.03;
+          }
+
+          const barHeight = Math.max(4, value * (height - 14));
+          const x = i * (barWidth + 3) + 2;
+          const y = height - barHeight - 2;
+
+          const grad = ctx.createLinearGradient(0, height, 0, 0);
+          if (currentEqPreset === 'bass_boost') {
+            grad.addColorStop(0, '#7c2d12');
+            grad.addColorStop(1, '#fdba74');
+          } else if (currentEqPreset === 'vocal') {
+            grad.addColorStop(0, '#581c87');
+            grad.addColorStop(1, '#f0abfc');
+          } else if (currentEqPreset === 'acoustic') {
+            grad.addColorStop(0, '#164e63');
+            grad.addColorStop(1, '#67e8f9');
+          } else {
+            grad.addColorStop(0, '#27272a');
+            grad.addColorStop(1, '#fbbf24');
+          }
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.roundRect(x, y, barWidth, barHeight, [2, 2, 0, 0]);
+          ctx.fill();
+        }
+      } else {
+        // Curve mode
+        const points = EQUALIZER_BANDS.map((band, idx) => {
+          const px = (idx / (EQUALIZER_BANDS.length - 1)) * (width - 40) + 20;
+          const gain = isEqEnabled ? (eqGains[idx] || 0) : 0;
+          const py = height / 2 - (gain / 12) * (height * 0.38);
+          return { x: px, y: py, gain, label: band.label };
+        });
+
+        // Center 0dB baseline
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(10, height / 2);
+        ctx.lineTo(width - 10, height / 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Smooth curve
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 0; i < points.length - 1; i++) {
+          const xc = (points[i].x + points[i + 1].x) / 2;
+          const yc = (points[i].y + points[i + 1].y) / 2;
+          ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+        }
+        ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+
+        const curveGrad = ctx.createLinearGradient(0, 0, width, 0);
+        if (currentEqPreset === 'bass_boost') {
+          curveGrad.addColorStop(0, '#f97316');
+          curveGrad.addColorStop(0.5, '#fb923c');
+          curveGrad.addColorStop(1, '#fdba74');
+        } else if (currentEqPreset === 'vocal') {
+          curveGrad.addColorStop(0, '#c084fc');
+          curveGrad.addColorStop(0.5, '#a855f7');
+          curveGrad.addColorStop(1, '#e879f9');
+        } else if (currentEqPreset === 'acoustic') {
+          curveGrad.addColorStop(0, '#22d3ee');
+          curveGrad.addColorStop(0.5, '#06b6d4');
+          curveGrad.addColorStop(1, '#67e8f9');
+        } else {
+          curveGrad.addColorStop(0, '#f59e0b');
+          curveGrad.addColorStop(0.5, '#fbbf24');
+          curveGrad.addColorStop(1, '#38bdf8');
+        }
+
+        ctx.strokeStyle = isEqEnabled ? curveGrad : 'rgba(161, 161, 170, 0.4)';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Band Node Dots
+        points.forEach((p, idx) => {
+          ctx.fillStyle = idx === activeHoverBand ? '#ffffff' : (isEqEnabled ? '#f59e0b' : '#71717a');
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, idx === activeHoverBand ? 5 : 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      animId = requestAnimationFrame(render);
+    };
+
+    render();
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [isEqualizerExpanded, eqVisualMode, isPlaying, isAuditionPlaying, isEqEnabled, eqGains, currentEqPreset, activeHoverBand]);
 
   // Sync audio bookmarks for active track and total count
   useEffect(() => {
@@ -157,6 +374,50 @@ export function AudioPlayer({
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
+  // Keep live refs for volume & mute state to avoid stale closures in hold callbacks
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+
+  const isMutedRef = useRef(isMuted);
+  isMutedRef.current = isMuted;
+
+  // Decrease volume with hold-to-accelerate
+  const decreaseVolumeController = useHoldToAccelerate({
+    onStep: (stepMultiplier) => {
+      const currentVol = isMutedRef.current ? 0 : volumeRef.current;
+      // Base step is 0.02 (2%). Multiplier scales up dynamically: 1.0 -> 1.8 -> 2.5 -> 3.8
+      const stepDelta = 0.02 * stepMultiplier;
+      const nextVol = Math.max(0, Math.round((currentVol - stepDelta) * 100) / 100);
+      
+      onVolumeChange(nextVol);
+      
+      if (nextVol === 0 && currentVol > 0) {
+        haptics.threshold();
+      }
+    },
+    disabled: volume === 0 && !isMuted,
+  });
+
+  // Increase volume with hold-to-accelerate
+  const increaseVolumeController = useHoldToAccelerate({
+    onStep: (stepMultiplier) => {
+      const currentVol = isMutedRef.current ? 0 : volumeRef.current;
+      // If currently muted, automatically unmute when pressing increase
+      if (isMutedRef.current && onToggleMute) {
+        onToggleMute();
+      }
+      const stepDelta = 0.02 * stepMultiplier;
+      const nextVol = Math.min(1, Math.round((currentVol + stepDelta) * 100) / 100);
+      
+      onVolumeChange(nextVol);
+      
+      if (nextVol === 1 && currentVol < 1) {
+        haptics.threshold();
+      }
+    },
+    disabled: volume >= 1 && !isMuted,
+  });
+
   const filteredPlaylist = playlist.filter((track) => {
     const matchesSearch =
       track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -189,6 +450,22 @@ export function AudioPlayer({
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 max-w-6xl mx-auto w-full">
+      {/* Hidden Audio Element connected to Web Audio DSP Pipeline */}
+      <audio
+        ref={audioElementRef}
+        src={resolvedAudioUrl || activeTrack?.url}
+        crossOrigin={resolvedAudioUrl?.startsWith('blob:') ? undefined : "anonymous"}
+        preload="metadata"
+        onTimeUpdate={() => {
+          if (audioElementRef.current && !isNaN(audioElementRef.current.currentTime)) {
+            onSeek(audioElementRef.current.currentTime);
+          }
+        }}
+        onEnded={() => {
+          if (onPlayNext) onPlayNext();
+        }}
+      />
+
       {/* Main Player Card */}
       <div 
         id="main-player-card"
@@ -494,56 +771,421 @@ export function AudioPlayer({
           </div>
         </div>
 
-        {/* Quick Equalizer Presets Strip */}
-        <div className="mb-5 p-3 bg-zinc-950/80 border border-zinc-800/80 rounded-2xl flex flex-col gap-2 shadow-inner">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-300">
-              <Sliders size={13} className="text-amber-400" />
-              <span>Chế độ âm thanh EQ:</span>
-              <span className="text-amber-400 font-extrabold">{EQUALIZER_PRESETS[currentEqPreset]?.name}</span>
+        {/* Equalizer Control Panel (Web Audio API) */}
+        <div 
+          id="audio-player-equalizer-panel"
+          className="mb-5 bg-zinc-950/90 border border-zinc-800 rounded-3xl p-3.5 sm:p-5 shadow-2xl relative overflow-hidden transition-all"
+        >
+          {/* Top Header: Title, Active Preset Badge, Audition & Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-zinc-800/80">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-sm shrink-0">
+                <Sliders size={16} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight">
+                    Equalizer Web Audio DSP
+                  </span>
+                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border shadow-sm flex items-center gap-1 ${
+                    EQUALIZER_PRESETS[currentEqPreset]?.badgeBg || 'bg-zinc-800 text-zinc-300 border-zinc-700'
+                  }`}>
+                    <Activity size={10} className="animate-pulse" />
+                    <span>{EQUALIZER_PRESETS[currentEqPreset]?.name}</span>
+                  </span>
+                  {isEqEnabled && (
+                    <span className="text-[9px] text-zinc-400 font-mono hidden md:inline">
+                      • 48kHz / 32-bit Float
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400 truncate max-w-[280px] sm:max-w-md">
+                  {isEqEnabled 
+                    ? EQUALIZER_PRESETS[currentEqPreset]?.subtitle 
+                    : 'Bộ lọc âm thanh đang tạm ngắt (DSP Bypass)'}
+                </p>
+              </div>
             </div>
-            <button
-              type="button"
-              id="open-equalizer-tab-btn"
-              onClick={() => setRightPanelTab('equalizer')}
-              className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors cursor-pointer bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20"
-            >
-              <Activity size={12} className="animate-pulse" />
-              <span>Mở EQ Đồ Họa</span>
-            </button>
+
+            {/* Quick Actions: Audition, Power, Expand/Collapse */}
+            <div className="flex items-center gap-1.5 ml-auto">
+              {/* Audition Sample Preview Button */}
+              <button
+                type="button"
+                id="player-eq-audition-btn"
+                onClick={() => {
+                  webAudioEqualizer.playAuditionSample();
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  isAuditionPlaying
+                    ? 'bg-amber-400 text-black border-amber-300 shadow-md animate-pulse'
+                    : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30'
+                }`}
+                title="Phát chuỗi âm thanh mẫu Web Audio để nghe thử hiệu ứng của bộ Equalizer"
+              >
+                <Volume2 size={12} className={isAuditionPlaying ? 'animate-bounce text-black' : 'text-amber-400'} />
+                <span>{isAuditionPlaying ? 'Đang thử...' : 'Nghe thử EQ'}</span>
+              </button>
+
+              {/* Master Power Toggle */}
+              <button
+                type="button"
+                id="player-eq-power-btn"
+                onClick={() => {
+                  webAudioEqualizer.setEnabled(!isEqEnabled);
+                  webAudioEqualizer.resume();
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  isEqEnabled
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                    : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:text-zinc-300'
+                }`}
+                title={isEqEnabled ? 'Tắt DSP (Bypass)' : 'Bật DSP Equalizer'}
+              >
+                <Power size={11} className={isEqEnabled ? 'text-emerald-400' : 'text-zinc-500'} />
+                <span>{isEqEnabled ? 'ON' : 'BYPASS'}</span>
+              </button>
+
+              {/* Expand / Collapse Control Panel Button */}
+              <button
+                type="button"
+                id="player-eq-toggle-expand-btn"
+                onClick={() => setIsEqualizerExpanded(!isEqualizerExpanded)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 transition-all cursor-pointer"
+                title={isEqualizerExpanded ? "Thu gọn bảng điều khiển" : "Mở rộng bảng chỉnh EQ chi tiết"}
+              >
+                <span>{isEqualizerExpanded ? "Thu gọn" : "Chỉnh chi tiết"}</span>
+                {isEqualizerExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            {[
-              { key: 'bass_boost', label: 'Bass Boost', icon: Flame, color: 'text-orange-400' },
-              { key: 'acoustic', label: 'Acoustic', icon: Music, color: 'text-cyan-400' },
-              { key: 'vocal', label: 'Vocal Clarity', icon: Mic, color: 'text-purple-400' },
-              { key: 'electronic', label: 'Electronic', icon: Zap, color: 'text-pink-400' },
-              { key: 'rock', label: 'Rock', icon: Radio, color: 'text-amber-400' },
-              { key: 'flat', label: 'Flat', icon: Equal, color: 'text-zinc-400' },
-            ].map(({ key, label, icon: Icon, color }) => {
-              const isSelected = currentEqPreset === key;
-              return (
-                <button
-                  key={key}
-                  id={`quick-eq-btn-${key}`}
-                  type="button"
-                  onClick={() => {
-                    webAudioEqualizer.setPreset(key as EqualizerPresetKey);
-                    webAudioEqualizer.resume();
-                  }}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 border cursor-pointer ${
-                    isSelected
-                      ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-black border-amber-300 font-extrabold shadow-sm scale-[1.02]'
-                      : 'bg-zinc-900/90 text-zinc-400 hover:text-white hover:bg-zinc-800 border-zinc-800'
-                  }`}
-                >
-                  <Icon size={12} className={isSelected ? 'text-black' : color} />
-                  <span>{label}</span>
-                </button>
-              );
-            })}
+          {/* Featured Presets: Bass Boost, Vocal Clarity, Acoustic (Always visible) */}
+          <div className="pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1">
+                <Sparkles size={11} className="text-amber-400" />
+                <span>Chế độ âm sắc đặc trưng (DSP Presets)</span>
+              </span>
+              <span className="text-[10px] text-zinc-500 hidden sm:inline">
+                Chuyển tức thì qua Web Audio API BiquadFilters
+              </span>
+            </div>
+
+            {/* 3 Prominent Hero Preset Cards: Bass Boost, Vocal Clarity, Acoustic */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {/* Preset 1: Bass Boost */}
+              <button
+                type="button"
+                id="eq-hero-btn-bass-boost"
+                onClick={() => {
+                  webAudioEqualizer.setPreset('bass_boost');
+                  webAudioEqualizer.resume();
+                }}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden group flex flex-col justify-between gap-1.5 ${
+                  currentEqPreset === 'bass_boost'
+                    ? 'bg-gradient-to-br from-orange-950/60 via-zinc-900 to-zinc-950 border-orange-500/60 shadow-lg shadow-orange-500/10 ring-1 ring-orange-500/30'
+                    : 'bg-zinc-900/60 hover:bg-zinc-900 border-zinc-800 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/30 shadow-sm">
+                      <Flame size={15} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                        <span>Bass Boost</span>
+                        {currentEqPreset === 'bass_boost' && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-ping" />
+                        )}
+                      </div>
+                      <div className="text-[10px] text-orange-400/90 font-mono">
+                        +9dB (60Hz) • +6dB (150Hz)
+                      </div>
+                    </div>
+                  </div>
+                  {currentEqPreset === 'bass_boost' && (
+                    <Check size={14} className="text-orange-400 shrink-0" />
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400 line-clamp-1">
+                  Khuếch đại dải siêu trầm uy lực, âm bass sâu chắc & rung động
+                </p>
+                <div className="text-[9px] font-semibold text-orange-300/80 bg-orange-950/40 px-2 py-0.5 rounded-lg border border-orange-900/40 self-start">
+                  ⚡ EDM • Hip-Hop • Dance
+                </div>
+              </button>
+
+              {/* Preset 2: Vocal Clarity */}
+              <button
+                type="button"
+                id="eq-hero-btn-vocal"
+                onClick={() => {
+                  webAudioEqualizer.setPreset('vocal');
+                  webAudioEqualizer.resume();
+                }}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden group flex flex-col justify-between gap-1.5 ${
+                  currentEqPreset === 'vocal'
+                    ? 'bg-gradient-to-br from-purple-950/60 via-zinc-900 to-zinc-950 border-purple-500/60 shadow-lg shadow-purple-500/10 ring-1 ring-purple-500/30'
+                    : 'bg-zinc-900/60 hover:bg-zinc-900 border-zinc-800 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-sm">
+                      <Mic size={15} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                        <span>Vocal Clarity</span>
+                        {currentEqPreset === 'vocal' && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
+                        )}
+                      </div>
+                      <div className="text-[10px] text-purple-400/90 font-mono">
+                        +7dB (1kHz) • +5dB (3.5kHz)
+                      </div>
+                    </div>
+                  </div>
+                  {currentEqPreset === 'vocal' && (
+                    <Check size={14} className="text-purple-400 shrink-0" />
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400 line-clamp-1">
+                  Tôn giọng hát ca sĩ & lời thoại rõ nét, cắt nhẹ trầm chống ù
+                </p>
+                <div className="text-[9px] font-semibold text-purple-300/80 bg-purple-950/40 px-2 py-0.5 rounded-lg border border-purple-900/40 self-start">
+                  🎙️ Podcast • Pop • Sách nói
+                </div>
+              </button>
+
+              {/* Preset 3: Acoustic */}
+              <button
+                type="button"
+                id="eq-hero-btn-acoustic"
+                onClick={() => {
+                  webAudioEqualizer.setPreset('acoustic');
+                  webAudioEqualizer.resume();
+                }}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden group flex flex-col justify-between gap-1.5 ${
+                  currentEqPreset === 'acoustic'
+                    ? 'bg-gradient-to-br from-cyan-950/60 via-zinc-900 to-zinc-950 border-cyan-500/60 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-500/30'
+                    : 'bg-zinc-900/60 hover:bg-zinc-900 border-zinc-800 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-sm">
+                      <Music size={15} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                        <span>Acoustic</span>
+                        {currentEqPreset === 'acoustic' && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                        )}
+                      </div>
+                      <div className="text-[10px] text-cyan-400/90 font-mono">
+                        +6dB (3.5kHz) • +8dB (10kHz)
+                      </div>
+                    </div>
+                  </div>
+                  {currentEqPreset === 'acoustic' && (
+                    <Check size={14} className="text-cyan-400 shrink-0" />
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400 line-clamp-1">
+                  Trong trẻo mộc mạc, nổi bật tiếng đàn guitar, piano & dây
+                </p>
+                <div className="text-[9px] font-semibold text-cyan-300/80 bg-cyan-950/40 px-2 py-0.5 rounded-lg border border-cyan-900/40 self-start">
+                  🎸 Guitar • Piano • Indie
+                </div>
+              </button>
+            </div>
+
+            {/* Secondary Preset Pills: Flat, Electronic, Rock, Custom */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2">
+              <span className="text-[10px] text-zinc-500 font-bold uppercase shrink-0 mr-1">
+                Khác:
+              </span>
+              {[
+                { key: 'flat', label: 'Flat (0dB)', icon: Equal, color: 'text-zinc-400' },
+                { key: 'electronic', label: 'Electronic', icon: Zap, color: 'text-pink-400' },
+                { key: 'rock', label: 'Rock', icon: Radio, color: 'text-yellow-400' },
+                { key: 'custom', label: 'Tùy chỉnh', icon: Sliders, color: 'text-blue-400' },
+              ].map(({ key, label, icon: Icon, color }) => {
+                const isSelected = currentEqPreset === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      webAudioEqualizer.setPreset(key as EqualizerPresetKey);
+                      webAudioEqualizer.resume();
+                    }}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 border cursor-pointer ${
+                      isSelected
+                        ? 'bg-zinc-800 text-amber-300 border-amber-500/40 shadow-sm'
+                        : 'bg-zinc-900/80 text-zinc-400 hover:text-white hover:bg-zinc-800 border-zinc-800'
+                    }`}
+                  >
+                    <Icon size={12} className={isSelected ? 'text-amber-400' : color} />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Expanded Section: Visualizer Canvas & 6-Band Frequency Sliders */}
+          {isEqualizerExpanded && (
+            <div className="mt-4 pt-4 border-t border-zinc-800/80 flex flex-col gap-4 animate-in fade-in duration-200">
+              {/* Visualizer Canvas Card */}
+              <div className="bg-zinc-950 rounded-2xl border border-zinc-800/90 p-3 flex flex-col gap-2 shadow-inner">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp size={12} className="text-amber-400" />
+                    <span className="text-xs font-bold text-zinc-300">
+                      Đáp tuyến tần số DSP Web Audio
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-zinc-900 p-0.5 rounded-lg border border-zinc-800 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setEqVisualMode('curve')}
+                      className={`px-2 py-0.5 rounded font-bold transition-colors cursor-pointer ${
+                        eqVisualMode === 'curve' ? 'bg-zinc-800 text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      Đường cong
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEqVisualMode('bars')}
+                      className={`px-2 py-0.5 rounded font-bold transition-colors cursor-pointer ${
+                        eqVisualMode === 'bars' ? 'bg-zinc-800 text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      Phổ tần số
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative w-full h-20 bg-black/60 rounded-xl overflow-hidden border border-zinc-800/60">
+                  <canvas
+                    ref={eqCanvasRef}
+                    width={520}
+                    height={80}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-1.5 left-2.5 text-[9px] font-mono text-zinc-500 pointer-events-none">
+                    -12 dB ~ +12 dB • Real-Time DSP Filtering
+                  </div>
+                </div>
+              </div>
+
+              {/* 6-Band Graphic Equalizer Faders */}
+              <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-3 sm:p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-300">
+                    <Sliders size={13} className="text-amber-400" />
+                    <span>6 Dải tần số chi tiết (Graphic Equalizer Faders)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      webAudioEqualizer.resetToFlat();
+                      webAudioEqualizer.resume();
+                    }}
+                    className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors cursor-pointer border border-zinc-700"
+                    title="Đặt lại tất cả về 0 dB"
+                  >
+                    <RotateCcw size={11} />
+                    <span>Đặt lại (0dB)</span>
+                  </button>
+                </div>
+
+                {/* 6 Sliders Grid */}
+                <div className="grid grid-cols-6 gap-1.5 sm:gap-3 pt-1">
+                  {EQUALIZER_BANDS.map((band, idx) => {
+                    const gain = eqGains[idx] || 0;
+                    const isBoosted = gain > 0;
+                    const isCut = gain < 0;
+
+                    return (
+                      <div
+                        key={band.freq}
+                        className="flex flex-col items-center gap-2 group"
+                        onMouseEnter={() => setActiveHoverBand(idx)}
+                        onMouseLeave={() => setActiveHoverBand(null)}
+                      >
+                        {/* dB Pill */}
+                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded transition-colors ${
+                          isBoosted
+                            ? 'text-amber-300 bg-amber-500/20 border border-amber-500/30'
+                            : isCut
+                            ? 'text-cyan-300 bg-cyan-500/20 border border-cyan-500/30'
+                            : 'text-zinc-400 bg-zinc-800 border border-zinc-700'
+                        }`}>
+                          {gain > 0 ? `+${gain}` : `${gain}`} dB
+                        </span>
+
+                        {/* Slider Track */}
+                        <div className="relative h-24 sm:h-28 flex items-center justify-center w-full py-1">
+                          <div className="absolute w-full h-[1px] bg-zinc-700/60 pointer-events-none top-1/2 -translate-y-1/2" />
+                          <input
+                            id={`player-eq-fader-${idx}`}
+                            type="range"
+                            min={-12}
+                            max={12}
+                            step={1}
+                            value={gain}
+                            disabled={!isEqEnabled}
+                            onChange={(e) => {
+                              webAudioEqualizer.setBandGain(idx, Number(e.target.value));
+                              webAudioEqualizer.resume();
+                            }}
+                            className="w-20 sm:w-24 -rotate-90 origin-center bg-zinc-800 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:shadow-md disabled:opacity-40"
+                          />
+                        </div>
+
+                        {/* Label & Description */}
+                        <div className="text-center">
+                          <div className="text-xs font-bold text-zinc-200">
+                            {band.label}
+                          </div>
+                          <div className="text-[9px] text-zinc-500 truncate max-w-[42px] sm:max-w-none">
+                            {band.description}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Active Profile Info Banner */}
+              {EQUALIZER_PRESETS[currentEqPreset] && (
+                <div className="p-3 bg-zinc-900/80 border border-zinc-800 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Info size={14} className="text-amber-400 shrink-0" />
+                    <span className="text-zinc-300">
+                      {EQUALIZER_PRESETS[currentEqPreset].description}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => webAudioEqualizer.playAuditionSample()}
+                    className="shrink-0 px-2.5 py-1 rounded-xl font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <Volume2 size={12} />
+                    <span>Nghe thử</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Playback Controls with Smart Shuffle and Repeat */}
@@ -660,26 +1302,93 @@ export function AudioPlayer({
 
         {/* Bottom Bar inside Player */}
         <div className="mt-auto pt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800/80 px-1">
-          {/* Volume Control */}
-          <div className="flex items-center gap-3">
+          {/* Volume Control Station with Hold-to-Accelerate */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button 
               id="volume-mute-btn"
-              onClick={onToggleMute} 
-              className="text-zinc-400 hover:text-white transition-colors p-1 cursor-pointer"
-              aria-label="Âm lượng"
+              onClick={() => {
+                haptics.selection();
+                onToggleMute();
+              }} 
+              className="text-zinc-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-zinc-800/60 cursor-pointer"
+              aria-label={isMuted ? "Bật âm thanh" : "Tắt tiếng"}
+              title={isMuted ? "Bật âm thanh" : "Tắt tiếng (Mute)"}
             >
-              {isMuted || volume === 0 ? <VolumeX size={19} /> : <Volume2 size={19} />}
+              {isMuted || volume === 0 ? (
+                <VolumeX size={18} className="text-zinc-500" />
+              ) : volume < 0.5 ? (
+                <Volume1 size={18} className="text-zinc-300" />
+              ) : (
+                <Volume2 size={18} className="text-zinc-300" />
+              )}
             </button>
-            <input
-              id="volume-slider"
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={isMuted ? 0 : volume}
-              onChange={(e) => onVolumeChange(Number(e.target.value))}
-              className="w-24 sm:w-28 h-1 bg-zinc-800 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-            />
+
+            {/* Hold to Decrease Volume Button */}
+            <button
+              type="button"
+              id="audio-player-volume-decrease-btn"
+              {...decreaseVolumeController.bind}
+              disabled={volume === 0 && !isMuted}
+              className={`p-1.5 rounded-lg transition-all flex items-center justify-center cursor-pointer select-none border ${
+                decreaseVolumeController.isHolding
+                  ? 'bg-amber-500/25 text-amber-300 border-amber-500/60 scale-95 shadow-sm shadow-amber-500/30 ring-2 ring-amber-500/20'
+                  : 'text-zinc-400 hover:text-white bg-zinc-800/40 hover:bg-zinc-800 border-zinc-700/60 active:scale-95 disabled:opacity-30 disabled:pointer-events-none'
+              }`}
+              title="Giảm âm lượng (Nhấn giữ để tăng tốc độ giảm)"
+              aria-label="Giảm âm lượng (nhấn giữ để tự động tăng tốc)"
+            >
+              <Minus size={13} strokeWidth={2.5} />
+            </button>
+
+            {/* Volume Slider with dynamic track progress */}
+            <div className="relative flex items-center">
+              <input
+                id="volume-slider"
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={isMuted ? 0 : volume}
+                onChange={(e) => onVolumeChange(Number(e.target.value))}
+                className="w-18 sm:w-24 md:w-28 h-1.5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:shadow-md hover:[&::-webkit-slider-thumb]:scale-115 transition-all"
+                style={{
+                  background: `linear-gradient(to right, #f59e0b 0%, #f59e0b ${(isMuted ? 0 : volume) * 100}%, #3f3f46 ${(isMuted ? 0 : volume) * 100}%, #3f3f46 100%)`
+                }}
+                aria-label="Thanh trượt âm lượng"
+              />
+            </div>
+
+            {/* Hold to Increase Volume Button */}
+            <button
+              type="button"
+              id="audio-player-volume-increase-btn"
+              {...increaseVolumeController.bind}
+              disabled={volume >= 1 && !isMuted}
+              className={`p-1.5 rounded-lg transition-all flex items-center justify-center cursor-pointer select-none border ${
+                increaseVolumeController.isHolding
+                  ? 'bg-amber-500/25 text-amber-300 border-amber-500/60 scale-95 shadow-sm shadow-amber-500/30 ring-2 ring-amber-500/20'
+                  : 'text-zinc-400 hover:text-white bg-zinc-800/40 hover:bg-zinc-800 border-zinc-700/60 active:scale-95 disabled:opacity-30 disabled:pointer-events-none'
+              }`}
+              title="Tăng âm lượng (Nhấn giữ để tăng tốc độ tăng)"
+              aria-label="Tăng âm lượng (nhấn giữ để tự động tăng tốc)"
+            >
+              <Plus size={13} strokeWidth={2.5} />
+            </button>
+
+            {/* Numerical Volume Indicator & Speed Level Badge */}
+            <div className="flex items-center gap-1 font-mono text-xs text-zinc-400 min-w-[46px]">
+              <span className={`font-bold transition-colors ${
+                decreaseVolumeController.isHolding || increaseVolumeController.isHolding ? 'text-amber-300' : 'text-zinc-300'
+              }`}>
+                {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
+              </span>
+
+              {(decreaseVolumeController.isHolding || increaseVolumeController.isHolding) && (
+                <span className="px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/40 animate-pulse">
+                  {decreaseVolumeController.isHolding ? `${decreaseVolumeController.speedLevel}x` : `${increaseVolumeController.speedLevel}x`}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Center / Right: Sleep Timer Button & Points Reward */}

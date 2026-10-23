@@ -23,7 +23,9 @@ import {
   ShieldAlert,
   Cpu,
   Bot,
-  Info
+  Info,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -42,6 +44,7 @@ import {
   formatMCPUsername,
   extractAccountIdFromMCP
 } from '../services/accountSecurityService';
+import { HaevyMCPProtocolModal } from './haevyAI/HaevyMCPProtocolModal';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -61,7 +64,12 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
     loginAsAnonymous,
   } = authContext;
 
-  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'anonymous' | 'mcp_ai'>(initialTab);
+  // Primary navigation tabs: 'unified' (merging login + signup), 'mcp_ai', 'anonymous'
+  const [activeTab, setActiveTab] = useState<'unified' | 'mcp_ai' | 'anonymous'>('unified');
+  // Unified sub-mode: 'signin' or 'signup'
+  const [authSubMode, setAuthSubMode] = useState<'signin' | 'signup'>('signin');
+
+  // Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -88,16 +96,34 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
   const [mcpActiveSession, setMcpActiveSession] = useState<MCPAuthSession | null>(getStoredMCPSession);
   const [showKeyLocationGuide, setShowKeyLocationGuide] = useState(false);
   const [mcpLoginSuccess, setMcpLoginSuccess] = useState(false);
+  const [isMCPProtocolModalOpen, setIsMCPProtocolModalOpen] = useState(false);
 
+  // Status banners & feedback
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Sync initial tab when reopened
   useEffect(() => {
     if (isOpen) {
-      setAuthMode(initialTab);
+      if (initialTab === 'signup') {
+        setActiveTab('unified');
+        setAuthSubMode('signup');
+      } else if (initialTab === 'signin') {
+        setActiveTab('unified');
+        setAuthSubMode('signin');
+      } else if (initialTab === 'mcp_ai') {
+        setActiveTab(user ? 'unified' : 'mcp_ai');
+      } else if (initialTab === 'anonymous') {
+        setActiveTab('anonymous');
+      } else {
+        setActiveTab('unified');
+        setAuthSubMode('signin');
+      }
+
       setError(null);
+      setErrorCode(null);
       setSuccessMsg(null);
       setIsForgotPasswordView(false);
       setMcpLoginSuccess(false);
@@ -111,14 +137,16 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
 
   if (!isOpen) return null;
 
+  // Unified Email / Password submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setErrorCode(null);
     setSuccessMsg(null);
     setLoading(true);
 
     try {
-      if (authMode === 'signup') {
+      if (authSubMode === 'signup') {
         if (!email || !password) {
           throw new Error('Vui lòng nhập đầy đủ địa chỉ email và mật khẩu.');
         }
@@ -128,7 +156,7 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
         const finalRef = referralCode.trim() || 'HAEVY2026';
         await signUpWithEmail(email, password, name.trim() || undefined, finalRef);
         onClose();
-      } else if (authMode === 'signin') {
+      } else {
         if (!email || !password) {
           throw new Error('Vui lòng nhập email và mật khẩu tài khoản.');
         }
@@ -138,10 +166,12 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
     } catch (err: any) {
       console.error('Auth error:', err);
       let message = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+      setErrorCode(err.code || null);
+
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        message = 'Email hoặc mật khẩu không chính xác. Bạn có thể sử dụng tính năng "Quên mật khẩu" hoặc đăng nhập bằng Google / Mã Ẩn Danh.';
+        message = 'Email hoặc mật khẩu không chính xác. Nếu chưa có tài khoản, bạn có thể chuyển sang "Đăng ký" ngay dưới đây.';
       } else if (err.code === 'auth/email-already-in-use') {
-        message = 'Email này đã được đăng ký tài khoản. Vui lòng chuyển sang tab "Đăng nhập".';
+        message = 'Email này đã có tài khoản trên hệ thống. Bạn có thể nhấn "Đăng nhập ngay" để tiếp tục.';
       } else if (err.code === 'auth/invalid-email') {
         message = 'Địa chỉ email không đúng định dạng.';
       } else if (err.code === 'auth/weak-password') {
@@ -159,9 +189,10 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
 
   const handleGoogleSignIn = async () => {
     setError(null);
+    setErrorCode(null);
     setLoading(true);
     try {
-      const finalRef = authMode === 'signup' ? (referralCode.trim() || 'HAEVY2026') : undefined;
+      const finalRef = authSubMode === 'signup' ? (referralCode.trim() || 'HAEVY2026') : undefined;
       await signInWithGoogle(finalRef);
       onClose();
     } catch (err: any) {
@@ -181,6 +212,7 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
   // 1-Click Anonymous Blank Account creation
   const handleCreateBlankAccount = async () => {
     setError(null);
+    setErrorCode(null);
     setLoading(true);
     try {
       const res = await loginAsAnonymous();
@@ -203,6 +235,7 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
       return;
     }
     setError(null);
+    setErrorCode(null);
     setLoading(true);
     try {
       const res = await loginAsAnonymous(anonCode.trim());
@@ -225,17 +258,16 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
   const handleMcpLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setErrorCode(null);
     setSuccessMsg(null);
     setLoading(true);
 
     try {
-      // 1. Verify against Account Security Shield settings (Layer 6 Master Key or Layer 3 PIN)
       const verification = verifyMCPCredentials(mcpUsername, mcpPasskey);
       if (!verification.valid) {
         throw new Error(verification.message);
       }
 
-      // 2. Authenticate session with /api/mcp/auth
       const targetIdentifier = mcpUsername.trim();
       const extractedAccId = extractAccountIdFromMCP(targetIdentifier) || accountId || 'HV-84489536';
       let sessionData: MCPAuthSession;
@@ -263,7 +295,6 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
           throw new Error(data.error || 'Xác thực phiên MCP thất bại');
         }
       } catch (backendErr: any) {
-        // Safe resilient fallback
         const now = new Date();
         sessionData = {
           token: `mcp_sec_${Date.now()}_${Math.random().toString(36).substring(2, 12)}`,
@@ -300,6 +331,7 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
       return;
     }
     setError(null);
+    setErrorCode(null);
     setLoading(true);
     try {
       await sendPasswordResetEmail(auth, targetEmail);
@@ -329,12 +361,12 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
     >
       <div 
         id="auth-modal-container"
-        className="bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-700/60 rounded-3xl w-full max-w-lg p-5 sm:p-8 relative shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden max-h-[92vh] overflow-y-auto custom-scrollbar"
+        className="bg-gradient-to-b from-zinc-900 via-zinc-900 to-zinc-950 border border-zinc-700/60 rounded-3xl w-full max-w-lg p-5 sm:p-7 relative shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] overflow-hidden max-h-[92vh] overflow-y-auto custom-scrollbar"
       >
         {/* Subtle Ambient Nebula Glows */}
-        <div className="absolute -top-24 -left-24 w-60 h-60 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -top-24 -right-24 w-60 h-60 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-500 via-purple-500 to-amber-500 opacity-80" />
+        <div className="absolute -top-24 -left-24 w-60 h-60 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-60 h-60 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 opacity-80" />
 
         {/* Close Button */}
         <button
@@ -347,106 +379,101 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
         </button>
 
         {/* Modal Brand Header */}
-        <div className="text-center mb-6 pt-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-amber-500/15 border border-amber-500/30 text-amber-300 text-[11px] font-mono font-black uppercase tracking-wider mb-2.5 shadow-sm">
+        <div className="text-center mb-5 pt-1">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 border border-amber-500/30 text-amber-300 text-[11px] font-mono font-black uppercase tracking-wider mb-2 shadow-sm">
             <Crown size={12} className="text-amber-400" />
-            <span>CỔNG TRUY CẬP TÀI KHOẢN • HAEVY ID</span>
+            <span>CỔNG TRUY CẬP • HAEVY ID</span>
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            {authMode === 'signin' && !isForgotPasswordView && 'Đăng Nhập Tài Khoản'}
-            {authMode === 'signup' && 'Tạo Tài Khoản Mới'}
-            {authMode === 'mcp_ai' && 'Cổng Đăng Nhập MCP Cho AI'}
-            {authMode === 'anonymous' && 'Tài Khoản Khách Ẩn Danh'}
-            {isForgotPasswordView && 'Khôi Phục Mật Khẩu'}
+            {isForgotPasswordView 
+              ? 'Khôi Phục Mật Khẩu'
+              : activeTab === 'mcp_ai' 
+                ? 'Cổng Đăng Nhập MCP Cho AI' 
+                : activeTab === 'anonymous' 
+                  ? 'Tài Khoản Khách Ẩn Danh' 
+                  : (authSubMode === 'signup' ? 'Đăng Ký & Nhận Quà Tân Thủ' : 'Đăng Nhập Tài Khoản')
+            }
           </h2>
 
           <p className="text-zinc-400 text-xs sm:text-sm mt-1.5 max-w-sm mx-auto leading-relaxed">
-            {authMode === 'signin' && !isForgotPasswordView && 'Đồng bộ danh sách phát, tích lũy Điểm Audio và kích hoạt đặc quyền VIP'}
-            {authMode === 'signup' && 'Gia nhập cộng đồng người yêu âm thanh Hi-Fi và nhận ngay quà tặng tân thủ'}
-            {authMode === 'mcp_ai' && 'Xác thực Tác tử AI bằng Tên đăng nhập và Mật khẩu theo Mã Khoá đã đặt trong mục Cài Đặt Tài Khoản'}
-            {authMode === 'anonymous' && 'Khởi tạo tài khoản trắng 1-chạm hoặc nhập mã VIP 3-số để nghe nhạc ngay lập tức'}
-            {isForgotPasswordView && 'Nhập email để nhận liên kết thiết lập lại mật khẩu an toàn'}
+            {isForgotPasswordView
+              ? 'Nhập email để nhận liên kết thiết lập lại mật khẩu an toàn'
+              : activeTab === 'mcp_ai'
+                ? 'Xác thực Tác tử AI bằng Tên đăng nhập & Mật khẩu theo Mã Khoá Lớp 6 đã đặt trong Cài Đặt'
+                : activeTab === 'anonymous'
+                  ? 'Khởi tạo tài khoản trắng 1-chạm hoặc nhập mã VIP để nghe nhạc ngay tức thì'
+                  : 'Một cổng duy nhất để truy cập âm nhạc Hi-Fi, tài chính 6 Hũ, gia phả & sổ tay học tập'
+            }
           </p>
         </div>
 
-        {/* Mode Navigation Tabs */}
+        {/* 3 Main Unified Navigation Tabs */}
         {!isForgotPasswordView && (
-          <div className="flex rounded-2xl bg-zinc-950/90 p-1.5 border border-zinc-800/90 mb-6 shadow-inner gap-1 overflow-x-auto scrollbar-none">
+          <div className="flex rounded-2xl bg-zinc-950/90 p-1.5 border border-zinc-800/90 mb-5 shadow-inner gap-1">
+            {/* Unified Login & Register Tab */}
             <button
-              id="auth-tab-signin"
+              id="auth-tab-unified"
               type="button"
               onClick={() => {
-                setAuthMode('signin');
+                setActiveTab('unified');
                 setError(null);
+                setErrorCode(null);
                 setSuccessMsg(null);
                 setIsForgotPasswordView(false);
               }}
-              className={`flex-1 min-w-[75px] py-2 px-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                authMode === 'signin'
-                  ? 'bg-gradient-to-r from-zinc-800 to-zinc-750 text-white shadow-md border border-zinc-700/80 font-black'
+              className={`flex-1 py-2 px-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'unified'
+                  ? 'bg-gradient-to-r from-amber-500/20 via-zinc-800 to-yellow-500/20 text-white shadow-md border border-amber-500/40 font-black'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <Lock size={13} className={authMode === 'signin' ? 'text-amber-400' : 'text-zinc-500'} />
-              <span className="whitespace-nowrap">Đăng nhập</span>
+              <UserCheck size={14} className={activeTab === 'unified' ? 'text-amber-400' : 'text-zinc-500'} />
+              <span className="whitespace-nowrap font-extrabold">Đăng Nhập & Đăng Ký</span>
             </button>
 
-            <button
-              id="auth-tab-signup"
-              type="button"
-              onClick={() => {
-                setAuthMode('signup');
-                setError(null);
-                setSuccessMsg(null);
-                setIsForgotPasswordView(false);
-              }}
-              className={`flex-1 min-w-[75px] py-2 px-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                authMode === 'signup'
-                  ? 'bg-gradient-to-r from-amber-500/25 to-yellow-500/20 text-amber-300 border border-amber-500/40 shadow-md font-black'
-                  : 'text-zinc-400 hover:text-amber-300'
-              }`}
-            >
-              <Sparkles size={13} className={authMode === 'signup' ? 'text-amber-400' : 'text-zinc-500'} />
-              <span className="whitespace-nowrap">Đăng ký</span>
-            </button>
+            {/* MCP AI Gateway Tab (Only for unauthenticated AI integration, completely hidden when user is logged in) */}
+            {!user && (
+              <button
+                id="auth-tab-mcp-ai"
+                type="button"
+                onClick={() => {
+                  setActiveTab('mcp_ai');
+                  setError(null);
+                  setErrorCode(null);
+                  setSuccessMsg(null);
+                  setIsForgotPasswordView(false);
+                }}
+                className={`py-2 px-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeTab === 'mcp_ai'
+                    ? 'bg-gradient-to-r from-cyan-500/25 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-md font-black'
+                    : 'text-zinc-400 hover:text-cyan-300'
+                }`}
+              >
+                <Cpu size={13} className={activeTab === 'mcp_ai' ? 'text-cyan-400 animate-pulse' : 'text-zinc-500'} />
+                <span className="whitespace-nowrap">⚡ MCP AI</span>
+              </button>
+            )}
 
-            <button
-              id="auth-tab-mcp-ai"
-              type="button"
-              onClick={() => {
-                setAuthMode('mcp_ai');
-                setError(null);
-                setSuccessMsg(null);
-                setIsForgotPasswordView(false);
-              }}
-              className={`flex-1 min-w-[95px] py-2 px-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                authMode === 'mcp_ai'
-                  ? 'bg-gradient-to-r from-cyan-500/25 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-md font-black'
-                  : 'text-zinc-400 hover:text-cyan-300'
-              }`}
-            >
-              <Cpu size={13} className={authMode === 'mcp_ai' ? 'text-cyan-400 animate-pulse' : 'text-zinc-500'} />
-              <span className="whitespace-nowrap">⚡ Cổng MCP AI</span>
-            </button>
-
+            {/* Anonymous Pass Tab */}
             <button
               id="auth-tab-anonymous"
               type="button"
               onClick={() => {
-                setAuthMode('anonymous');
+                setActiveTab('anonymous');
                 setError(null);
+                setErrorCode(null);
                 setSuccessMsg(null);
                 setIsForgotPasswordView(false);
               }}
-              className={`flex-1 min-w-[85px] py-2 px-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                authMode === 'anonymous'
+              className={`py-2 px-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'anonymous'
                   ? 'bg-gradient-to-r from-purple-500/25 to-indigo-500/20 text-purple-300 border border-purple-500/40 shadow-md font-black'
                   : 'text-zinc-400 hover:text-purple-300'
               }`}
             >
-              <KeyRound size={13} className={authMode === 'anonymous' ? 'text-purple-400' : 'text-zinc-500'} />
-              <span className="whitespace-nowrap">Mã Ẩn Danh</span>
+              <KeyRound size={13} className={activeTab === 'anonymous' ? 'text-purple-400' : 'text-zinc-500'} />
+              <span className="whitespace-nowrap">Ẩn Danh</span>
             </button>
           </div>
         )}
@@ -460,9 +487,46 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
         )}
 
         {error && (
-          <div className="mb-4 p-3.5 bg-rose-950/70 border border-rose-700/70 rounded-2xl flex items-start gap-2.5 text-rose-300 text-xs sm:text-sm animate-in fade-in duration-150 shadow-md">
-            <AlertCircle size={18} className="shrink-0 mt-0.5 text-rose-400" />
-            <div className="flex-1 font-medium leading-relaxed">{error}</div>
+          <div className="mb-4 p-3.5 bg-rose-950/70 border border-rose-700/70 rounded-2xl flex flex-col gap-2 text-rose-300 text-xs sm:text-sm animate-in fade-in duration-150 shadow-md">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle size={18} className="shrink-0 mt-0.5 text-rose-400" />
+              <div className="flex-1 font-medium leading-relaxed">{error}</div>
+            </div>
+
+            {/* Smart 1-Click Action Recovery */}
+            {errorCode === 'auth/user-not-found' && authSubMode === 'signin' && (
+              <div className="pl-7 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthSubMode('signup');
+                    setError(null);
+                    setErrorCode(null);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer w-fit"
+                >
+                  <Sparkles size={12} className="text-amber-400" />
+                  <span>Tạo tài khoản mới ngay với email này</span>
+                </button>
+              </div>
+            )}
+
+            {errorCode === 'auth/email-already-in-use' && authSubMode === 'signup' && (
+              <div className="pl-7 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthSubMode('signin');
+                    setError(null);
+                    setErrorCode(null);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white border border-white/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer w-fit"
+                >
+                  <Lock size={12} />
+                  <span>Chuyển sang Đăng nhập ngay</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -497,6 +561,7 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
                 onClick={() => {
                   setIsForgotPasswordView(false);
                   setError(null);
+                  setErrorCode(null);
                 }}
                 className="flex-1 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-bold text-xs transition-colors cursor-pointer"
               >
@@ -512,9 +577,286 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
               </button>
             </div>
           </form>
-        ) : authMode === 'mcp_ai' ? (
+        ) : activeTab === 'unified' ? (
           /* ========================================================================= */
-          /* VIEW 2: DEDICATED MCP LOGIN PORTAL FOR AI                                 */
+          /* VIEW 2: UNIFIED LOGIN & REGISTRATION IN 1 SCREEN                          */
+          /* ========================================================================= */
+          <div className="space-y-4">
+            {/* Google 1-Click Social Sign-In */}
+            <button
+              id="google-signin-btn"
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full bg-zinc-950 hover:bg-zinc-850 text-white font-bold py-3 px-4 rounded-2xl flex items-center justify-center gap-3 transition-all border border-zinc-750 hover:border-zinc-600 shadow-md disabled:opacity-50 text-xs sm:text-sm cursor-pointer group active:scale-98"
+            >
+              <svg className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span>
+                {authSubMode === 'signup' 
+                  ? 'Đăng ký nhanh bằng Google (+100 Điểm)' 
+                  : 'Tiếp tục với Google (Tự động nhận diện)'
+                }
+              </span>
+            </button>
+
+            {/* Subtle Divider */}
+            <div className="relative my-3 flex items-center justify-center">
+              <div className="w-full border-t border-zinc-800" />
+              <span className="bg-zinc-900 px-3 text-[10px] uppercase font-bold text-zinc-500 absolute tracking-wider">
+                Hoặc bằng Email
+              </span>
+            </div>
+
+            {/* In-Card Segmented Switcher between Sign In & Sign Up */}
+            <div className="flex p-1 bg-zinc-950/90 rounded-2xl border border-zinc-800/90 shadow-inner">
+              <button
+                type="button"
+                id="auth-submode-signin-btn"
+                onClick={() => {
+                  setAuthSubMode('signin');
+                  setError(null);
+                  setErrorCode(null);
+                }}
+                className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  authSubMode === 'signin'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/80 font-black'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Lock size={13} className={authSubMode === 'signin' ? 'text-amber-400' : 'text-zinc-500'} />
+                <span>Tôi Đã Có Tài Khoản</span>
+              </button>
+
+              <button
+                type="button"
+                id="auth-submode-signup-btn"
+                onClick={() => {
+                  setAuthSubMode('signup');
+                  setError(null);
+                  setErrorCode(null);
+                }}
+                className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  authSubMode === 'signup'
+                    ? 'bg-gradient-to-r from-amber-500/25 to-yellow-500/20 text-amber-300 border border-amber-500/40 shadow-md font-black'
+                    : 'text-zinc-400 hover:text-amber-300'
+                }`}
+              >
+                <Sparkles size={13} className={authSubMode === 'signup' ? 'text-amber-400' : 'text-zinc-500'} />
+                <span>Tạo Tài Khoản Mới (+100Đ)</span>
+              </button>
+            </div>
+
+            {/* Unified Form */}
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              {/* Optional Name field (Only shown for Sign-Up) */}
+              {authSubMode === 'signup' && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-150">
+                  <label className="block text-[11px] font-bold text-zinc-300 mb-1 uppercase tracking-wider">
+                    Họ và tên / Biệt danh (Tùy chọn)
+                  </label>
+                  <div className="relative">
+                    <UserIcon size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input
+                      id="auth-name-input"
+                      type="text"
+                      placeholder="Ví dụ: Kha Nguyễn"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full bg-zinc-950/90 border border-zinc-750 focus:border-amber-400 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Shared Email Field */}
+              <div>
+                <label className="block text-[11px] font-bold text-zinc-300 mb-1 uppercase tracking-wider">
+                  Địa chỉ Email
+                </label>
+                <div className="relative">
+                  <Mail size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    id="auth-email-input"
+                    type="email"
+                    required
+                    placeholder="tenban@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-zinc-950/90 border border-zinc-750 focus:border-amber-400 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Shared Password Field */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-zinc-300 uppercase tracking-wider">
+                    Mật khẩu
+                  </label>
+                  {authSubMode === 'signin' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPasswordView(true);
+                        setError(null);
+                        setErrorCode(null);
+                        setSuccessMsg(null);
+                      }}
+                      className="text-[11px] text-amber-400 hover:text-amber-300 transition-colors cursor-pointer font-semibold"
+                    >
+                      Quên mật khẩu?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <Lock size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    id="auth-password-input"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder={authSubMode === 'signup' ? 'Tối thiểu 6 ký tự bảo mật' : 'Nhập mật khẩu tài khoản'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-zinc-950/90 border border-zinc-750 focus:border-amber-400 rounded-xl py-2.5 pl-10 pr-10 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm transition-all font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 transition-colors p-1"
+                    title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Referral Code (Shown for Sign-Up) */}
+              {authSubMode === 'signup' && (
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-extrabold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Gift size={14} className="text-amber-400" />
+                      <span>Mã giới thiệu kích hoạt</span>
+                    </label>
+                    <span className="text-[10px] text-amber-400/90 font-bold bg-amber-500/20 px-2 py-0.5 rounded-full">
+                      Tặng 100 Điểm + 7 Ngày VIP
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <ShieldCheck size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-400" />
+                    <input
+                      id="auth-referral-input"
+                      type="text"
+                      required
+                      placeholder="HAEVY2026"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                      className="w-full bg-zinc-950 border border-amber-500/50 rounded-xl py-2.5 pl-10 pr-4 text-amber-200 placeholder:text-amber-200/40 focus:outline-none focus:border-amber-400 font-mono uppercase font-black text-sm tracking-wider"
+                    />
+                  </div>
+
+                  {/* 1-Click Code suggestions */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    <span className="text-[10px] text-zinc-400">Mã gợi ý:</span>
+                    {['HAEVY2026', 'AUDIOHUB', 'VIP100'].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setReferralCode(c)}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                          referralCode === c 
+                            ? 'bg-amber-400 text-black shadow-sm' 
+                            : 'bg-zinc-800/80 hover:bg-zinc-750 text-amber-300 border border-zinc-700'
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Submit Button */}
+              <button
+                id="auth-submit-btn"
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:brightness-110 active:scale-98 text-zinc-950 font-black py-3 px-4 rounded-2xl transition-all shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50 text-sm cursor-pointer mt-2"
+              >
+                {loading ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : authSubMode === 'signup' ? (
+                  <Sparkles size={16} className="text-zinc-950" />
+                ) : (
+                  <ArrowRight size={16} className="text-zinc-950" />
+                )}
+                <span>
+                  {authSubMode === 'signup' 
+                    ? 'Tạo Tài Khoản & Nhận Quà Tân Thủ' 
+                    : 'Đăng Nhập Vào Hệ Thống'
+                  }
+                </span>
+              </button>
+            </form>
+
+            {/* Quick Helper Toggle Bar below button */}
+            <div className="pt-2 text-center text-xs text-zinc-400 flex items-center justify-center gap-1.5">
+              {authSubMode === 'signup' ? (
+                <>
+                  <span>Đã có tài khoản Haevy?</span>
+                  <button
+                    id="auth-switch-to-login-btn"
+                    type="button"
+                    onClick={() => {
+                      setAuthSubMode('signin');
+                      setError(null);
+                      setErrorCode(null);
+                    }}
+                    className="text-amber-300 hover:underline font-bold cursor-pointer"
+                  >
+                    Đăng nhập ngay
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span>Chưa có tài khoản?</span>
+                  <button
+                    id="auth-switch-to-signup-btn"
+                    type="button"
+                    onClick={() => {
+                      setAuthSubMode('signup');
+                      setError(null);
+                      setErrorCode(null);
+                    }}
+                    className="text-amber-300 hover:underline font-bold cursor-pointer"
+                  >
+                    Đăng ký mới (+100 Điểm)
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'mcp_ai' ? (
+          /* ========================================================================= */
+          /* VIEW 3: DEDICATED MCP LOGIN PORTAL FOR AI                                 */
           /* ========================================================================= */
           <div className="space-y-4">
             {/* Header Identity Card */}
@@ -585,9 +927,24 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
               </div>
             )}
 
+            {/* Quick Access to MCP Protocol Console & Tools */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/25">
+              <div className="flex items-center gap-2">
+                <Cpu size={16} className="text-cyan-400" />
+                <span className="text-xs font-bold text-zinc-300">Giao Thức MCP Server & Tools</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMCPProtocolModalOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Xem Console</span>
+                <ArrowRight size={12} />
+              </button>
+            </div>
+
             {/* MCP Authentication Form */}
             <form onSubmit={handleMcpLogin} className="space-y-3.5">
-              {/* Field 1: Username / Identifier formatted as [ID]&haevy.vn */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider">
@@ -610,7 +967,6 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
                   />
                 </div>
 
-                {/* Quick tag autofill & append button */}
                 <div className="flex items-center gap-1.5 pt-1 text-[11px] text-zinc-400 flex-wrap">
                   <span>Gợi ý tên chuẩn:</span>
                   <button
@@ -690,7 +1046,6 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
                   </button>
                 </div>
 
-                {/* Quick Autofill for Layer 6 Master Key */}
                 <div className="flex items-center gap-2 pt-1 flex-wrap">
                   <button
                     type="button"
@@ -706,7 +1061,6 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
                   </button>
                 </div>
 
-                {/* Key Location Guide Card */}
                 {showKeyLocationGuide && (
                   <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 space-y-1.5 animate-in fade-in duration-200">
                     <p className="font-bold text-rose-300 flex items-center gap-1">
@@ -784,7 +1138,6 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
               </button>
             </form>
 
-            {/* If success, show direct jump action */}
             {mcpLoginSuccess && (
               <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/80 via-zinc-950 to-cyan-950/80 border border-emerald-500/50 space-y-3 animate-in fade-in duration-200">
                 <div className="flex items-center gap-2">
@@ -822,9 +1175,9 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
               </div>
             )}
           </div>
-        ) : authMode === 'anonymous' ? (
+        ) : (
           /* ========================================================================= */
-          /* VIEW 2: ANONYMOUS GUEST & PASSCODE ENTRY                                  */
+          /* VIEW 4: ANONYMOUS GUEST & PASSCODE ENTRY                                  */
           /* ========================================================================= */
           <div className="space-y-4">
             {/* Card 1: 1-Click Blank Guest Account */}
@@ -916,231 +1269,6 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
               </button>
             </form>
           </div>
-        ) : (
-          /* ========================================================================= */
-          /* VIEW 3: SIGN IN / SIGN UP (EMAIL & GOOGLE)                                */
-          /* ========================================================================= */
-          <div className="space-y-4">
-            {/* Google 1-Click Social Sign-In Button */}
-            <button
-              id="google-signin-btn"
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full bg-zinc-950 hover:bg-zinc-850 text-white font-bold py-3 px-4 rounded-2xl flex items-center justify-center gap-3 transition-all border border-zinc-750 hover:border-zinc-600 shadow-md disabled:opacity-50 text-xs sm:text-sm cursor-pointer group active:scale-98"
-            >
-              <svg className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>{authMode === 'signup' ? 'Đăng ký nhanh bằng Google' : 'Tiếp tục với Google'}</span>
-            </button>
-
-            {/* Subtle Divider */}
-            <div className="relative my-3 flex items-center justify-center">
-              <div className="w-full border-t border-zinc-800" />
-              <span className="bg-zinc-900 px-3 text-[10px] uppercase font-bold text-zinc-500 absolute tracking-wider">
-                Hoặc bằng Email
-              </span>
-            </div>
-
-            {/* Email Form */}
-            <form onSubmit={handleSubmit} className="space-y-3.5">
-              {/* Name field for sign-up */}
-              {authMode === 'signup' && (
-                <div>
-                  <label className="block text-[11px] font-bold text-zinc-300 mb-1 uppercase tracking-wider">
-                    Họ và tên / Biệt danh
-                  </label>
-                  <div className="relative">
-                    <UserIcon size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                    <input
-                      id="auth-name-input"
-                      type="text"
-                      placeholder="Ví dụ: Nguyễn Văn A"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-zinc-950/90 border border-zinc-750 focus:border-amber-400 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm transition-all"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Email field */}
-              <div>
-                <label className="block text-[11px] font-bold text-zinc-300 mb-1 uppercase tracking-wider">
-                  Địa chỉ Email
-                </label>
-                <div className="relative">
-                  <Mail size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input
-                    id="auth-email-input"
-                    type="email"
-                    required
-                    placeholder="tenban@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-zinc-950/90 border border-zinc-750 focus:border-amber-400 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Password field with Reveal Toggle */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[11px] font-bold text-zinc-300 uppercase tracking-wider">
-                    Mật khẩu
-                  </label>
-                  {authMode === 'signin' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsForgotPasswordView(true);
-                        setError(null);
-                        setSuccessMsg(null);
-                      }}
-                      className="text-[11px] text-amber-400 hover:text-amber-300 transition-colors cursor-pointer font-semibold"
-                    >
-                      Quên mật khẩu?
-                    </button>
-                  )}
-                </div>
-                <div className="relative">
-                  <Lock size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input
-                    id="auth-password-input"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder={authMode === 'signup' ? 'Tối thiểu 6 ký tự' : 'Nhập mật khẩu'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-zinc-950/90 border border-zinc-750 focus:border-amber-400 rounded-xl py-2.5 pl-10 pr-10 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm transition-all font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 transition-colors p-1"
-                    title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Referral Code (Mandatory for registration to regulate load & reward starter points) */}
-              {authMode === 'signup' && (
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[11px] font-extrabold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Gift size={14} className="text-amber-400" />
-                      <span>Mã giới thiệu kích hoạt</span>
-                    </label>
-                    <span className="text-[10px] text-amber-400/90 font-bold bg-amber-500/20 px-2 py-0.5 rounded-full">
-                      Tặng 100 Điểm
-                    </span>
-                  </div>
-
-                  <div className="relative">
-                    <ShieldCheck size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-400" />
-                    <input
-                      id="auth-referral-input"
-                      type="text"
-                      required
-                      placeholder="HAEVY2026"
-                      value={referralCode}
-                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                      className="w-full bg-zinc-950 border border-amber-500/50 rounded-xl py-2.5 pl-10 pr-4 text-amber-200 placeholder:text-amber-200/40 focus:outline-none focus:border-amber-400 font-mono uppercase font-black text-sm tracking-wider"
-                    />
-                  </div>
-
-                  {/* 1-Click Fill suggestions */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                    <span className="text-[10px] text-zinc-400">Gợi ý mã:</span>
-                    {['HAEVY2026', 'AUDIOHUB', 'VIP100'].map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setReferralCode(c)}
-                        className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
-                          referralCode === c 
-                            ? 'bg-amber-400 text-black shadow-sm' 
-                            : 'bg-zinc-800/80 hover:bg-zinc-750 text-amber-300 border border-zinc-700'
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <button
-                id="auth-submit-btn"
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-white via-zinc-100 to-zinc-200 hover:brightness-105 active:scale-98 text-black font-black py-3 px-4 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 text-sm cursor-pointer mt-2"
-              >
-                {loading ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : authMode === 'signup' ? (
-                  <Sparkles size={16} className="text-amber-600" />
-                ) : (
-                  <Lock size={16} />
-                )}
-                <span>{authMode === 'signup' ? 'Tạo Tài Khoản & Nhận Quà Tân Thủ' : 'Đăng Nhập Vào Hệ Thống'}</span>
-              </button>
-            </form>
-
-            {/* Switch Mode Prompt */}
-            <div className="pt-2 text-center text-xs text-zinc-400">
-              {authMode === 'signup' ? (
-                <p>
-                  Đã có tài khoản Haevy?{' '}
-                  <button
-                    id="auth-switch-to-login-btn"
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signin');
-                      setError(null);
-                    }}
-                    className="text-amber-300 hover:underline font-bold ml-1 cursor-pointer"
-                  >
-                    Đăng nhập ngay
-                  </button>
-                </p>
-              ) : (
-                <p>
-                  Chưa có tài khoản?{' '}
-                  <button
-                    id="auth-switch-to-signup-btn"
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signup');
-                      setError(null);
-                    }}
-                    className="text-amber-300 hover:underline font-bold ml-1 cursor-pointer"
-                  >
-                    Tạo tài khoản mới
-                  </button>
-                </p>
-              )}
-            </div>
-          </div>
         )}
 
         {/* Security & System Trust Footnote */}
@@ -1156,6 +1284,14 @@ export function AuthModal({ isOpen, onClose, initialTab = 'signin', onSelectMode
           </div>
         </div>
       </div>
+
+      {/* Dedicated MCP Protocol Modal (Only accessible from Login/Auth Portal) */}
+      {isMCPProtocolModalOpen && (
+        <HaevyMCPProtocolModal
+          isOpen={isMCPProtocolModalOpen}
+          onClose={() => setIsMCPProtocolModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

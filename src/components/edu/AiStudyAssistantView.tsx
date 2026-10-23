@@ -51,6 +51,7 @@ import { EduAiStudyMessage, EduLabSubject } from '../../types';
 import { executeAddEduNote } from '../../utils/haevyAIEcosystemEngine';
 import { GoogleDriveDocumentPickerModal } from '../google/GoogleDriveDocumentPickerModal';
 import { GoogleDriveDocumentItem } from '../../services/googleDriveService';
+import { geminiProcessorService } from '../../services/geminiProcessorService';
 import { 
   startBinauralBeat, 
   stopBinauralBeat, 
@@ -483,6 +484,25 @@ Bạn có thể nhấn các phím phân tích nhanh bên dưới, chọn giáo t
     setIsLoading(true);
 
     try {
+      // If analyzing internal or uploaded document, use GeminiProcessorService (Gemini 3.5 Flash) directly
+      if (modeToUse === 'document_data' && activeDocContent) {
+        const docResult = await geminiProcessorService.processDocumentData(activeDocContent, query);
+        if (docResult) {
+          const assistantMsg: EduAiStudyMessage = {
+            id: `msg-ai-${Date.now()}`,
+            sender: 'assistant',
+            content: docResult,
+            timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            mode: modeToUse,
+            suggestedLab: activeDocObj?.associatedLab,
+            isWebGrounded: false
+          };
+          setMessages(prev => [...prev, assistantMsg]);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const response = await fetch('/api/edu/ai-study-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -295,6 +295,116 @@ export const MCP_AVAILABLE_TOOLS: MCPToolDefinition[] = [
         filter: { type: 'string', description: 'Bộ lọc (all, published, saved, followers)' }
       }
     }
+  },
+  {
+    name: 'mcp_first_principles_reasoner',
+    description: 'Bóc tách và mổ xẻ bất kỳ vấn đề phức tạp nào theo tư duy Nguyên Lý Đầu Tiên (First Principles). Tách bỏ giả định cảm tính, bóc tách về các tiên đề logic không thể phủ nhận.',
+    category: 'Tư Duy First Principles',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        problem: { type: 'string', description: 'Vấn đề hoặc câu hỏi hóc búa cần mổ xẻ bản chất' },
+        domain: { type: 'string', description: 'Lĩnh vực (physics, engineering, business, finance, education, logic)' },
+        depth: { type: 'string', description: 'Độ sâu phân tích (quick, deep, foundational)' }
+      },
+      required: ['problem']
+    }
+  },
+  {
+    name: 'mcp_scientific_calculator',
+    description: 'Máy tính khoa học & giải thuật toán, vật lý, tài chính (mô phỏng Casio fx-880 BTG & Python Engine). Tính toán số học chính xác, lãi kép, và bảng phân bổ 6 hũ.',
+    category: 'Toán & Vật Lý',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        expression: { type: 'string', description: 'Biểu thức toán học hoặc chế độ (ví dụ: (15000000 * 0.1) / 30, compound_interest, physics_constants)' },
+        operation: { type: 'string', description: 'Chế độ (evaluate, compound_interest, six_jars_split, physics_constant)' },
+        params: { type: 'object', description: 'Tham số bổ trợ (principal, annualRate, years)' }
+      },
+      required: ['expression']
+    }
+  },
+  {
+    name: 'mcp_record_finance_transaction',
+    description: 'Ghi nhận giao dịch thu chi tài chính mới và tự động cập nhật số dư 6 Hũ tài chính trong thời gian thực.',
+    category: 'Hành Động Tài Chính',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', description: 'income (thu nhập) hoặc expense (chi tiêu)' },
+        amount: { type: 'number', description: 'Số tiền giao dịch (VND)' },
+        category: { type: 'string', description: 'Hạng mục giao dịch' },
+        note: { type: 'string', description: 'Ghi chú giao dịch' }
+      },
+      required: ['type', 'amount', 'category']
+    }
+  },
+  {
+    name: 'mcp_create_task_or_habit',
+    description: 'Tạo nhanh nhiệm vụ (Task) mới hoặc thiết lập mục tiêu thói quen hàng ngày (Daily Habit) để củng cố chuỗi streak năng suất.',
+    category: 'Hành Động Năng Suất',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Tiêu đề nhiệm vụ hoặc thói quen cần tạo' },
+        type: { type: 'string', description: 'task hoặc habit' },
+        priority: { type: 'string', description: 'Cao, Trung bình, Thấp' }
+      },
+      required: ['title']
+    }
+  },
+  {
+    name: 'mcp_save_edu_study_note',
+    description: 'Lưu bản tóm tắt nguyên lý hoặc ghi chú học tập chuyên sâu vào sổ tay First Principles cá nhân, chống học vẹt.',
+    category: 'Hành Động Giáo Dục',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Tiêu đề bài học hoặc nguyên lý' },
+        subject: { type: 'string', description: 'Lĩnh vực môn học' },
+        principle: { type: 'string', description: 'Tiên đề logic cốt lõi' },
+        content: { type: 'string', description: 'Nội dung giải thích chi tiết' }
+      },
+      required: ['title', 'content']
+    }
+  },
+  {
+    name: 'mcp_extract_web_media_and_links',
+    description: 'Trích xuất siêu dữ liệu nâng cao, phát hiện nhúng video (TikTok, YouTube, Facebook), hình ảnh và danh sách liên kết điều hướng.',
+    category: 'Mở Rộng Web',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'Đường dẫn URL của trang web cần trích xuất phương tiện' }
+      },
+      required: ['url']
+    }
+  },
+  {
+    name: 'mcp_code_sandbox_eval',
+    description: 'Môi trường Sandbox an toàn kiểm thử thuật toán, hàm logic và tính toán dữ liệu bằng JavaScript trong thời gian thực.',
+    category: 'Sandbox Lập Trình',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string', description: 'Đoạn mã JavaScript cần thực thi và đánh giá kết quả' }
+      },
+      required: ['code']
+    }
+  },
+  {
+    name: 'mcp_manage_playlist_track',
+    description: 'Quản lý kho nhạc cá nhân: Thêm bài hát yêu thích, thêm vào danh sách phát và xem gợi ý ca khúc Lossless Hi-Fi.',
+    category: 'Âm Nhạc Hi-Fi',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', description: 'add hoặc list' },
+        title: { type: 'string', description: 'Tên bài hát' },
+        artist: { type: 'string', description: 'Nghệ sĩ' }
+      },
+      required: ['action']
+    }
   }
 ];
 
@@ -308,13 +418,118 @@ export interface MCPLogEntry {
   latencyMs?: number;
 }
 
+export interface MCPWebSearchResultItem {
+  title: string;
+  snippet: string;
+  url: string;
+  source: string;
+  pubDate?: string;
+}
+
+export interface MCPFetchPageResult {
+  title: string;
+  url: string;
+  domain: string;
+  description: string;
+  wordCount: number;
+  contentMarkdown: string;
+  success: boolean;
+}
+
 export interface MCPQueryResult {
   query: string;
   toolExecuted: string;
   executionTimeMs: number;
   aiSummary: string;
   extractedData: any;
+  liveWebData?: any;
   rawJsonRpc: any;
+}
+
+// Client-side helper to perform live MCP Web Search bound to User ID
+export async function fetchMCPWebSearch(
+  query: string,
+  limit: number = 8,
+  domain?: string,
+  userContext?: { uid?: string; accountId?: string; displayName?: string; searchMode?: string }
+): Promise<{ success: boolean; results: MCPWebSearchResultItem[]; query: string; latencyMs?: number; error?: string }> {
+  const startTime = performance.now();
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (userContext?.uid) headers['X-Haevy-User-ID'] = userContext.uid;
+    if (userContext?.accountId) headers['X-Haevy-Account-ID'] = userContext.accountId;
+
+    const res = await fetch('/api/mcp/web-search', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        query,
+        limit,
+        domain,
+        userId: userContext?.uid,
+        accountId: userContext?.accountId,
+        searchMode: userContext?.searchMode
+      })
+    });
+    const data = await res.json();
+    const latencyMs = Math.round(performance.now() - startTime);
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Lỗi tìm kiếm trên web');
+    }
+    return {
+      success: true,
+      results: data.results || [],
+      query: data.query || query,
+      latencyMs
+    };
+  } catch (err: any) {
+    console.error('fetchMCPWebSearch error:', err);
+    return {
+      success: false,
+      results: [],
+      query,
+      latencyMs: Math.round(performance.now() - startTime),
+      error: err.message
+    };
+  }
+}
+
+// Client-side helper to fetch and parse entire web page bound to User ID
+export async function fetchMCPPageContent(
+  url: string,
+  maxLength: number = 50000,
+  userContext?: { uid?: string; accountId?: string }
+): Promise<{ success: boolean; data?: MCPFetchPageResult; latencyMs?: number; error?: string }> {
+  const startTime = performance.now();
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (userContext?.uid) headers['X-Haevy-User-ID'] = userContext.uid;
+    if (userContext?.accountId) headers['X-Haevy-Account-ID'] = userContext.accountId;
+
+    const res = await fetch('/api/mcp/fetch-page', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        url,
+        maxLength,
+        userId: userContext?.uid,
+        accountId: userContext?.accountId
+      })
+    });
+    const data = await res.json();
+    const latencyMs = Math.round(performance.now() - startTime);
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Lỗi đọc nội dung trang web');
+    }
+    return { success: true, data: data.data, latencyMs };
+  } catch (err: any) {
+    console.error('fetchMCPPageContent error:', err);
+    return {
+      success: false,
+      latencyMs: Math.round(performance.now() - startTime),
+      error: err.message
+    };
+  }
 }
 
 const STORAGE_SESSION_KEY = 'haevy_mcp_auth_session';
@@ -406,6 +621,7 @@ export function gatherFullMCPUserContext(authContext: any): any {
   let userHabits: any[] = [];
   let userTasks: any[] = [];
   let driveFiles: any[] = [];
+  let quickNotes: any[] = [];
 
   try {
     const ft = localStorage.getItem('haevy_finance_transactions');
@@ -455,6 +671,11 @@ export function gatherFullMCPUserContext(authContext: any): any {
   try {
     const df = localStorage.getItem('haevy_drive_files');
     if (df) driveFiles = JSON.parse(df);
+  } catch {}
+
+  try {
+    const qn = localStorage.getItem('haevy_quick_notes');
+    if (qn) quickNotes = JSON.parse(qn);
   } catch {}
 
   const rawSnapshot = {
@@ -631,6 +852,17 @@ export function gatherFullMCPUserContext(authContext: any): any {
       publishedArticlesCount: 9,
       savedArticlesCount: 34
     },
+    // User Fleeting Thoughts & Quick Notes saved from Haevy Portal
+    quickNotes: {
+      totalCount: quickNotes.length,
+      recentNotes: quickNotes.slice(0, 15).map((n: any) => ({
+        content: n.content,
+        tag: n.tag,
+        tagLabel: n.tagLabel,
+        createdAt: n.createdAt,
+        isStarred: Boolean(n.isStarred)
+      }))
+    },
     // STRICT SECURITY SHIELD METRICS: ZERO PASSWORDS, PINS, OR MASTER KEYS EXPOSED
     security: {
       securityScore: 98,
@@ -655,3 +887,286 @@ export function gatherFullMCPUserContext(authContext: any): any {
   // Pass through sanitization engine to guarantee zero credential leaks
   return sanitizeMCPContext(rawSnapshot);
 }
+
+/**
+ * Tests live connection to the Universal MCP endpoints
+ */
+export async function testUniversalMCPStatus(): Promise<{
+  success: boolean;
+  latencyMs: number;
+  data?: any;
+  error?: string;
+}> {
+  const start = performance.now();
+  try {
+    const res = await fetch('/api/mcp/ping');
+    const latencyMs = Math.round(performance.now() - start);
+    if (!res.ok) {
+      throw new Error(`Mã phản hồi HTTP: ${res.status}`);
+    }
+    const data = await res.json();
+    return {
+      success: true,
+      latencyMs,
+      data
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      latencyMs: Math.round(performance.now() - start),
+      error: err.message || 'Không thể kết nối đến máy chủ MCP'
+    };
+  }
+}
+
+/**
+ * Generates configuration templates for all major AI clients
+ */
+export function generateMCPClientConfig(
+  clientType: 'claude' | 'cursor' | 'windsurf' | 'chatgpt' | 'python' | 'typescript' | 'curl',
+  hostUrl: string,
+  token: string
+): { fileName?: string; title: string; configText: string; language: string } {
+  const cleanBaseUrl = hostUrl.replace(/\/$/, '');
+  const sseUrl = `${cleanBaseUrl}/api/mcp/sse`;
+  const openApiUrl = `${cleanBaseUrl}/api/mcp/openapi.json`;
+  const directHttpUrl = `${cleanBaseUrl}/api/mcp`;
+
+  switch (clientType) {
+    case 'claude':
+      return {
+        fileName: 'claude_desktop_config.json',
+        title: 'Claude Desktop (Anthropic)',
+        language: 'json',
+        configText: JSON.stringify({
+          mcpServers: {
+            "haevy-ecosystem": {
+              url: sseUrl,
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          }
+        }, null, 2)
+      };
+
+    case 'cursor':
+      return {
+        fileName: '.cursor/mcp.json',
+        title: 'Cursor IDE (Features > MCP)',
+        language: 'json',
+        configText: JSON.stringify({
+          mcpServers: {
+            "haevy-ai-tools": {
+              url: sseUrl,
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          }
+        }, null, 2)
+      };
+
+    case 'windsurf':
+      return {
+        fileName: '~/.codeium/windsurf/mcp_config.json',
+        title: 'Windsurf / Cascade AI',
+        language: 'json',
+        configText: JSON.stringify({
+          mcpServers: {
+            "haevy": {
+              serverUrl: sseUrl,
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          }
+        }, null, 2)
+      };
+
+    case 'chatgpt':
+      return {
+        title: 'OpenAI ChatGPT (Custom GPT Actions)',
+        language: 'yaml',
+        configText: `# Hướng dẫn cài đặt Custom GPT Actions trong ChatGPT:
+# 1. Truy cập https://chatgpt.com/gpts/editor
+# 2. Vào tab "Configure" -> Chọn "Create new action"
+# 3. Dán đường dẫn OpenAPI Schema URL bên dưới vào ô "Import from URL" và bấm Import:
+
+${openApiUrl}
+
+# 4. Mục Authentication: Chọn "API Key", Auth Type: "Bearer"
+# 5. Dán mã Token bảo mật của bạn vào:
+# Token: ${token}
+# Mọi công cụ đọc dữ liệu cá nhân 6 Hũ và đọc Web toàn cầu sẽ tự động được nạp vào ChatGPT!`
+      };
+
+    case 'python':
+      return {
+        fileName: 'agent_haevy_mcp.py',
+        title: 'Python (MCP SDK, LangChain, AutoGen, CrewAI)',
+        language: 'python',
+        configText: `import asyncio
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+
+async def main():
+    # Kết nối trực tiếp đến Haevy Universal MCP Server qua SSE
+    headers = {"Authorization": "Bearer ${token}"}
+    async with sse_client("${sseUrl}", headers=headers) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            
+            # Liệt kê tất cả 14+ công cụ được hỗ trợ
+            tools = await session.list_tools()
+            print(f"✅ Đã kết nối MCP! Tìm thấy {len(tools.tools)} công cụ:")
+            for t in tools.tools:
+                print(f" - {t.name}: {t.description}")
+                
+            # Thực thi tìm kiếm & đọc web qua MCP
+            result = await session.call_tool("mcp_web_search", {"query": "Thuyết tương đối Einstein", "limit": 3})
+            print("\\n🌐 Kết quả tìm kiếm trực tuyến:\\n", result.content[0].text)
+
+if __name__ == "__main__":
+    asyncio.run(main())`
+      };
+
+    case 'typescript':
+      return {
+        fileName: 'mcpClient.ts',
+        title: 'Node.js / TypeScript SDK (@modelcontextprotocol/sdk)',
+        language: 'typescript',
+        configText: `import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+
+async function runHaevyMCP() {
+  const transport = new SSEClientTransport(
+    new URL("${sseUrl}"),
+    {
+      eventSourceInit: {
+        headers: {
+          Authorization: "Bearer ${token}"
+        }
+      }
+    }
+  );
+
+  const client = new Client(
+    { name: "External-AI-Agent", version: "1.0.0" },
+    { capabilities: { tools: {}, resources: {}, prompts: {} } }
+  );
+
+  await client.connect(transport);
+  console.log("🚀 Đã kết nối Haevy MCP Server thành công!");
+
+  // Gọi công cụ đọc toàn bộ trang web
+  const pageResult = await client.callTool({
+    name: "mcp_fetch_web_page",
+    arguments: { url: "https://vi.wikipedia.org/wiki/Albert_Einstein" }
+  });
+  console.log(pageResult);
+}
+
+runHaevyMCP().catch(console.error);`
+      };
+
+    case 'curl':
+    default:
+      return {
+        title: 'cURL & REST HTTP Direct API',
+        language: 'bash',
+        configText: `# 1. Kiểm tra trạng thái máy chủ MCP:
+curl -X GET "${cleanBaseUrl}/api/mcp/ping"
+
+# 2. Liệt kê công cụ qua JSON-RPC 2.0:
+curl -X POST "${directHttpUrl}" \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer ${token}" \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# 3. Gọi công cụ tìm kiếm Web thời gian thực:
+curl -X POST "${directHttpUrl}" \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer ${token}" \\
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"mcp_web_search","arguments":{"query":"Haevy AI 2026","limit":3}}}'`
+      };
+  }
+}
+
+/**
+ * Fetch real-time MCP execution logs and performance metrics from the server
+ */
+export async function fetchServerMCPExecutionLogs(limit = 50): Promise<{
+  success: boolean;
+  totalCount: number;
+  activeSSEClients: number;
+  logs: any[];
+}> {
+  try {
+    const res = await fetch(`/api/mcp/logs?limit=${limit}`);
+    if (!res.ok) throw new Error('Không thể tải nhật ký máy chủ MCP');
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      totalCount: 0,
+      activeSSEClients: 0,
+      logs: []
+    };
+  }
+}
+
+/**
+ * Generate a new cryptographically secured MCP Bearer token from the server
+ */
+export async function issueNewMCPBearerToken(params: {
+  accountId: string;
+  clientName: string;
+  scopes: string[];
+  expiresInHours?: number;
+}): Promise<{ success: boolean; tokenRecord?: any; error?: string }> {
+  try {
+    const res = await fetch('/api/mcp/tokens/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Fetch the list of official MCP Prompt templates supported by the server
+ */
+export async function fetchServerMCPPrompts(): Promise<{
+  success: boolean;
+  prompts: Array<{ name: string; description: string; arguments?: Array<{ name: string; description: string; required?: boolean }> }>;
+}> {
+  try {
+    const res = await fetch('/api/mcp/prompts');
+    if (!res.ok) throw new Error('Không thể tải danh sách Prompts');
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, prompts: [] };
+  }
+}
+
+/**
+ * Execute/fill an MCP Prompt template with parameters
+ */
+export async function executeServerMCPPrompt(promptName: string, args: Record<string, any>): Promise<any> {
+  try {
+    const res = await fetch(`/api/mcp/prompts/${promptName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(args)
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+

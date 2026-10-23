@@ -48,6 +48,7 @@ const BASELINE_WEIGHTS: Record<EcosystemMode, { baseSessions: number; avgMinutes
   spiritual: { baseSessions: 160, avgMinutes: 22, trend: '+14.1%', isGrowing: true, tickets: 2, hexColor: '#d946ef' }, // Fuchsia
   couple: { baseSessions: 142, avgMinutes: 25, trend: '+11.0%', isGrowing: true, tickets: 3, hexColor: '#f43f5e' }, // Rose
   maps: { baseSessions: 185, avgMinutes: 28, trend: '+31.5%', isGrowing: true, tickets: 5, hexColor: '#10b981' }, // Emerald GPS
+  internet: { baseSessions: 240, avgMinutes: 22, trend: '+35.0%', isGrowing: true, tickets: 3, hexColor: '#0284c7' }, // Sky / Blue
   family_tree: { baseSessions: 110, avgMinutes: 26, trend: '+6.5%', isGrowing: true, tickets: 1, hexColor: '#d97706' }, // Amber
   studio: { baseSessions: 95, avgMinutes: 32, trend: '+21.4%', isGrowing: true, tickets: 7, hexColor: '#ec4899' }, // Pink
   messages: { baseSessions: 125, avgMinutes: 15, trend: '+9.2%', isGrowing: true, tickets: 4, hexColor: '#0ea5e9' }, // Sky

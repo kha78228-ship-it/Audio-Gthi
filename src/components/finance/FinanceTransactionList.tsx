@@ -47,6 +47,7 @@ import {
   CheckCircle2,
   FileText,
   Clock,
+  Mic,
   Wallet as WalletIcon
 } from 'lucide-react';
 import { FinanceTransaction, FinanceWallet, FinanceCategory } from '../../types';
@@ -60,6 +61,7 @@ interface FinanceTransactionListProps {
   onEditTransaction: (id: string, tx: Partial<FinanceTransaction>) => void;
   onDeleteTransaction: (id: string) => void;
   onExportCSV: () => void;
+  onOpenVoiceExpense?: () => void;
 }
 
 const CATEGORY_ICON_MAP: Record<string, React.ElementType> = {
@@ -93,7 +95,8 @@ export function FinanceTransactionList({
   onAddTransaction,
   onEditTransaction,
   onDeleteTransaction,
-  onExportCSV
+  onExportCSV,
+  onOpenVoiceExpense
 }: FinanceTransactionListProps) {
   // View mode: 'table' (Haevy Admin style) vs 'cards' (Timeline cards)
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -398,6 +401,25 @@ export function FinanceTransactionList({
 
           {/* Quick Actions & Export */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {onOpenVoiceExpense && (
+              <button
+                onClick={onOpenVoiceExpense}
+                className="px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-zinc-950 font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-500/25 active:scale-95"
+                title="Ghi chép chi tiêu bằng giọng nói tiếng Việt"
+              >
+                <Mic size={15} className="animate-pulse" />
+                <span>Nói Ghi Chi Tiêu</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => handleOpenAddModal('expense')}
+              className="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+            >
+              <Plus size={15} className="text-emerald-400" />
+              <span>+ Thêm Giao Dịch</span>
+            </button>
+
             <button
               onClick={onExportCSV}
               className="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
@@ -672,12 +694,23 @@ export function FinanceTransactionList({
               <p className="text-xs text-zinc-500 max-w-sm mx-auto">
                 Không có bản ghi phù hợp với bộ lọc hoặc từ khóa tìm kiếm trong tháng {selectedMonth}.
               </p>
-              <button
-                onClick={() => handleOpenAddModal('expense')}
-                className="mt-2 px-5 py-2 rounded-2xl bg-emerald-500 text-black font-extrabold text-xs shadow-lg hover:bg-emerald-400 transition-all cursor-pointer"
-              >
-                + Ghi giao dịch mới
-              </button>
+              <div className="mt-2 flex items-center justify-center gap-2 flex-wrap">
+                {onOpenVoiceExpense && (
+                  <button
+                    onClick={onOpenVoiceExpense}
+                    className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black font-black text-xs shadow-lg hover:from-emerald-400 hover:to-teal-300 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Mic size={15} />
+                    <span>Nói Để Ghi Nhanh</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleOpenAddModal('expense')}
+                  className="px-5 py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-750 text-white font-bold text-xs border border-zinc-700 transition-all cursor-pointer"
+                >
+                  + Ghi Thủ Công
+                </button>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto custom-scrollbar">

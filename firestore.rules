@@ -25,18 +25,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Users collection (Strict protection against privilege escalation and role tampering)
+    // Users collection (Strict protection against privilege escalation, point tampering, and role manipulation)
     match /users/{userId} {
       allow read: if true;
       allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin()) && (
         isAdmin() || 
-        !request.resource.data.keys().hasAny(['role', 'isAdmin', 'isSuperAdmin', 'subAdminPermissions', 'isBanned']) ||
+        !request.resource.data.keys().hasAny(['role', 'isAdmin', 'isSuperAdmin', 'subAdminPermissions', 'isBanned', 'audioPoints', 'haevyLiteCoins', 'totalEarnedPoints']) ||
         request.resource.data.role == 'user'
       );
       allow update: if isSignedIn() && (
         isAdmin() || (
           request.auth.uid == userId && 
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin', 'isSuperAdmin', 'subAdminPermissions', 'isBanned'])
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin', 'isSuperAdmin', 'subAdminPermissions', 'isBanned', 'audioPoints', 'haevyLiteCoins', 'totalEarnedPoints'])
         )
       );
       allow delete: if isAdmin();
@@ -81,6 +81,21 @@ service cloud.firestore {
 
       // User Personal Notifications & Alerts (Haevy Notification Hub)
       match /notifications/{notificationId} {
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      }
+
+      // User Edu Daily Goals & Milestones (7 Exam Prep Pillars)
+      match /eduDailyGoals/{dateId} {
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      }
+
+      // User Mood Journal Entries & Sentiment Trends (Haevy Spiritual)
+      match /moodJournals/{entryId} {
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      }
+
+      // User Quick Notes (Fleeting thoughts, sparks & ideas saved from Haevy Portal, accessible in Haevy AI)
+      match /quickNotes/{noteId} {
         allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
     }
@@ -137,18 +152,28 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Community Posts
+    // Community Posts (Author or Admin update; others can only increment counters like likes)
     match /communityPosts/{postId} {
       allow read: if true;
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.authorId;
-      allow update: if isSignedIn() || isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.authorId == request.auth.uid ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'likedBy', 'commentCount', 'sharesCount'])
+        )
+      );
       allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
 
       // Comments subcollection
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isSignedIn() && request.auth.uid == request.resource.data.authorId;
-        allow update: if isSignedIn() || isAdmin();
+        allow update: if isAdmin() || (
+          isSignedIn() && (
+            resource.data.authorId == request.auth.uid ||
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'likedBy'])
+          )
+        );
         allow delete: if (isSignedIn() && resource.data.authorId == request.auth.uid) || isAdmin();
       }
     }
@@ -330,7 +355,7 @@ service cloud.firestore {
     // System Transparency & Activity Audit Logs (IMMUTABLE: No updates or deletions allowed to prevent cover-ups)
     match /systemAuditLogs/{logId} {
       allow read: if isAdmin();
-      allow create: if isSignedIn() || true;
+      allow create: if isSignedIn();
       allow update, delete: if false;
     }
 
@@ -340,11 +365,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Ecosystem Upcoming Events (Admin customizable, public read, user RSVP update)
+    // Ecosystem Upcoming Events (Admin customizable, public read, user RSVP update only)
     match /systemEvents/{eventId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if isSignedIn() || isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees', 'rsvps', 'attendeeCount'])
+      );
     }
 
     // Global System Settings & Maintenance Mode (Strict Admin write only)
@@ -376,11 +404,14 @@ service cloud.firestore {
       }
     }
 
-    // Haevy Games: x2 Đám Đông (Crowd 2X Prediction Game)
+    // Haevy Games: x2 Đám Đông (Crowd 2X Prediction Game - pool updates only)
     match /crowdQuestions/{questionId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if isSignedIn() || isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalBets', 'totalPool', 'optionACount', 'optionBCount'])
+      );
     }
 
     match /crowdBets/{betId} {
@@ -395,10 +426,10 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // Customer Service Support Tickets & Feedback
+    // Customer Service Support Tickets & Feedback (User ownership strictly enforced)
     match /supportTickets/{ticketId} {
       allow read: if (isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userEmail == request.auth.token.email)) || isAdmin();
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
       allow update, delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
@@ -420,17 +451,17 @@ service cloud.firestore {
       );
     }
 
-    // Haevy Family Tree (Gia Phả Dòng Tộc Thông Minh)
+    // Haevy Family Tree (Gia Phả Dòng Tộc Thông Minh - Creator or Admin write)
     match /familyTrees/{treeId} {
       allow read: if true;
-      allow create, update: if isSignedIn() || isAdmin();
-      allow delete: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if (isSignedIn() && (resource.data.creatorUid == request.auth.uid || resource.data.ownerUid == request.auth.uid)) || isAdmin();
     }
 
     match /familyMembers/{memberId} {
       allow read: if true;
-      allow create, update: if isSignedIn() || isAdmin();
-      allow delete: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if (isSignedIn() && (resource.data.createdBy == request.auth.uid || resource.data.userId == request.auth.uid)) || isAdmin();
     }
 
     match /familyEvents/{eventId} {
@@ -443,6 +474,13 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() || isAdmin();
+    }
+
+    // Quick Notes Root Collection (Dual sync pattern support with strict ownership)
+    match /quickNotes/{noteId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
   }
 }

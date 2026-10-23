@@ -3,53 +3,76 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ModeBadgeProvider, useModeBadges } from './context/ModeBadgeContext';
+import { DisplayScaleProvider } from './context/DisplayScaleContext';
 import { HaevyMoodProvider } from './context/HaevyMoodContext';
 import { GiftEffectProvider } from './context/GiftEffectContext';
 import { HaevyMoodBackground } from './components/mood/HaevyMoodBackground';
-import { HaevyMoodModal } from './components/mood/HaevyMoodModal';
-import { UserLevelPrivilegesModal } from './components/UserLevelPrivilegesModal';
-import { UserLevelUpNotificationModal } from './components/UserLevelUpNotificationModal';
-import { AuthorGiftShopModal } from './components/AuthorGiftShopModal';
-import { AuthModal } from './components/AuthModal';
-import { NotificationsModal } from './components/NotificationsModal';
-import { InstallPwaModal } from './components/InstallPwaModal';
+import { SubsystemLoadingFallback } from './components/common/SubsystemLoadingFallback';
+
+// Core views loaded immediately for instant first-paint
 import { HaevyEcosystemLandingView } from './components/HaevyEcosystemLandingView';
-import { HaevyMorningView } from './components/HaevyMorningView';
 import { HomeView } from './components/HomeView';
 import { AudioLibraryView } from './components/AudioLibraryView';
-import { HaevyStudioView } from './components/HaevyStudioView';
-import { MessagesFriendsView } from './components/MessagesFriendsView';
-import { CoupleRomanceView } from './components/CoupleRomanceView';
-import { FinanceView } from './components/FinanceView';
-import { VipTopupView } from './components/VipTopupView';
-import { UserProfileView } from './components/UserProfileView';
-import { AdminDashboardView } from './components/AdminDashboardView';
-import { HaevySupportView } from './components/HaevySupportView';
-import { HaevyAIHubView } from './components/HaevyAIHubView';
-import { HaevySpiritualView } from './components/HaevySpiritualView';
-import { HaevyFamilyTreeView } from './components/HaevyFamilyTreeView';
-import { HaevyEduView } from './components/HaevyEduView';
-import { HaevyMapsView } from './components/maps/HaevyMapsView';
-import { HaevyLiteHubView } from './components/haevyLite/HaevyLiteHubView';
-import { HaevyGamesView, HaevyGamesSubTab } from './components/HaevyGamesView';
+import type { HaevyGamesSubTab } from './components/HaevyGamesView';
+
+// Subsystems loaded dynamically via React.lazy() to shrink initial bundle and boost rendering speed
+const HaevyAIHubView = React.lazy(() => import('./components/HaevyAIHubView').then(m => ({ default: m.HaevyAIHubView })));
+const MessagesFriendsView = React.lazy(() => import('./components/MessagesFriendsView').then(m => ({ default: m.MessagesFriendsView })));
+const HaevyMorningView = React.lazy(() => import('./components/HaevyMorningView').then(m => ({ default: m.HaevyMorningView })));
+const HaevyStudioView = React.lazy(() => import('./components/HaevyStudioView').then(m => ({ default: m.HaevyStudioView })));
+const CoupleRomanceView = React.lazy(() => import('./components/CoupleRomanceView').then(m => ({ default: m.CoupleRomanceView })));
+const FinanceView = React.lazy(() => import('./components/FinanceView').then(m => ({ default: m.FinanceView })));
+const VipTopupView = React.lazy(() => import('./components/VipTopupView').then(m => ({ default: m.VipTopupView })));
+const UserProfileView = React.lazy(() => import('./components/UserProfileView').then(m => ({ default: m.UserProfileView })));
+const AdminDashboardView = React.lazy(() => import('./components/AdminDashboardView').then(m => ({ default: m.AdminDashboardView })));
+const HaevySupportView = React.lazy(() => import('./components/HaevySupportView').then(m => ({ default: m.HaevySupportView })));
+const HaevySpiritualView = React.lazy(() => import('./components/HaevySpiritualView').then(m => ({ default: m.HaevySpiritualView })));
+const HaevyFamilyTreeView = React.lazy(() => import('./components/HaevyFamilyTreeView').then(m => ({ default: m.HaevyFamilyTreeView })));
+const HaevyEduView = React.lazy(() => import('./components/HaevyEduView').then(m => ({ default: m.HaevyEduView })));
+const HaevyMapsView = React.lazy(() => import('./components/maps/HaevyMapsView').then(m => ({ default: m.HaevyMapsView })));
+const HaevyInternetView = React.lazy(() => import('./components/HaevyInternetView').then(m => ({ default: m.HaevyInternetView })));
+const HaevyLiteHubView = React.lazy(() => import('./components/haevyLite/HaevyLiteHubView').then(m => ({ default: m.HaevyLiteHubView })));
+const HaevyGamesView = React.lazy(() => import('./components/HaevyGamesView').then(m => ({ default: m.HaevyGamesView })));
+
+// Modals loaded dynamically on-demand to keep initial JS payload minimal
+const HaevyMoodModal = React.lazy(() => import('./components/mood/HaevyMoodModal').then(m => ({ default: m.HaevyMoodModal })));
+const UserLevelPrivilegesModal = React.lazy(() => import('./components/UserLevelPrivilegesModal').then(m => ({ default: m.UserLevelPrivilegesModal })));
+const UserLevelUpNotificationModal = React.lazy(() => import('./components/UserLevelUpNotificationModal').then(m => ({ default: m.UserLevelUpNotificationModal })));
+const AuthorGiftShopModal = React.lazy(() => import('./components/AuthorGiftShopModal').then(m => ({ default: m.AuthorGiftShopModal })));
+const AuthModal = React.lazy(() => import('./components/AuthModal').then(m => ({ default: m.AuthModal })));
+const NotificationsModal = React.lazy(() => import('./components/NotificationsModal').then(m => ({ default: m.NotificationsModal })));
+const InstallPwaModal = React.lazy(() => import('./components/InstallPwaModal').then(m => ({ default: m.InstallPwaModal })));
+const GoogleOmnibarModal = React.lazy(() => import('./components/common/GoogleOmnibarModal').then(m => ({ default: m.GoogleOmnibarModal })));
+const HaevyShortcutsModal = React.lazy(() => import('./components/HaevyShortcutsModal').then(m => ({ default: m.HaevyShortcutsModal })));
+const HaevyEcosystemQuickSwitcherModal = React.lazy(() => import('./components/HaevyEcosystemQuickSwitcherModal').then(m => ({ default: m.HaevyEcosystemQuickSwitcherModal })));
+
 import { HaevyAIFloatingWidget } from './components/HaevyAIFloatingWidget';
+import { FloatingQuickNoteWidget } from './components/portal/FloatingQuickNoteWidget';
+import {
+  HaevyPortalOnboardingTour,
+  ONBOARDING_COMPLETED_KEY,
+  OnboardingStepId
+} from './components/portal/HaevyPortalOnboardingTour';
 import { AudioPlayer } from './components/AudioPlayer';
 import { CommunityView } from './components/CommunityView';
 import { BottomTaskbar } from './components/BottomTaskbar';
 import { Navbar } from './components/Navbar';
 import { DesktopSidebar } from './components/DesktopSidebar';
-import { HaevyShortcutsModal } from './components/HaevyShortcutsModal';
+import { DesktopPlayerDock } from './components/desktop/DesktopPlayerDock';
+import { MobileHeader } from './components/mobile/MobileHeader';
+import { useDevicePlatform } from './hooks/useDevicePlatform';
 import { HaevyVoiceNavigationHUD } from './components/HaevyVoiceNavigationHUD';
 import { HaevyModeTransitionOverlay } from './components/HaevyModeTransitionOverlay';
-import { HaevyEcosystemQuickSwitcherModal } from './components/HaevyEcosystemQuickSwitcherModal';
+import { HaevyGlobalToast } from './components/common/HaevyGlobalToast';
 import { getSavedEcosystemMode, switchEcosystemMode, MODE_SYNC_EVENT, MODE_STORAGE_KEY } from './services/modeSyncService';
 import { useVoiceCommander } from './hooks/useVoiceCommander';
+import { haptics } from './utils/haptics';
 import { motion, AnimatePresence } from 'motion/react';
-import { Track, ActiveTab, EcosystemMode } from './types';
+import { Track, ActiveTab, EcosystemMode, InternetSubTab } from './types';
 import { matchShortcut, DEFAULT_SHORTCUTS_CONFIG } from './data/defaultShortcuts';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient, useTracksQuery } from './services/tracksQueryService';
@@ -80,7 +103,9 @@ import {
   Keyboard,
   GitFork,
   GraduationCap,
-  MapPin
+  MapPin,
+  Globe,
+  Gamepad2
 } from 'lucide-react';
 
 export type HaevyMode = 
@@ -103,6 +128,7 @@ export type HaevyMode =
   | 'morning'
   | 'edu'
   | 'maps'
+  | 'internet'
   | 'profile';
 
 const MODES_CONFIG: {
@@ -113,21 +139,25 @@ const MODES_CONFIG: {
   color: string;
   badge: string;
 }[] = [
-  { id: 'edu', name: 'Haevy Edu (STEM & Lộ Trình)', shortName: 'Haevy Edu', icon: GraduationCap, color: 'from-emerald-500 via-teal-500 to-cyan-500', badge: 'STEM Lab' },
-  { id: 'haevy_lite', name: 'Xu Haevy Lite & Combo Hoạt Ảnh', shortName: 'Xu Lite', icon: Sparkles, color: 'from-purple-600 via-indigo-600 to-pink-500', badge: 'Vũ Trụ 🌌' },
+  { id: 'portal', name: 'Cổng Hệ Sinh Thái Haevy', shortName: 'Cổng Vũ Trụ', icon: Home, color: 'from-amber-500 to-yellow-600', badge: 'Cổng Trung Tâm' },
   { id: 'haevy_ai', name: 'Haevy AI Master', shortName: 'Haevy AI', icon: BrainCircuit, color: 'from-purple-500 via-indigo-500 to-pink-500', badge: 'AI Toàn Năng' },
-  { id: 'family_tree', name: 'Haevy Family Tree', shortName: 'Gia Phả', icon: GitFork, color: 'from-amber-600 via-yellow-600 to-amber-700', badge: 'Gia Phả Dòng Họ' },
-  { id: 'spiritual', name: 'Haevy Spiritual', shortName: 'Haevy Spiritual', icon: Moon, color: 'from-purple-600 via-indigo-600 to-pink-600', badge: 'Tâm Linh Vũ Trụ' },
+  { id: 'edu', name: 'Haevy Edu (STEM & Lộ Trình)', shortName: 'Haevy Edu', icon: GraduationCap, color: 'from-emerald-500 via-teal-500 to-cyan-500', badge: 'STEM Lab' },
+  { id: 'internet', name: 'Haevy Internet (Trình Duyệt & Web)', shortName: 'Haevy Internet', icon: Globe, color: 'from-sky-500 via-blue-600 to-indigo-600', badge: 'Web 4.0 🌐' },
   { id: 'audio', name: 'Haevy Audio', shortName: 'Haevy Audio', icon: Moon, color: 'from-indigo-500 to-purple-600', badge: 'Audio & Music' },
+  { id: 'finance', name: 'Haevy Finance', shortName: 'Haevy Finance', icon: Wallet, color: 'from-emerald-500 to-green-600', badge: 'Thu Chi 6 Hũ' },
+  { id: 'maps', name: 'Haevy Maps (Gia Đình & Bạn Đời)', shortName: 'Haevy Maps', icon: MapPin, color: 'from-emerald-500 via-teal-500 to-sky-500', badge: 'Live GPS 📍' },
   { id: 'space', name: 'Haevy Space', shortName: 'Haevy Space', icon: Sparkles, color: 'from-cyan-500 to-blue-600', badge: '3D AR' },
+  { id: 'couple', name: 'I Love Haevy', shortName: 'I Love Haevy', icon: Heart, color: 'from-rose-500 to-red-600', badge: 'Cặp Đôi' },
+  { id: 'spiritual', name: 'Haevy Spiritual', shortName: 'Haevy Spiritual', icon: Moon, color: 'from-purple-600 via-indigo-600 to-pink-600', badge: 'Tâm Linh Vũ Trụ' },
+  { id: 'family_tree', name: 'Haevy Family Tree', shortName: 'Gia Phả', icon: GitFork, color: 'from-amber-600 via-yellow-600 to-amber-700', badge: 'Gia Phả Dòng Họ' },
   { id: 'messages', name: 'Haevy Message', shortName: 'Haevy Message', icon: MessageSquare, color: 'from-sky-500 to-blue-600', badge: 'Messages' },
   { id: 'studio', name: 'Haevy Studio', shortName: 'Haevy Studio', icon: Mic, color: 'from-rose-500 to-pink-600', badge: 'AI Voice' },
-  { id: 'finance', name: 'Haevy Finance', shortName: 'Haevy Finance', icon: Wallet, color: 'from-emerald-500 to-green-600', badge: 'Thu Chi 6 Hũ' },
-  { id: 'admin', name: 'Haevy Admin', shortName: 'Haevy Admin', icon: ShieldCheck, color: 'from-red-500 to-rose-600', badge: 'Quản Trị' },
-  { id: 'couple', name: 'I Love Haevy', shortName: 'I Love Haevy', icon: Heart, color: 'from-rose-500 to-red-600', badge: 'Cặp Đôi' },
-  { id: 'maps', name: 'Haevy Maps (Gia Đình & Bạn Đời)', shortName: 'Haevy Maps', icon: MapPin, color: 'from-emerald-500 via-teal-500 to-sky-500', badge: 'Live GPS 📍' },
+  { id: 'games', name: 'Haevy Games', shortName: 'Haevy Games', icon: Gamepad2, color: 'from-indigo-600 to-purple-600', badge: 'Đấu Trường Games' },
+  { id: 'haevy_lite', name: 'Xu Haevy Lite & Combo Hoạt Ảnh', shortName: 'Xu Lite', icon: Sparkles, color: 'from-purple-600 via-indigo-600 to-pink-500', badge: 'Vũ Trụ 🌌' },
   { id: 'vip', name: 'Haevy VIP', shortName: 'Haevy VIP', icon: Crown, color: 'from-amber-400 to-yellow-500', badge: 'VIP Club' },
-  { id: 'support', name: 'Haevy Support', shortName: 'Haevy Support', icon: LifeBuoy, color: 'from-emerald-400 to-teal-500', badge: 'Hỗ Trợ 24/7' }
+  { id: 'profile', name: 'Hồ Sơ Cá Nhân', shortName: 'Hồ Sơ', icon: UserIcon, color: 'from-teal-500 to-emerald-600', badge: 'Cá Nhân' },
+  { id: 'support', name: 'Haevy Support', shortName: 'Haevy Support', icon: LifeBuoy, color: 'from-emerald-400 to-teal-500', badge: 'Hỗ Trợ 24/7' },
+  { id: 'admin', name: 'Haevy Admin', shortName: 'Haevy Admin', icon: ShieldCheck, color: 'from-red-500 to-rose-600', badge: 'Quản Trị' }
 ];
 
 function MainApp() {
@@ -145,6 +175,10 @@ function MainApp() {
   const { markModeAsViewed } = useModeBadges();
   const { effectiveTheme } = useTheme();
   
+  // Dedicated Automatic Platform Detection (Desktop PC vs Mobile)
+  const { isMobile, isDesktop } = useDevicePlatform();
+  const [isOmnibarOpen, setIsOmnibarOpen] = useState(false);
+
   // App Navigation & Active Mode State
   const [currentMode, setCurrentMode] = useState<HaevyMode>(getSavedEcosystemMode);
   const [navDirection, setNavDirection] = useState<number>(1);
@@ -186,27 +220,48 @@ function MainApp() {
   const [spiritualSubTab, setSpiritualSubTab] = useState<'tarot' | 'palmistry' | 'divination' | 'numerology' | 'crystal_oracle' | 'couple_spiritual' | 'tuvi' | 'astrology' | 'soundscapes'>('tarot');
   const [haevyAISubTab, setHaevyAISubTab] = useState<'overview' | 'chat' | 'updates' | 'troubleshoot' | 'modes'>('overview');
   const [aiInitialPrompt, setAiInitialPrompt] = useState<string | null>(null);
-  const [haevyLiteSubTab, setHaevyLiteSubTab] = useState<'shop' | 'customize' | 'topup_and_ads'>('shop');
+  const [haevyLiteSubTab, setHaevyLiteSubTab] = useState<'shop' | 'rewards' | 'customize' | 'topup_and_ads'>('shop');
   const [gamesSubTab, setGamesSubTab] = useState<HaevyGamesSubTab>('home');
   const [familyTreeSubTab, setFamilyTreeSubTab] = useState<string>('tree');
-  const [eduSubTab, setEduSubTab] = useState<'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam'>('assistant');
+  const [eduSubTab, setEduSubTab] = useState<'workspace' | 'sun_study' | 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam' | 'goals'>('workspace');
   const [spaceSubTab, setSpaceSubTab] = useState<'portal' | 'canvas' | 'mascot' | 'magic_ar' | 'morning_dashboard'>('portal');
   const [profileSubTab, setProfileSubTab] = useState<'posts' | 'about' | 'audio' | 'media' | 'security' | 'transactions' | 'support'>('posts');
+  const [mapsSubTab, setMapsSubTab] = useState<'all' | 'couple' | 'family' | 'zones'>('all');
+  const [internetSubTab, setInternetSubTab] = useState<InternetSubTab>('browser');
   const [shuffleMode, setShuffleMode] = useState<'off' | 'shuffle' | 'smart_shuffle'>('smart_shuffle');
   const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
 
-  // Universal Cross-Ecosystem Mode & Sub-tab Navigator
-  const handleNavigateToMode = (mode: string, subTab?: string) => {
-    markModeAsViewed(mode, subTab);
-    const targetMode = (mode === 'morning' ? 'space' : mode) as HaevyMode;
-    handleSetMode(targetMode);
-    switchEcosystemMode(mode as EcosystemMode, subTab);
-    try {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      // Ignore scroll errors in sandboxed containers
-    }
+  // Dynamic browser tab title synchronization
+  useEffect(() => {
+    const titles: Record<HaevyMode, string> = {
+      portal: 'Cổng Hệ Sinh Thái Haevy',
+      edu: 'Haevy Edu - STEM Lab & Lộ Trình Ôn Thi AI',
+      finance: 'Haevy Finance - Sổ Thu Chi 6 Hũ Thông Minh',
+      spiritual: 'Haevy Spiritual - Tâm Linh Vũ Trụ, Tử Vi & Tarot',
+      maps: 'Haevy Maps - Bản Đồ Định Vị GPS Gia Đình & Bạn Đời',
+      internet: 'Haevy Internet - Trình Duyệt Web & AI Reader',
+      haevy_ai: 'Haevy AI Master - Trợ Lý Trí Tuệ Toàn Năng',
+      space: 'Haevy Space - Không Gian 3D AR Studio',
+      morning: 'Haevy Space - Bảng Buổi Sáng & Vũ Trụ',
+      audio: 'Haevy Audio - Lossless Hi-Fi & Podcasts',
+      audio_library: 'Kho Audio - Hệ Sinh Thái Haevy',
+      messages: 'Haevy Message - Tin Nhắn & Bạn Bè',
+      studio: 'Haevy Studio - Thu Âm & Giọng Đọc AI',
+      couple: 'I Love Haevy - Không Gian Cặp Đôi',
+      vip: 'Haevy VIP Club - Quyền Lợi & Hội Viên',
+      haevy_lite: 'Xu Haevy Lite & Combo Vũ Trụ',
+      games: 'Haevy Games - Đấu Trường Âm Nhạc',
+      family_tree: 'Haevy Family Tree - Gia Phả Dòng Họ',
+      admin: 'Haevy Admin - Quản Trị Hệ Thống',
+      support: 'Haevy Support - Hỗ Trợ 24/7',
+      profile: 'Hồ Sơ Cá Nhân - Hệ Sinh Thái Haevy'
+    };
+    const title = titles[currentMode] || 'Hệ Sinh Thái Haevy';
+    document.title = `${title} | Haevy`;
+  }, [currentMode, activeTab]);
 
+  // Subtab application helper
+  const applySubTabForMode = (mode: string, subTab?: string) => {
     if (mode === 'spiritual') {
       setActiveTab('spiritual');
       if (subTab) setSpiritualSubTab(subTab as any);
@@ -250,11 +305,66 @@ function MainApp() {
       if (subTab) setSpaceSubTab(subTab as any);
     } else if (mode === 'portal') {
       setActiveTab('portal');
+    } else if (mode === 'maps') {
+      setActiveTab('maps' as any);
+      if (subTab) setMapsSubTab(subTab as any);
+    } else if (mode === 'internet') {
+      setActiveTab('internet' as any);
+      if (subTab) setInternetSubTab(subTab as any);
     } else if (mode === 'profile') {
       setActiveTab('profile');
       if (subTab) setProfileSubTab(subTab as any);
     } else if (mode === 'support') {
       setActiveTab('support');
+    }
+  };
+
+  // Browser History (PushState & PopState) for seamless browser back/forward buttons
+  const isNavigatingHistoryRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.history && !window.history.state) {
+      window.history.replaceState({ mode: currentMode, activeTab }, '', window.location.href);
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.mode) {
+        isNavigatingHistoryRef.current = true;
+        const targetMode = event.state.mode as HaevyMode;
+        setCurrentMode(targetMode);
+        if (event.state.subTab) {
+          applySubTabForMode(targetMode, event.state.subTab);
+        }
+        setTimeout(() => {
+          isNavigatingHistoryRef.current = false;
+        }, 120);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Universal Cross-Ecosystem Mode & Sub-tab Navigator
+  const handleNavigateToMode = (mode: string, subTab?: string) => {
+    markModeAsViewed(mode, subTab);
+    const targetMode = (mode === 'morning' ? 'space' : mode) as HaevyMode;
+    handleSetMode(targetMode);
+    switchEcosystemMode(mode as EcosystemMode, subTab);
+    applySubTabForMode(mode, subTab);
+
+    if (!isNavigatingHistoryRef.current && typeof window !== 'undefined' && window.history) {
+      try {
+        window.history.pushState({ mode: targetMode, subTab }, '', window.location.href);
+      } catch {
+        // ignore in sandboxed containers
+      }
+    }
+
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      // Ignore scroll errors in sandboxed containers
     }
   };
 
@@ -266,7 +376,26 @@ function MainApp() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+  const [isOnboardingTourOpen, setIsOnboardingTourOpen] = useState(false);
   const [shortcutHUD, setShortcutHUD] = useState<{ title: string; subtitle?: string } | null>(null);
+
+  // Auto-launch Interactive Onboarding Walkthrough on first visit to Haevy Portal
+  useEffect(() => {
+    if (currentMode !== 'portal') return;
+    try {
+      const globalDone = localStorage.getItem(ONBOARDING_COMPLETED_KEY) === 'true';
+      const userDone =
+        user?.uid && localStorage.getItem(`${ONBOARDING_COMPLETED_KEY}_${user.uid}`) === 'true';
+      if (!globalDone && !userDone) {
+        const timer = window.setTimeout(() => {
+          setIsOnboardingTourOpen(true);
+        }, 850);
+        return () => window.clearTimeout(timer);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [currentMode, user?.uid]);
 
   // Sub-triggers for Finance Quick Shortcuts
   const [financePage2SubTab, setFinancePage2SubTab] = useState<'budget' | 'savings' | 'debts' | 'recurring'>('budget');
@@ -381,6 +510,15 @@ function MainApp() {
     switchEcosystemMode(modeKey as EcosystemMode, initialSubTab);
     const targetMode = (modeKey === 'morning' ? 'space' : modeKey === 'audio_library' ? 'audio' : modeKey) as HaevyMode;
     handleSetMode(targetMode);
+
+    if (!isNavigatingHistoryRef.current && typeof window !== 'undefined' && window.history) {
+      try {
+        window.history.pushState({ mode: targetMode, subTab: initialSubTab }, '', window.location.href);
+      } catch {
+        // ignore
+      }
+    }
+
     try {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
@@ -481,18 +619,67 @@ function MainApp() {
       if (initialSubTab) {
         setEduSubTab(initialSubTab as any);
       }
+    } else if (modeKey === 'maps') {
+      setCurrentMode('maps');
+      setActiveTab('maps' as any);
+      if (initialSubTab) {
+        setMapsSubTab(initialSubTab as any);
+      }
+    } else if (modeKey === 'internet') {
+      setCurrentMode('internet');
+      setActiveTab('internet' as any);
+      if (initialSubTab) {
+        setInternetSubTab(initialSubTab as any);
+      }
     } else {
       setCurrentMode('portal');
       setActiveTab('portal');
     }
   };
 
+  // Power User Fast Arrow Key Mode Navigation between Ecosystem Modes
+  const navigateEcosystemMode = (direction: 'next' | 'prev') => {
+    // Current index in MODES_CONFIG
+    const currentIndex = MODES_CONFIG.findIndex(m => m.id === currentMode);
+    const validCurrentIndex = currentIndex === -1 ? 0 : currentIndex;
+    
+    let nextIndex: number;
+    if (direction === 'next') {
+      nextIndex = (validCurrentIndex + 1) % MODES_CONFIG.length;
+    } else {
+      nextIndex = (validCurrentIndex - 1 + MODES_CONFIG.length) % MODES_CONFIG.length;
+    }
+
+    const nextModeConfig = MODES_CONFIG[nextIndex];
+    if (!nextModeConfig) return;
+
+    haptics.selection();
+    setNavDirection(direction === 'next' ? 1 : -1);
+    handleSelectMode(nextModeConfig.id);
+
+    const arrowSymbol = direction === 'next' ? '→' : '←';
+    triggerShortcutHUD(
+      `${nextModeConfig.name}`,
+      `Phân hệ ${nextIndex + 1}/${MODES_CONFIG.length} • Phím tắt ${arrowSymbol} (Alt + ${arrowSymbol})`
+    );
+  };
+
   // Shortcut Action Dispatcher (Callable from Keydown & Shortcut Modal)
   const handleShortcutAction = (action: string) => {
     switch (action) {
+      case 'mode_next':
+        navigateEcosystemMode('next');
+        break;
+      case 'mode_prev':
+        navigateEcosystemMode('prev');
+        break;
       case 'mode_edu':
         handleSelectMode('edu');
         triggerShortcutHUD('🎓 Haevy Edu', 'STEM Virtual Labs & Lộ Trình AI');
+        break;
+      case 'mode_internet':
+        handleSelectMode('internet');
+        triggerShortcutHUD('🌐 Haevy Internet', 'Trình Duyệt Web Đa Tab & AI Reader');
         break;
       case 'mode_haevy_lite':
         handleSelectMode('haevy_lite');
@@ -650,7 +837,24 @@ function MainApp() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts if user is typing in inputs, textareas or contenteditable elements
       const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable || target.closest('input, textarea, [contenteditable="true"]'))) {
+        return;
+      }
+
+      // Check if interactive full-screen modals are open that require arrow key isolation (e.g. search, auth, mood)
+      const isInputModalOpen = isAuthOpen || isOmnibarOpen || isNotificationsOpen || isInstallPwaOpen || isMoodModalOpen || isLevelModalOpen || isGiftShopOpen;
+      if (isInputModalOpen) {
+        if (e.code === 'Escape') {
+          setIsShortcutsModalOpen(false);
+          setIsModeSwitcherOpen(false);
+          setIsAuthOpen(false);
+          setIsNotificationsOpen(false);
+          setIsInstallPwaOpen(false);
+          setIsMoodModalOpen(false);
+          setIsLevelModalOpen(false);
+          setIsGiftShopOpen(false);
+          setIsOmnibarOpen(false);
+        }
         return;
       }
 
@@ -659,6 +863,44 @@ function MainApp() {
         e.preventDefault();
         setModeSwitcherViewMode('quick');
         setIsModeSwitcherOpen(prev => !prev);
+        return;
+      }
+
+      // -------------------------------------------------------------------------
+      // Power User Desktop Arrow Key Navigation between Ecosystem Modes
+      // Supported combinations:
+      //  - Alt + ArrowRight / Alt + ArrowDown / Alt + ]: Next Mode
+      //  - Alt + ArrowLeft  / Alt + ArrowUp   / Alt + [: Previous Mode
+      //  - Ctrl + ArrowRight / Ctrl + ArrowDown / Ctrl + ] (outside text inputs)
+      //  - Ctrl + ArrowLeft  / Ctrl + ArrowUp   / Ctrl + [ (outside text inputs)
+      //  - Shift + Alt + ArrowRight / Shift + Alt + ArrowLeft
+      //  - Standalone ArrowRight / ArrowLeft on Portal landing hub
+      // -------------------------------------------------------------------------
+      const isNextArrow = 
+        (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.code === 'ArrowRight' || e.code === 'ArrowDown' || e.code === 'BracketRight')) ||
+        (e.ctrlKey && !e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.code === 'ArrowRight' || e.code === 'ArrowDown' || e.code === 'BracketRight')) ||
+        (e.shiftKey && e.altKey && (e.key === 'ArrowRight' || e.code === 'ArrowRight')) ||
+        (e.metaKey && (e.key === 'ArrowRight' || e.code === 'ArrowRight')) ||
+        (!e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && currentMode === 'portal' && (e.key === 'ArrowRight' || e.code === 'ArrowRight'));
+
+      const isPrevArrow = 
+        (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.code === 'ArrowLeft' || e.code === 'ArrowUp' || e.code === 'BracketLeft')) ||
+        (e.ctrlKey && !e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.code === 'ArrowLeft' || e.code === 'ArrowUp' || e.code === 'BracketLeft')) ||
+        (e.shiftKey && e.altKey && (e.key === 'ArrowLeft' || e.code === 'ArrowLeft')) ||
+        (e.metaKey && (e.key === 'ArrowLeft' || e.code === 'ArrowLeft')) ||
+        (!e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && currentMode === 'portal' && (e.key === 'ArrowLeft' || e.code === 'ArrowLeft'));
+
+      if (isNextArrow) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateEcosystemMode('next');
+        return;
+      }
+
+      if (isPrevArrow) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateEcosystemMode('prev');
         return;
       }
 
@@ -682,6 +924,9 @@ function MainApp() {
         setIsNotificationsOpen(false);
         setIsInstallPwaOpen(false);
         setIsMoodModalOpen(false);
+        setIsLevelModalOpen(false);
+        setIsGiftShopOpen(false);
+        setIsOmnibarOpen(false);
       }
     };
 
@@ -724,7 +969,23 @@ function MainApp() {
       window.removeEventListener(MODE_SYNC_EVENT, handleSyncEvent);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [currentTrack, tracks, isPlaying, isMuted, shortcutsConfig, currentMode]);
+  }, [
+    currentTrack, 
+    tracks, 
+    isPlaying, 
+    isMuted, 
+    shortcutsConfig, 
+    currentMode, 
+    isAuthOpen, 
+    isOmnibarOpen, 
+    isNotificationsOpen, 
+    isInstallPwaOpen, 
+    isMoodModalOpen, 
+    isLevelModalOpen, 
+    isGiftShopOpen, 
+    isModeSwitcherOpen, 
+    isShortcutsModalOpen
+  ]);
 
   const activeModeConfig = MODES_CONFIG.find(m => m.id === currentMode);
 
@@ -732,29 +993,26 @@ function MainApp() {
   const getSwipeMotionProps = () => ({
     initial: { 
       opacity: 0, 
-      x: navDirection * 36, 
-      scale: 0.985, 
-      filter: 'blur(3px)' 
+      x: navDirection * 24, 
+      scale: 0.99
     },
     animate: { 
       opacity: 1, 
       x: 0, 
-      scale: 1, 
-      filter: 'blur(0px)',
+      scale: 1,
       transition: { 
         type: 'spring' as const, 
-        damping: 30, 
-        stiffness: 300, 
-        mass: 0.75 
+        damping: 32, 
+        stiffness: 320, 
+        mass: 0.65 
       } 
     },
     exit: { 
       opacity: 0, 
-      x: -navDirection * 48, 
-      scale: 0.975, 
-      filter: 'blur(4px)',
+      x: -navDirection * 28, 
+      scale: 0.99,
       transition: { 
-        duration: 0.22, 
+        duration: 0.18, 
         ease: [0.32, 0.72, 0, 1] as const 
       } 
     },
@@ -771,12 +1029,13 @@ function MainApp() {
       {/* HAEVY MOOD BACKGROUND ENGINE (ATMOSPHERIC CIRCADIAN & WEATHER BACKDROP)    */}
       {/* ========================================================================= */}
       <HaevyMoodBackground />
+      <HaevyGlobalToast />
 
       {/* ========================================================================= */}
-      {/* TOP NAVIGATION BAR FOR MODES (RESTORING EACH MODE'S AUTHENTIC LOGO) */}
+      {/* DEDICATED PLATFORM HEADERS (DESKTOP NAVBAR vs MOBILE TOUCH HEADER) */}
       {/* ========================================================================= */}
-      {currentMode !== 'portal' && currentMode !== 'space' && currentMode !== 'haevy_ai' && (
-        <header className="w-full bg-zinc-950/95 backdrop-blur-2xl border-b border-zinc-800/80 sticky top-0 z-[60] px-3 sm:px-6 pt-3 pb-0 shadow-xl">
+      {isDesktop ? (
+        <header className="w-full bg-zinc-950/95 backdrop-blur-2xl border-b border-zinc-800/80 sticky top-0 z-[60] px-3 sm:px-6 shadow-xl">
           <Navbar
             currentMode={currentMode as EcosystemMode}
             onSelectMode={(mode, initialTab) => {
@@ -802,6 +1061,24 @@ function MainApp() {
             onPlayTrack={handlePlayTrack}
           />
         </header>
+      ) : (
+        <MobileHeader
+          currentMode={currentMode as EcosystemMode}
+          onOpenEcosystemDrawer={() => {
+            setModeSwitcherViewMode('quick');
+            setIsModeSwitcherOpen(true);
+          }}
+          onSelectMode={(mode, initialTab) => {
+            handleSelectMode(mode, initialTab as string);
+          }}
+          onSelectTab={setActiveTab}
+          onOpenSearch={() => setIsOmnibarOpen(true)}
+          onOpenNotifications={() => setIsNotificationsOpen(true)}
+          onOpenAuth={() => handleOpenAuth('signin')}
+          onToggleUserMenu={() => setIsUserMenuOpen(prev => !prev)}
+          isUserMenuOpen={isUserMenuOpen}
+          onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
+        />
       )}
 
       {/* Global Synchronized Mode Transition HUD */}
@@ -829,15 +1106,137 @@ function MainApp() {
             {...getSwipeMotionProps()}
             className="w-full flex flex-col items-center flex-1"
           >
-            <HaevyEcosystemLandingView
-              onOpenAuth={handleOpenAuth}
-              onOpenNotifications={() => setIsNotificationsOpen(true)}
-              unreadNotificationCount={0}
-              onToggleFullscreen={handleToggleFullscreen}
-              isFullscreen={isFullscreen}
-              onSelectMode={handleSelectMode}
+            {isDesktop ? (
+              <div className="w-full flex-1 flex flex-row items-start justify-center max-w-[1700px] mx-auto px-0 lg:px-4">
+                <DesktopSidebar
+                  currentMode={currentMode as EcosystemMode}
+                  onSelectMode={(mode, initialTab) => {
+                    handleSelectMode(mode);
+                    if (initialTab) setActiveTab(initialTab);
+                  }}
+                  activeTab={activeTab}
+                  onSelectTab={setActiveTab}
+                  onOpenAuth={() => handleOpenAuth('signin')}
+                  onOpenAnonPass={() => handleOpenAuth('anonymous')}
+                  onOpenStudioAudio={() => handleSelectMode('studio')}
+                  onOpenVipHub={() => handleSelectMode('vip')}
+                  allTracks={tracks}
+                  currentTrack={currentTrack}
+                  isPlaying={isPlaying}
+                  onPlayTrack={handlePlayTrack}
+                  onTogglePlay={handleTogglePlay}
+                  financeSubTab={financeSubTab}
+                  onSelectFinanceSubTab={setFinanceSubTab}
+                  eduSubTab={eduSubTab}
+                  onSelectEduSubTab={setEduSubTab}
+                  messageSubTab={messageSubTab}
+                  onSelectMessageSubTab={setMessageSubTab}
+                  coupleSubTab={coupleSubTab}
+                  onSelectCoupleSubTab={setCoupleSubTab}
+                  gamesSubTab={gamesSubTab}
+                  onSelectGamesSubTab={setGamesSubTab}
+                  haevyAISubTab={haevyAISubTab}
+                  onSelectHaevyAISubTab={setHaevyAISubTab}
+                  familyTreeSubTab={familyTreeSubTab as any}
+                  onSelectFamilyTreeSubTab={(sub) => setFamilyTreeSubTab(sub as any)}
+                  spiritualSubTab={spiritualSubTab as any}
+                  onSelectSpiritualSubTab={(sub) => setSpiritualSubTab(sub as any)}
+                  haevyLiteSubTab={haevyLiteSubTab}
+                  onSelectHaevyLiteSubTab={setHaevyLiteSubTab}
+                  adminSubTab={adminSubTab}
+                  onSelectAdminSubTab={setAdminSubTab}
+                  studioSubTab={studioSubTab}
+                  onSelectStudioSubTab={setStudioSubTab}
+                  mapsSubTab={mapsSubTab}
+                  onSelectMapsSubTab={setMapsSubTab}
+                  internetSubTab={internetSubTab}
+                  onSelectInternetSubTab={setInternetSubTab}
+                  spaceSubTab={spaceSubTab}
+                  onSelectSpaceSubTab={setSpaceSubTab}
+                  vipSubTab={vipSubTab}
+                  onSelectVipSubTab={setVipSubTab}
+                />
+                <main className="w-full flex flex-col items-center flex-1 min-w-0 pb-28">
+                  <HaevyEcosystemLandingView
+                    onOpenAuth={handleOpenAuth}
+                    onOpenNotifications={() => setIsNotificationsOpen(true)}
+                    unreadNotificationCount={0}
+                    onToggleFullscreen={handleToggleFullscreen}
+                    isFullscreen={isFullscreen}
+                    onSelectMode={handleSelectMode}
+                    onToggleVoiceListen={toggleVoiceListening}
+                    isVoiceListening={isVoiceListening}
+                    isDesktop={true}
+                    onOpenOnboardingTour={() => setIsOnboardingTourOpen(true)}
+                  />
+                </main>
+              </div>
+            ) : (
+              <HaevyEcosystemLandingView
+                onOpenAuth={handleOpenAuth}
+                onOpenNotifications={() => setIsNotificationsOpen(true)}
+                unreadNotificationCount={0}
+                onToggleFullscreen={handleToggleFullscreen}
+                isFullscreen={isFullscreen}
+                onSelectMode={handleSelectMode}
+                onToggleVoiceListen={toggleVoiceListening}
+                isVoiceListening={isVoiceListening}
+                isDesktop={false}
+                onOpenOnboardingTour={() => setIsOnboardingTourOpen(true)}
+              />
+            )}
+
+            {/* Floating Persistent Quick Note Input in Haevy Portal */}
+            <FloatingQuickNoteWidget
+              onNavigateToAI={(prompt, subTab) => {
+                if (prompt) setAiInitialPrompt(prompt);
+                if (subTab) setHaevyAISubTab(subTab as any);
+                handleSelectMode('haevy_ai', subTab || 'chat');
+              }}
+            />
+
+            {/* Step-by-Step Interactive Spotlight Onboarding Walkthrough */}
+            <HaevyPortalOnboardingTour
+              isOpen={isOnboardingTourOpen}
+              onClose={() => setIsOnboardingTourOpen(false)}
               onToggleVoiceListen={toggleVoiceListening}
               isVoiceListening={isVoiceListening}
+              onSimulateVoiceCommand={(cmd) => {
+                triggerShortcutHUD(
+                  `🎙️ Giọng nói AI: "${cmd}"`,
+                  'Đã nhận diện lệnh mẫu · Kích hoạt không gian thính giác 24-bit'
+                );
+                if (tracks.length > 0 && !isPlaying) {
+                  handlePlayTrack(tracks[0]);
+                }
+              }}
+              onTriggerDemoAction={(stepId: OnboardingStepId) => {
+                if (stepId === 'living-portrait') {
+                  window.dispatchEvent(new CustomEvent('haevy-onboarding-demo-portrait'));
+                  triggerShortcutHUD(
+                    'Chân dung Sống động 3D',
+                    'Đã chuyển bối cảnh & phát hợp âm tần số Chiaroscuro'
+                  );
+                } else if (stepId === 'floating-dock') {
+                  window.dispatchEvent(new CustomEvent('haevy-onboarding-demo-dock'));
+                  triggerShortcutHUD(
+                    'Floating Dock Thông minh',
+                    'Đã chuyển đổi chế độ Thu gọn / Mở rộng (Phím tắt Alt + M)'
+                  );
+                } else if (stepId === 'ecosystem-bento') {
+                  window.dispatchEvent(new CustomEvent('haevy-onboarding-demo-bento'));
+                  triggerShortcutHUD(
+                    'Kiến trúc 12 Phân hệ',
+                    'Đã chuyển bộ lọc nhóm không gian chuyên biệt'
+                  );
+                } else if (stepId === 'floating-widgets') {
+                  window.dispatchEvent(new CustomEvent('haevy-onboarding-demo-quicknote'));
+                  triggerShortcutHUD(
+                    'Sổ tay Ghi chú Nhanh & AI Nổi',
+                    'Đã bật khung ghi chú tức thì ở góc dưới màn hình'
+                  );
+                }
+              }}
             />
           </motion.main>
         ) : currentMode === 'space' ? (
@@ -848,44 +1247,54 @@ function MainApp() {
             data-no-swipe="true"
           >
             <div className="w-full max-w-full h-full flex flex-col no-swipe overflow-x-hidden touch-pan-y overscroll-x-none" data-no-swipe="true">
-              <HaevyMorningView
-                allTracks={tracks}
-                currentTrack={currentTrack}
-                isPlayingTrack={isPlaying}
-                onPlayTrack={handlePlayTrack}
-                onToggleTrackPlay={handleTogglePlay}
-                onOpenAuth={() => handleOpenAuth('signin')}
-                onGoToAudioHome={() => setCurrentMode('audio')}
-                onShareToCommunity={() => setCurrentMode('messages')}
-                onOpenEcosystemDrawer={() => setIsModeSwitcherOpen(true)}
-                onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
-                onOpenNotifications={() => setIsNotificationsOpen(true)}
-                onToggleFullscreen={handleToggleFullscreen}
-                isFullscreen={isFullscreen}
-                onSelectMode={handleSelectMode}
-                activeSubTab={spaceSubTab}
-              />
+              <React.Suspense fallback={<SubsystemLoadingFallback subsystemName="Haevy Space 3D" subtitle="Đang nạp không gian 3D AR & Three.js..." />}>
+                <HaevyMorningView
+                  allTracks={tracks}
+                  currentTrack={currentTrack}
+                  isPlayingTrack={isPlaying}
+                  onPlayTrack={handlePlayTrack}
+                  onToggleTrackPlay={handleTogglePlay}
+                  onOpenAuth={() => handleOpenAuth('signin')}
+                  onGoToAudioHome={() => setCurrentMode('audio')}
+                  onShareToCommunity={() => setCurrentMode('messages')}
+                  onOpenEcosystemDrawer={() => setIsModeSwitcherOpen(true)}
+                  onOpenInstallPwa={() => setIsInstallPwaOpen(true)}
+                  onOpenNotifications={() => setIsNotificationsOpen(true)}
+                  onToggleFullscreen={handleToggleFullscreen}
+                  isFullscreen={isFullscreen}
+                  onSelectMode={handleSelectMode}
+                  activeSubTab={spaceSubTab}
+                />
+              </React.Suspense>
             </div>
           </motion.main>
         ) : currentMode === 'haevy_ai' ? (
           <motion.main
             key="mode-haevy_ai"
             {...getSwipeMotionProps()}
-            className="w-full h-[100dvh] flex flex-col items-center flex-1 p-0 m-0 overflow-hidden"
+            className="w-full flex-1 flex flex-col items-center p-0 m-0 overflow-hidden"
           >
-            <HaevyAIHubView
-              onBackToPortal={() => setCurrentMode('portal')}
-              onSelectMode={handleSelectMode}
-              onSelectTab={(tab) => setActiveTab(tab as any)}
-              onOpenAuth={() => handleOpenAuth('signin')}
-              activeSubTab={haevyAISubTab}
-              onSelectSubTab={setHaevyAISubTab}
-              onPlayTrack={handlePlayTrack}
-              onOpenEcosystemDrawer={() => setIsModeSwitcherOpen(true)}
-              onOpenNotifications={() => setIsNotificationsOpen(true)}
-              initialPrompt={aiInitialPrompt || undefined}
-              onClearInitialPrompt={() => setAiInitialPrompt(null)}
-            />
+            <React.Suspense fallback={
+              <SubsystemLoadingFallback
+                subsystemName="Haevy AI Super Hub"
+                subtitle="Đang khởi tạo Gemini AI, trợ lý học tập & trung tâm tri thức..."
+                icon={<BrainCircuit size={26} className="text-amber-400 animate-pulse" />}
+              />
+            }>
+              <HaevyAIHubView
+                onBackToPortal={() => setCurrentMode('portal')}
+                onSelectMode={handleSelectMode}
+                onSelectTab={(tab) => setActiveTab(tab as any)}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                activeSubTab={haevyAISubTab}
+                onSelectSubTab={setHaevyAISubTab}
+                onPlayTrack={handlePlayTrack}
+                onOpenEcosystemDrawer={() => setIsModeSwitcherOpen(true)}
+                onOpenNotifications={() => setIsNotificationsOpen(true)}
+                initialPrompt={aiInitialPrompt || undefined}
+                onClearInitialPrompt={() => setAiInitialPrompt(null)}
+              />
+            </React.Suspense>
           </motion.main>
         ) : (
           <motion.div
@@ -896,28 +1305,60 @@ function MainApp() {
             transition={{ duration: 0.2 }}
             className="w-full flex-1 flex flex-row items-start justify-center max-w-[1700px] mx-auto px-0 lg:px-4"
           >
-            {/* Desktop Intuitive Pro Sidebar */}
-            <DesktopSidebar
-              currentMode={currentMode as EcosystemMode}
-              onSelectMode={(mode, initialTab) => {
-                handleSelectMode(mode);
-                if (initialTab) setActiveTab(initialTab);
-              }}
-              activeTab={activeTab}
-              onSelectTab={setActiveTab}
-              onOpenAuth={() => handleOpenAuth('signin')}
-              onOpenAnonPass={() => {}}
-              onOpenStudioAudio={() => handleSelectMode('studio')}
-              onOpenVipHub={() => handleSelectMode('vip')}
-              allTracks={tracks}
-              currentTrack={currentTrack}
-              isPlaying={isPlaying}
-              onPlayTrack={handlePlayTrack}
-              onTogglePlay={handleTogglePlay}
-            />
+            {/* Desktop Intuitive Pro Sidebar (Rendered exclusively for Desktop platform) */}
+            {isDesktop && (
+              <DesktopSidebar
+                currentMode={currentMode as EcosystemMode}
+                onSelectMode={(mode, initialTab) => {
+                  handleSelectMode(mode);
+                  if (initialTab) setActiveTab(initialTab);
+                }}
+                activeTab={activeTab}
+                onSelectTab={setActiveTab}
+                onOpenAuth={() => handleOpenAuth('signin')}
+                onOpenAnonPass={() => {}}
+                onOpenStudioAudio={() => handleSelectMode('studio')}
+                onOpenVipHub={() => handleSelectMode('vip')}
+                allTracks={tracks}
+                currentTrack={currentTrack}
+                isPlaying={isPlaying}
+                onPlayTrack={handlePlayTrack}
+                onTogglePlay={handleTogglePlay}
+                financeSubTab={financeSubTab}
+                onSelectFinanceSubTab={setFinanceSubTab}
+                eduSubTab={eduSubTab}
+                onSelectEduSubTab={setEduSubTab}
+                messageSubTab={messageSubTab}
+                onSelectMessageSubTab={setMessageSubTab}
+                coupleSubTab={coupleSubTab}
+                onSelectCoupleSubTab={setCoupleSubTab}
+                gamesSubTab={gamesSubTab}
+                onSelectGamesSubTab={setGamesSubTab}
+                haevyAISubTab={haevyAISubTab}
+                onSelectHaevyAISubTab={setHaevyAISubTab}
+                familyTreeSubTab={familyTreeSubTab as any}
+                onSelectFamilyTreeSubTab={(sub) => setFamilyTreeSubTab(sub as any)}
+                spiritualSubTab={spiritualSubTab as any}
+                onSelectSpiritualSubTab={(sub) => setSpiritualSubTab(sub as any)}
+                haevyLiteSubTab={haevyLiteSubTab}
+                onSelectHaevyLiteSubTab={setHaevyLiteSubTab}
+                adminSubTab={adminSubTab}
+                onSelectAdminSubTab={setAdminSubTab}
+                studioSubTab={studioSubTab}
+                onSelectStudioSubTab={setStudioSubTab}
+                mapsSubTab={mapsSubTab}
+                onSelectMapsSubTab={setMapsSubTab}
+                internetSubTab={internetSubTab}
+                onSelectInternetSubTab={setInternetSubTab}
+                spaceSubTab={spaceSubTab}
+                onSelectSpaceSubTab={setSpaceSubTab}
+                vipSubTab={vipSubTab}
+                onSelectVipSubTab={setVipSubTab}
+              />
+            )}
 
             {/* Main Content Area for Desktop & Mobile with Smooth Mode Transitions */}
-            <main className="w-full flex flex-col items-center flex-1 min-w-0">
+            <main className={`w-full flex flex-col items-center flex-1 min-w-0 ${currentTrack ? 'pb-44 sm:pb-36' : 'pb-36 sm:pb-28'}`}>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={currentMode}
@@ -1045,189 +1486,330 @@ function MainApp() {
                   {/* 3. Haevy Message */}
                   {currentMode === 'messages' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <MessagesFriendsView
-                        tracks={tracks}
-                        currentTrack={currentTrack}
-                        onPlayTrack={handlePlayTrack}
-                        onOpenAuth={() => handleOpenAuth('signin')}
-                        activeSubTab={messageSubTab}
-                        onSelectSubTab={setMessageSubTab}
-                        onNavigateToMode={handleNavigateToMode}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Message & Bạn Bè"
+                          subtitle="Đang kết nối danh bạ cộng đồng & tin nhắn..."
+                          icon={<MessageSquare size={26} className="text-pink-400 animate-pulse" />}
+                        />
+                      }>
+                        <MessagesFriendsView
+                          tracks={tracks}
+                          currentTrack={currentTrack}
+                          onPlayTrack={handlePlayTrack}
+                          onOpenAuth={() => handleOpenAuth('signin')}
+                          activeSubTab={messageSubTab}
+                          onSelectSubTab={setMessageSubTab}
+                          onNavigateToMode={handleNavigateToMode}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 4. Haevy Studio */}
                   {currentMode === 'studio' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <HaevyStudioView
-                        activeSubTab={studioSubTab}
-                        onSelectSubTab={setStudioSubTab}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Studio"
+                          subtitle="Đang mở phòng thu & studio xuất bản âm nhạc..."
+                          icon={<Sparkles size={26} className="text-amber-400" />}
+                        />
+                      }>
+                        <HaevyStudioView
+                          activeSubTab={studioSubTab}
+                          onSelectSubTab={setStudioSubTab}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 5. Haevy Finance */}
                   {currentMode === 'finance' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <FinanceView
-                        currentUserId={user?.uid}
-                        isVip={isVip}
-                        onUpgradeVip={() => setCurrentMode('vip')}
-                        activePage={financeSubTab}
-                        onSelectPage={setFinanceSubTab}
-                        initialPage2SubTab={financePage2SubTab}
-                        openWalletsTrigger={openWalletsTrigger}
-                        openAddTransactionTrigger={openAddTransactionTrigger}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Finance"
+                          subtitle="Đang đồng bộ hóa ví ngân sách & quản lý chi tiêu..."
+                          icon={<Wallet size={26} className="text-emerald-400" />}
+                        />
+                      }>
+                        <FinanceView
+                          currentUserId={user?.uid}
+                          isVip={isVip}
+                          onUpgradeVip={() => setCurrentMode('vip')}
+                          activePage={financeSubTab}
+                          onSelectPage={setFinanceSubTab}
+                          initialPage2SubTab={financePage2SubTab}
+                          openWalletsTrigger={openWalletsTrigger}
+                          openAddTransactionTrigger={openAddTransactionTrigger}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 6. Haevy Admin */}
                   {currentMode === 'admin' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <AdminDashboardView
-                        allTracks={tracks}
-                        onPlayTrack={handlePlayTrack}
-                        onBackToHome={() => setCurrentMode('portal')}
-                        onOpenAuth={() => handleOpenAuth('signin')}
-                        adminSubTab={adminSubTab}
-                        onSelectAdminSubTab={setAdminSubTab}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Admin Dashboard"
+                          subtitle="Đang tải bảng điều khiển quản trị hệ thống..."
+                          icon={<ShieldCheck size={26} className="text-amber-400" />}
+                        />
+                      }>
+                        <AdminDashboardView
+                          allTracks={tracks}
+                          onPlayTrack={handlePlayTrack}
+                          onBackToHome={() => setCurrentMode('portal')}
+                          onOpenAuth={() => handleOpenAuth('signin')}
+                          adminSubTab={adminSubTab}
+                          onSelectAdminSubTab={setAdminSubTab}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 7. I Love Haevy */}
                   {currentMode === 'couple' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <CoupleRomanceView
-                        tracks={tracks}
-                        currentTrack={currentTrack}
-                        onPlayTrack={handlePlayTrack}
-                        onOpenAuth={() => handleOpenAuth('signin')}
-                        activePage={coupleSubTab}
-                        onSelectPage={setCoupleSubTab}
-                        onNavigateToMode={handleNavigateToMode}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="I Love Haevy (Couple Romance)"
+                          subtitle="Đang kết nối không gian tình yêu & kỷ niệm đôi lứa..."
+                          icon={<Heart size={26} className="text-rose-400 fill-rose-400 animate-pulse" />}
+                        />
+                      }>
+                        <CoupleRomanceView
+                          tracks={tracks}
+                          currentTrack={currentTrack}
+                          onPlayTrack={handlePlayTrack}
+                          onOpenAuth={() => handleOpenAuth('signin')}
+                          activePage={coupleSubTab}
+                          onSelectPage={setCoupleSubTab}
+                          onNavigateToMode={handleNavigateToMode}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 8. Haevy VIP */}
                   {currentMode === 'vip' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <VipTopupView
-                        onOpenAuth={() => handleOpenAuth('signin')}
-                        onGoToProfile={() => setCurrentMode('profile')}
-                        activePage={vipSubTab}
-                        onSelectPage={setVipSubTab}
-                        onNavigateMode={handleNavigateToMode}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy VIP Hub"
+                          subtitle="Đang nạp cổng nạp sao & đặc quyền thành viên VIP..."
+                          icon={<Crown size={26} className="text-amber-400 animate-bounce" />}
+                        />
+                      }>
+                        <VipTopupView
+                          onOpenAuth={() => handleOpenAuth('signin')}
+                          onGoToProfile={() => setCurrentMode('profile')}
+                          activePage={vipSubTab}
+                          onSelectPage={setVipSubTab}
+                          onNavigateMode={handleNavigateToMode}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 9. Haevy Support */}
                   {currentMode === 'support' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <HaevySupportView
-                        onBackToPortal={() => setCurrentMode('portal')}
-                        onOpenAuth={() => handleOpenAuth('signin')}
-                        onSelectMode={handleSelectMode}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Support Center"
+                          subtitle="Đang tải cổng hỗ trợ kỹ thuật & hướng dẫn..."
+                          icon={<LifeBuoy size={26} className="text-sky-400" />}
+                        />
+                      }>
+                        <HaevySupportView
+                          onBackToPortal={() => setCurrentMode('portal')}
+                          onOpenAuth={() => handleOpenAuth('signin')}
+                          onSelectMode={handleSelectMode}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 10. Haevy Spiritual (Tarot, Tử Vi, Chiêm Tinh, Sóng Âm Solfeggio) */}
                   {currentMode === 'spiritual' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <HaevySpiritualView
-                        initialSubTab={spiritualSubTab}
-                        onSubTabChange={(tab) => setSpiritualSubTab(tab as any)}
-                        onNavigateToMode={handleNavigateToMode}
-                        onEarnCoins={(amount, reason) => {
-                          if (addAudioPoints) {
-                            addAudioPoints(amount, reason, 'bonus');
-                          }
-                        }}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Spiritual Universe"
+                          subtitle="Đang kết nối trường năng lượng Tarot, Tử Vi & sóng Solfeggio..."
+                          icon={<Moon size={26} className="text-purple-400 animate-pulse" />}
+                        />
+                      }>
+                        <HaevySpiritualView
+                          initialSubTab={spiritualSubTab}
+                          onSubTabChange={(tab) => setSpiritualSubTab(tab as any)}
+                          onNavigateToMode={handleNavigateToMode}
+                          onEarnCoins={(amount, reason) => {
+                            if (addAudioPoints) {
+                              addAudioPoints(amount, reason, 'bonus');
+                            }
+                          }}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 11. Haevy Family Tree (Gia Phả Dòng Họ & Sơ Đồ Cây Tương Tác) */}
                   {currentMode === 'family_tree' && (
                     <div className="w-full max-w-7xl px-0 sm:px-4 py-2 pb-36">
-                      <HaevyFamilyTreeView
-                        onBackToPortal={() => setCurrentMode('portal')}
-                        tracks={tracks}
-                        onPlayTrack={handlePlayTrack}
-                        onNavigateToMode={handleNavigateToMode}
-                        activeTabControlled={familyTreeSubTab}
-                        onTabChange={(tab) => setFamilyTreeSubTab(tab)}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Family Tree (Gia Phả Dòng Họ)"
+                          subtitle="Đang tải sơ đồ cây phả hệ, AI Phả Tuệ & dữ liệu gia tộc..."
+                          icon={<GitFork size={26} className="text-amber-400 animate-pulse" />}
+                        />
+                      }>
+                        <HaevyFamilyTreeView
+                          onBackToPortal={() => setCurrentMode('portal')}
+                          tracks={tracks}
+                          onPlayTrack={handlePlayTrack}
+                          onNavigateToMode={handleNavigateToMode}
+                          activeTabControlled={familyTreeSubTab}
+                          onTabChange={(tab) => setFamilyTreeSubTab(tab)}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 12. Haevy Lite Coins & Cosmic Theme Bundle Hub */}
                   {currentMode === 'haevy_lite' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <HaevyLiteHubView
-                        activeTabControlled={haevyLiteSubTab}
-                        onTabChange={setHaevyLiteSubTab}
-                        onBackToPortal={() => setCurrentMode('portal')}
-                        onGoToProfile={() => setCurrentMode('profile')}
-                        onOpenAuth={() => handleOpenAuth('signin')}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Lite Hub"
+                          subtitle="Đang tải bộ sưu tập giao diện & vũ trụ ngân hà..."
+                          icon={<Coins size={26} className="text-amber-400" />}
+                        />
+                      }>
+                        <HaevyLiteHubView
+                          activeTabControlled={haevyLiteSubTab}
+                          onTabChange={setHaevyLiteSubTab}
+                          onBackToPortal={() => setCurrentMode('portal')}
+                          onGoToProfile={() => setCurrentMode('profile')}
+                          onOpenAuth={() => handleOpenAuth('signin')}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 13. Haevy Games (Đấu Trường Mini-Game Âm Nhạc & Bài Hát) */}
                   {currentMode === 'games' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <HaevyGamesView
-                        activeSubTab={gamesSubTab}
-                        onSelectSubTab={setGamesSubTab}
-                        onOpenAuth={() => handleOpenAuth('signin')}
-                        onOpenVipHub={() => handleSelectMode('vip')}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Games Arena"
+                          subtitle="Đang nạp đấu trường âm nhạc & minigames giải trí..."
+                          icon={<Gamepad2 size={26} className="text-violet-400 animate-pulse" />}
+                        />
+                      }>
+                        <HaevyGamesView
+                          activeSubTab={gamesSubTab}
+                          onSelectSubTab={setGamesSubTab}
+                          onOpenAuth={() => handleOpenAuth('signin')}
+                          onOpenVipHub={() => handleSelectMode('vip')}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 14. Haevy Edu (Phòng Lab STEM & Lộ Trình First Principles) */}
                   {currentMode === 'edu' && (
                     <div className="w-full max-w-7xl px-0 sm:px-4 py-2 pb-36 no-swipe touch-pan-y" data-no-swipe="true">
-                      <HaevyEduView
-                        onBackToLanding={() => setCurrentMode('portal')}
-                        activeTabControlled={eduSubTab}
-                        onTabChange={setEduSubTab}
-                        onOpenHaevyAi={() => setCurrentMode('haevy_ai')}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Edu & STEM Lab"
+                          subtitle="Đang tải phòng thí nghiệm mô phỏng 3D & âm thanh tập trung..."
+                          icon={<GraduationCap size={26} className="text-amber-400" />}
+                        />
+                      }>
+                        <HaevyEduView
+                          onBackToLanding={() => setCurrentMode('portal')}
+                          activeTabControlled={eduSubTab}
+                          onTabChange={setEduSubTab}
+                          onOpenHaevyAi={() => setCurrentMode('haevy_ai')}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* 15. Haevy Maps (Bản Đồ Định Vị Gia Đình & Bạn Đời) */}
                   {currentMode === 'maps' && (
                     <div className="w-full max-w-7xl px-0 sm:px-4 py-2 pb-32 no-swipe" data-no-swipe="true">
-                      <HaevyMapsView />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Maps"
+                          subtitle="Đang nạp định vị GPS & bản đồ tương tác gia đình..."
+                          icon={<MapPin size={26} className="text-emerald-400 animate-bounce" />}
+                        />
+                      }>
+                        <HaevyMapsView
+                          activeCategoryControlled={mapsSubTab}
+                          onCategoryChange={(cat) => setMapsSubTab(cat)}
+                          onBackToPortal={() => setCurrentMode('portal')}
+                        />
+                      </React.Suspense>
+                    </div>
+                  )}
+
+                  {/* 16. Haevy Internet (Trình Duyệt Web & AI Reader Tách Từ Haevy AI) */}
+                  {currentMode === 'internet' && (
+                    <div className="w-full max-w-7xl px-0 sm:px-4 py-2 pb-32 no-swipe" data-no-swipe="true">
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Haevy Internet"
+                          subtitle="Đang nạp trình duyệt web an toàn & AI Reader..."
+                          icon={<Globe size={26} className="text-teal-400" />}
+                        />
+                      }>
+                        <HaevyInternetView
+                          initialSubTab={internetSubTab}
+                          onSubTabChange={setInternetSubTab}
+                          onBackToPortal={() => setCurrentMode('portal')}
+                          onOpenAuth={() => handleOpenAuth('signin')}
+                          onNavigateToMode={(mode, tab) => handleSelectMode(mode as EcosystemMode, tab as any)}
+                          onAskAIAboutPage={(title, url, content) => {
+                            setAiInitialPrompt(`Phân tích và tóm tắt chi tiết trang web sau:\nTiêu đề: ${title}\nURL: ${url}\nNội dung:\n${content.slice(0, 3000)}`);
+                            handleSelectMode('haevy_ai');
+                          }}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
 
                   {/* User Profile subview */}
                   {currentMode === 'profile' && (
                     <div className="w-full max-w-7xl px-3 sm:px-6 py-4 pb-36">
-                      <UserProfileView
-                        initialTab={profileSubTab}
-                        onOpenAuth={(tab) => handleOpenAuth(tab || 'signin')}
-                        onGoToTopup={() => setCurrentMode('vip')}
-                        onGoToHome={() => setCurrentMode('portal')}
-                        onGoToAudio={() => setCurrentMode('audio')}
-                        tracks={tracks}
-                        onPlayTrack={handlePlayTrack}
-                        onTogglePlay={() => setIsPlaying(!isPlaying)}
-                        currentTrack={currentTrack}
-                        isPlaying={isPlaying}
-                        onOpenAuthorStudio={() => handleSelectMode('studio')}
-                        onOpenAdmin={() => setCurrentMode('admin')}
-                        onGoToHaevyLite={() => handleSelectMode('haevy_lite')}
-                      />
+                      <React.Suspense fallback={
+                        <SubsystemLoadingFallback
+                          subsystemName="Hồ Sơ Cá Nhân"
+                          subtitle="Đang nạp thông tin người dùng & đặc quyền cấp bậc..."
+                          icon={<UserIcon size={26} className="text-amber-400" />}
+                        />
+                      }>
+                        <UserProfileView
+                          initialTab={profileSubTab}
+                          onOpenAuth={(tab) => handleOpenAuth(tab || 'signin')}
+                          onGoToTopup={() => setCurrentMode('vip')}
+                          onGoToHome={() => setCurrentMode('portal')}
+                          onGoToAudio={() => setCurrentMode('audio')}
+                          tracks={tracks}
+                          onPlayTrack={handlePlayTrack}
+                          onTogglePlay={() => setIsPlaying(!isPlaying)}
+                          currentTrack={currentTrack}
+                          isPlaying={isPlaying}
+                          onOpenAuthorStudio={() => handleSelectMode('studio')}
+                          onOpenAdmin={() => setCurrentMode('admin')}
+                          onGoToHaevyLite={() => handleSelectMode('haevy_lite')}
+                        />
+                      </React.Suspense>
                     </div>
                   )}
                 </motion.div>
@@ -1257,8 +1839,12 @@ function MainApp() {
         />
       )}
 
-      {/* Consolidated Bottom Taskbar with Docked Subtabs & Mini Player for All Modes (Excluding Portal & Space) */}
-      {currentMode !== 'portal' && currentMode !== 'space' && activeTab !== 'player' && !isUserMenuOpen && (
+      {/* ========================================================================= */}
+      {/* DEDICATED PLATFORM BOTTOM BARS (MOBILE DOCKED TASKBAR vs DESKTOP PRO PLAYER) */}
+      {/* ========================================================================= */}
+
+      {/* MOBILE ONLY: Consolidated Bottom Taskbar with Docked Subtabs & Mini Player */}
+      {isMobile && currentMode !== 'portal' && currentMode !== 'space' && activeTab !== 'player' && !isUserMenuOpen && (
         <BottomTaskbar
           currentMode={currentMode as EcosystemMode}
           onSelectMode={(mode, initialTab) => {
@@ -1292,6 +1878,10 @@ function MainApp() {
           onSelectProfileSubTab={setProfileSubTab}
           eduSubTab={eduSubTab}
           onSelectEduSubTab={setEduSubTab}
+          mapsSubTab={mapsSubTab}
+          onSelectMapsSubTab={setMapsSubTab}
+          internetSubTab={internetSubTab}
+          onSelectInternetSubTab={setInternetSubTab}
           spaceSubTab={spaceSubTab}
           onSelectSpaceSubTab={setSpaceSubTab}
           gamesSubTab={gamesSubTab}
@@ -1329,35 +1919,100 @@ function MainApp() {
         />
       )}
 
+      {/* DESKTOP ONLY: Pro Hi-Fi Media Bar (Docked at bottom of wide screen when track is active) */}
+      {isDesktop && currentMode !== 'space' && activeTab !== 'player' && currentTrack && (
+        <DesktopPlayerDock
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          volume={volume}
+          isMuted={isMuted}
+          onTogglePlay={handleTogglePlay}
+          onPlayNext={() => {
+            const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+            if (idx !== -1 && idx < tracks.length - 1) handlePlayTrack(tracks[idx + 1]);
+          }}
+          onPlayPrev={() => {
+            const idx = tracks.findIndex(t => t.id === currentTrack?.id);
+            if (idx > 0) handlePlayTrack(tracks[idx - 1]);
+          }}
+          onSeek={(val) => setProgress(val)}
+          onVolumeChange={(val) => setVolume(val)}
+          onToggleMute={() => setIsMuted(!isMuted)}
+          onOpenFullPlayer={() => setActiveTab('player')}
+          onCloseTrack={() => {
+            setCurrentTrack(null);
+            setIsPlaying(false);
+          }}
+          shuffleMode={shuffleMode}
+          repeatMode={repeatMode}
+          onToggleShuffle={() => setShuffleMode(s => s === 'smart_shuffle' ? 'shuffle' : s === 'shuffle' ? 'off' : 'smart_shuffle')}
+          onToggleRepeat={() => setRepeatMode(r => r === 'off' ? 'all' : r === 'all' ? 'one' : 'off')}
+        />
+      )}
+
+      {/* Universal Google Omnibar Modal (Accessible by both Desktop & Mobile) */}
+      {isOmnibarOpen && (
+        <React.Suspense fallback={null}>
+          <GoogleOmnibarModal
+            isOpen={isOmnibarOpen}
+            onClose={() => setIsOmnibarOpen(false)}
+            tracks={tracks}
+            onPlayTrack={handlePlayTrack}
+            onSelectMode={(mode, initialTab) => {
+              setIsOmnibarOpen(false);
+              handleSelectMode(mode, initialTab as string);
+            }}
+            onSelectTab={(tab) => {
+              setIsOmnibarOpen(false);
+              setActiveTab(tab);
+            }}
+          />
+        </React.Suspense>
+      )}
+
       {/* Global Notifications Modal */}
-      <NotificationsModal
-        isOpen={isNotificationsOpen}
-        onClose={() => setIsNotificationsOpen(false)}
-        onSelectTab={() => {}}
-        onSelectMode={(mode, initialTab) => {
-          setIsNotificationsOpen(false);
-          handleSelectMode(mode, initialTab as string);
-        }}
-        onOpenChatWithUser={() => {
-          setIsNotificationsOpen(false);
-          setCurrentMode('messages');
-        }}
-      />
+      {isNotificationsOpen && (
+        <React.Suspense fallback={null}>
+          <NotificationsModal
+            isOpen={isNotificationsOpen}
+            onClose={() => setIsNotificationsOpen(false)}
+            onSelectTab={() => {}}
+            onSelectMode={(mode, initialTab) => {
+              setIsNotificationsOpen(false);
+              handleSelectMode(mode, initialTab as string);
+            }}
+            onOpenChatWithUser={() => {
+              setIsNotificationsOpen(false);
+              setCurrentMode('messages');
+            }}
+          />
+        </React.Suspense>
+      )}
 
       {/* Install PWA Fullscreen Modal */}
-      <InstallPwaModal
-        isOpen={isInstallPwaOpen}
-        onClose={() => setIsInstallPwaOpen(false)}
-        onToggleFullscreen={handleToggleFullscreen}
-        isFullscreen={isFullscreen}
-      />
+      {isInstallPwaOpen && (
+        <React.Suspense fallback={null}>
+          <InstallPwaModal
+            isOpen={isInstallPwaOpen}
+            onClose={() => setIsInstallPwaOpen(false)}
+            onToggleFullscreen={handleToggleFullscreen}
+            isFullscreen={isFullscreen}
+          />
+        </React.Suspense>
+      )}
 
       {/* Global Keyboard Shortcuts Cheat Sheet Modal */}
-      <HaevyShortcutsModal
-        isOpen={isShortcutsModalOpen}
-        onClose={() => setIsShortcutsModalOpen(false)}
-        onSelectShortcutAction={handleShortcutAction}
-      />
+      {isShortcutsModalOpen && (
+        <React.Suspense fallback={null}>
+          <HaevyShortcutsModal
+            isOpen={isShortcutsModalOpen}
+            onClose={() => setIsShortcutsModalOpen(false)}
+            onSelectShortcutAction={handleShortcutAction}
+          />
+        </React.Suspense>
+      )}
 
       {/* Universal Voice-Controlled Ecosystem Navigation HUD with Vocal Tone Detection & Smart Recommendations */}
       <HaevyVoiceNavigationHUD
@@ -1395,10 +2050,10 @@ function MainApp() {
         </div>
       )}
 
-      {/* Global Quick Shortcut Pill Button (Bottom right floating) */}
+      {/* Global Quick Shortcut Pill Button (Desktop bottom left to avoid clashing with AI floating widget) */}
       <button
         onClick={() => setIsShortcutsModalOpen(true)}
-        className="fixed bottom-24 sm:bottom-28 right-4 z-40 hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-950/80 hover:bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800/80 hover:border-purple-500/40 backdrop-blur-md shadow-lg text-[11px] font-bold transition-all cursor-pointer group"
+        className="fixed bottom-4 left-6 z-30 hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-950/85 hover:bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800/80 hover:border-purple-500/40 backdrop-blur-md shadow-lg text-[11px] font-bold transition-all cursor-pointer group"
         title="Bấm ? hoặc click để xem bảng phím tắt toàn cục"
       >
         <Keyboard size={13} className="text-purple-400 group-hover:scale-110 transition-transform" />
@@ -1407,48 +2062,66 @@ function MainApp() {
       </button>
 
       {/* Auth Modal */}
-      <AuthModal 
-        isOpen={isAuthOpen} 
-        initialTab={authInitialTab}
-        onClose={() => setIsAuthOpen(false)} 
-        onSelectMode={handleSelectMode}
-      />
+      {isAuthOpen && (
+        <React.Suspense fallback={null}>
+          <AuthModal 
+            isOpen={isAuthOpen} 
+            initialTab={authInitialTab}
+            onClose={() => setIsAuthOpen(false)} 
+            onSelectMode={handleSelectMode}
+          />
+        </React.Suspense>
+      )}
 
       {/* Haevy Mood Engine Modal */}
-      <HaevyMoodModal
-        isOpen={isMoodModalOpen}
-        onClose={() => setIsMoodModalOpen(false)}
-      />
+      {isMoodModalOpen && (
+        <React.Suspense fallback={null}>
+          <HaevyMoodModal
+            isOpen={isMoodModalOpen}
+            onClose={() => setIsMoodModalOpen(false)}
+          />
+        </React.Suspense>
+      )}
 
       {/* User Level & EXP Privileges Modal */}
-      <UserLevelPrivilegesModal
-        isOpen={isLevelModalOpen}
-        onClose={() => setIsLevelModalOpen(false)}
-        onNavigateMode={(mode, tab) => handleSelectMode(mode as any, tab)}
-        onOpenGiftShop={() => {
-          setSelectedGiftAuthor(undefined);
-          setIsGiftShopOpen(true);
-        }}
-      />
+      {isLevelModalOpen && (
+        <React.Suspense fallback={null}>
+          <UserLevelPrivilegesModal
+            isOpen={isLevelModalOpen}
+            onClose={() => setIsLevelModalOpen(false)}
+            onNavigateMode={(mode, tab) => handleSelectMode(mode as any, tab)}
+            onOpenGiftShop={() => {
+              setSelectedGiftAuthor(undefined);
+              setIsGiftShopOpen(true);
+            }}
+          />
+        </React.Suspense>
+      )}
 
       {/* User Level Up Celebratory Notification Modal */}
-      <UserLevelUpNotificationModal
-        onOpenLevelCenter={() => setIsLevelModalOpen(true)}
-      />
+      <React.Suspense fallback={null}>
+        <UserLevelUpNotificationModal
+          onOpenLevelCenter={() => setIsLevelModalOpen(true)}
+        />
+      </React.Suspense>
 
       {/* Author Gift Shop Modal */}
-      <AuthorGiftShopModal
-        isOpen={isGiftShopOpen}
-        onClose={() => setIsGiftShopOpen(false)}
-        onOpenAuth={() => handleOpenAuth('signin')}
-        onGoToTopup={() => {
-          setIsGiftShopOpen(false);
-          handleSelectMode('vip');
-        }}
-        currentTrack={currentTrack || undefined}
-        allTracks={tracks}
-        preselectedAuthor={selectedGiftAuthor}
-      />
+      {isGiftShopOpen && (
+        <React.Suspense fallback={null}>
+          <AuthorGiftShopModal
+            isOpen={isGiftShopOpen}
+            onClose={() => setIsGiftShopOpen(false)}
+            onOpenAuth={() => handleOpenAuth('signin')}
+            onGoToTopup={() => {
+              setIsGiftShopOpen(false);
+              handleSelectMode('vip');
+            }}
+            currentTrack={currentTrack || undefined}
+            allTracks={tracks}
+            preselectedAuthor={selectedGiftAuthor}
+          />
+        </React.Suspense>
+      )}
 
     </div>
   );
@@ -1458,15 +2131,17 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
-          <ModeBadgeProvider>
-            <HaevyMoodProvider>
-              <GiftEffectProvider>
-                <MainApp />
-              </GiftEffectProvider>
-            </HaevyMoodProvider>
-          </ModeBadgeProvider>
-        </AuthProvider>
+        <DisplayScaleProvider>
+          <AuthProvider>
+            <ModeBadgeProvider>
+              <HaevyMoodProvider>
+                <GiftEffectProvider>
+                  <MainApp />
+                </GiftEffectProvider>
+              </HaevyMoodProvider>
+            </ModeBadgeProvider>
+          </AuthProvider>
+        </DisplayScaleProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

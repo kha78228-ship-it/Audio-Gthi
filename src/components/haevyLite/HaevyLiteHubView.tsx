@@ -70,14 +70,17 @@ import { ProfileEntranceFX } from './ProfileEntranceFX';
 import { Watch30sAdModal } from './Watch30sAdModal';
 import { HaevyLiteCustomizerPanel } from './HaevyLiteCustomizerPanel';
 import { HaevyLiteTopupPanel } from './HaevyLiteTopupPanel';
+import { HaevyLiteDailyRewardsPanel } from './HaevyLiteDailyRewardsModal';
+
+export type HaevyLiteTab = 'shop' | 'rewards' | 'customize' | 'topup_and_ads';
 
 interface HaevyLiteHubViewProps {
   onBackToPortal?: () => void;
   onGoToProfile?: () => void;
   onOpenAuth?: () => void;
-  initialTab?: 'topup_and_ads' | 'shop' | 'customize' | 'watch_ad' | 'topup';
-  activeTabControlled?: 'shop' | 'customize' | 'topup_and_ads';
-  onTabChange?: (tab: 'shop' | 'customize' | 'topup_and_ads') => void;
+  initialTab?: 'topup_and_ads' | 'shop' | 'rewards' | 'customize' | 'watch_ad' | 'topup';
+  activeTabControlled?: HaevyLiteTab;
+  onTabChange?: (tab: HaevyLiteTab) => void;
 }
 
 export function HaevyLiteHubView({
@@ -106,16 +109,17 @@ export function HaevyLiteHubView({
     unequipHaevyLiteItem
   } = useAuth();
 
-  const [internalTab, setInternalTab] = useState<'shop' | 'customize' | 'topup_and_ads'>(() => {
+  const [internalTab, setInternalTab] = useState<HaevyLiteTab>(() => {
     if (activeTabControlled) return activeTabControlled;
     if (initialTab === 'customize') return 'customize';
+    if (initialTab === 'rewards') return 'rewards';
     if (initialTab === 'topup_and_ads' || initialTab === 'watch_ad' || initialTab === 'topup') return 'topup_and_ads';
     return 'shop';
   });
 
   const activeTab = activeTabControlled !== undefined ? activeTabControlled : internalTab;
 
-  const setActiveTab = (tab: 'shop' | 'customize' | 'topup_and_ads') => {
+  const setActiveTab = (tab: HaevyLiteTab) => {
     setInternalTab(tab);
     if (onTabChange) {
       onTabChange(tab);
@@ -126,15 +130,23 @@ export function HaevyLiteHubView({
   const [activeCategory, setActiveCategory] = useState<'all' | HaevyLiteItemCategory>('all');
   const [topupSubFilter, setTopupSubFilter] = useState<'all' | 'ads' | 'topup'>('all');
   const [previewAnimId, setPreviewAnimId] = useState<string | null>(null);
+  const [isQuickAdOpen, setIsQuickAdOpen] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Live Dressing Room (Phòng Thử Đồ) & Filter State
+  // Live Dressing Room (Phòng Thử Đồ) & Multi-Slot Mix-and-Match State
   const [tryOnItem, setTryOnItem] = useState<HaevyLiteShopItem | null>(null);
-  const [isDressingRoomOpen, setIsDressingRoomOpen] = useState(false);
+  const [tryOnComboMap, setTryOnComboMap] = useState<Partial<Record<HaevyLiteItemCategory, HaevyLiteShopItem>>>({});
+  const [isDressingRoomOpen, setIsDressingRoomOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<'featured' | 'price_asc' | 'price_desc' | 'name'>('featured');
   const [ownershipFilter, setOwnershipFilter] = useState<'all' | 'unlocked' | 'locked' | 'active'>('all');
+
+  const getPreviewItemId = (category: HaevyLiteItemCategory, currentActiveId?: string) => {
+    if (tryOnItem?.category === category) return tryOnItem.id;
+    if (tryOnComboMap[category]) return tryOnComboMap[category]!.id;
+    return currentActiveId;
+  };
 
   const isItemActive = (item: HaevyLiteShopItem) => {
     switch (item.category) {
@@ -185,6 +197,7 @@ export function HaevyLiteHubView({
           if (equipHaevyLiteItem) {
             await equipHaevyLiteItem(item.category, item.id);
           }
+          window.dispatchEvent(new CustomEvent('haevy:lite-equipment-updated', { detail: { category: item.category, itemId: item.id } }));
           setStatusMessage({ 
             type: 'success', 
             text: `✨ Chúc mừng bạn đã mở khóa thành công "${item.name}"! Vật phẩm đã được tự động kích hoạt vào tài khoản.` 
@@ -204,9 +217,11 @@ export function HaevyLiteHubView({
     try {
       if (equipHaevyLiteItem) {
         await equipHaevyLiteItem(item.category, item.id);
+        window.dispatchEvent(new CustomEvent('haevy:lite-equipment-updated', { detail: { category: item.category, itemId: item.id } }));
+        haptics?.success?.();
         setStatusMessage({
           type: 'success',
-          text: `Đã trang bị "${item.name}" thành công!`
+          text: `Đã trang bị "${item.name}" thành công và đồng bộ toàn hệ thống!`
         });
       }
     } catch (e: any) {
@@ -218,6 +233,8 @@ export function HaevyLiteHubView({
     try {
       if (unequipHaevyLiteItem) {
         await unequipHaevyLiteItem(category);
+        window.dispatchEvent(new CustomEvent('haevy:lite-equipment-updated', { detail: { category, itemId: 'none' } }));
+        haptics?.light?.();
         setStatusMessage({
           type: 'success',
           text: 'Đã gỡ bỏ trang bị thành công!'
@@ -276,6 +293,16 @@ export function HaevyLiteHubView({
             </div>
           </div>
 
+          <button
+            type="button"
+            onClick={() => setIsQuickAdOpen(true)}
+            className="px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-zinc-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer active:scale-95"
+            title="Xem 30s quảng cáo nhận ngay +50 Xu Lite"
+          >
+            <Tv size={15} />
+            <span>+50 Xu Free</span>
+          </button>
+
           {onGoToProfile && (
             <button
               onClick={onGoToProfile}
@@ -287,6 +314,39 @@ export function HaevyLiteHubView({
             </button>
           )}
         </div>
+      </div>
+
+      {/* Unified 4-Tab Navigation Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 rounded-2xl bg-zinc-950/90 border border-zinc-800 shadow-lg">
+        {[
+          { id: 'shop' as const, label: '1. Cửa Hàng Vật Phẩm', badge: `${HAEVY_LITE_SHOP_ITEMS.length}+`, icon: ShoppingBag },
+          { id: 'rewards' as const, label: '2. Điểm Danh & Vòng Quay', badge: 'FREE XU', icon: Gift },
+          { id: 'customize' as const, label: '3. Tủ Đồ & Phối Hiệu Ứng', badge: `${unlockedHaevyLiteItems.length} Đã Mở`, icon: SlidersHorizontal },
+          { id: 'topup_and_ads' as const, label: '4. Nạp QR & Xem QC 30s', badge: '+50 Xu', icon: Coins },
+        ].map((tabItem) => {
+          const IconComp = tabItem.icon;
+          const isSelected = activeTab === tabItem.id;
+          return (
+            <button
+              key={tabItem.id}
+              type="button"
+              onClick={() => setActiveTab(tabItem.id)}
+              className={`px-3 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+                isSelected
+                  ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white shadow-lg shadow-purple-600/30 border border-purple-400/50'
+                  : 'bg-zinc-900/60 hover:bg-zinc-900 text-zinc-400 hover:text-white border border-transparent'
+              }`}
+            >
+              <IconComp size={15} className={isSelected ? 'text-white' : 'text-purple-400'} />
+              <span className="truncate">{tabItem.label}</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono ${
+                isSelected ? 'bg-white/20 text-white' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {tabItem.badge}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Alert status notification if any */}
@@ -307,6 +367,31 @@ export function HaevyLiteHubView({
             Đóng
           </button>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TRANG MỚI: ĐIỂM DANH 7 NGÀY, VÒNG QUAY MAY MẮN & GÓI COMBO (-30%)         */}
+      {/* ========================================================================= */}
+      {activeTab === 'rewards' && (
+        <HaevyLiteDailyRewardsPanel
+          onShowMessage={setStatusMessage}
+          onOpenWatchAd={() => setIsQuickAdOpen(true)}
+          onOpenAuth={onOpenAuth}
+          onTryComboItems={(items) => {
+            const newMap: Partial<Record<HaevyLiteItemCategory, HaevyLiteShopItem>> = {};
+            items.forEach(it => {
+              newMap[it.category] = it;
+            });
+            setTryOnComboMap(newMap);
+            setTryOnItem(items[0] || null);
+            setIsDressingRoomOpen(true);
+            setActiveTab('shop');
+            setStatusMessage({
+              type: 'success',
+              text: `🪞 Đang ướm thử trọn bộ ${items.length} vật phẩm trong Phòng Thử Đồ Trực Quan!`
+            });
+          }}
+        />
       )}
 
       {/* ========================================================================= */}
@@ -430,17 +515,18 @@ export function HaevyLiteHubView({
               </div>
 
               <div className="flex items-center gap-2">
-                {tryOnItem && (
+                {(tryOnItem || Object.keys(tryOnComboMap).length > 0) && (
                   <button
                     type="button"
                     onClick={() => {
                       setTryOnItem(null);
+                      setTryOnComboMap({});
                       haptics.light();
                     }}
                     className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <RotateCcw size={13} />
-                    <span>Hủy Ướm Thử</span>
+                    <span>Hủy Ướm Thử ({Object.keys(tryOnComboMap).length || 1} món)</span>
                   </button>
                 )}
                 <button
@@ -468,7 +554,7 @@ export function HaevyLiteHubView({
 
                     <div className="pt-4 pb-2">
                       <CosmicAvatarFX
-                        avatarFrameId={tryOnItem?.category === 'avatar_frame' ? tryOnItem.id : activeAvatarFrame}
+                        avatarFrameId={getPreviewItemId('avatar_frame', activeAvatarFrame)}
                         photoURL={user?.photoURL}
                         displayName={user?.displayName || 'Tài Khoản'}
                         size="lg"
@@ -480,7 +566,7 @@ export function HaevyLiteHubView({
                     <div className="mt-2 flex flex-col items-center gap-1">
                       {/* Title Badge Preview */}
                       {(() => {
-                        const badgeId = tryOnItem?.category === 'title_badge' ? tryOnItem.id : activeTitleBadge;
+                        const badgeId = getPreviewItemId('title_badge', activeTitleBadge);
                         const badgeObj = getTitleBadge(badgeId);
                         if (!badgeObj) return null;
                         return (
@@ -493,8 +579,8 @@ export function HaevyLiteHubView({
 
                       {/* Nameplate & Custom Font Preview */}
                       {(() => {
-                        const nameplateId = tryOnItem?.category === 'name_border' ? tryOnItem.id : activeNameBorder;
-                        const fontId = tryOnItem?.category === 'name_font' ? tryOnItem.id : activeNameFont;
+                        const nameplateId = getPreviewItemId('name_border', activeNameBorder);
+                        const fontId = getPreviewItemId('name_font', activeNameFont);
                         const nameplate = getNameBorder(nameplateId);
                         const fontObj = getNameFont(fontId);
                         return (
@@ -519,9 +605,9 @@ export function HaevyLiteHubView({
                     </span>
 
                     {(() => {
-                      const chatItemId = tryOnItem?.category === 'chat_border' ? tryOnItem.id : activeChatBorder;
+                      const chatItemId = getPreviewItemId('chat_border', activeChatBorder);
                       const chatItem = getChatBorder(chatItemId);
-                      const fontId = tryOnItem?.category === 'name_font' ? tryOnItem.id : activeNameFont;
+                      const fontId = getPreviewItemId('name_font', activeNameFont);
                       const fontObj = getNameFont(fontId);
                       return (
                         <div className="my-auto space-y-2 py-2">
@@ -551,7 +637,7 @@ export function HaevyLiteHubView({
                         <Activity size={11} />
                         Sóng Nhạc Visualizer
                       </span>
-                      {tryOnItem?.category === 'cursor_aura' && (
+                      {(tryOnItem?.category === 'cursor_aura' || tryOnComboMap.cursor_aura) && (
                         <span className="text-[10px] font-black uppercase text-pink-400 flex items-center gap-1">
                           <MousePointer size={11} /> Hào Quang Chuột
                         </span>
@@ -560,7 +646,7 @@ export function HaevyLiteHubView({
 
                     {/* Live Animated Audio Waveform Equalizer */}
                     {(() => {
-                      const waveId = tryOnItem?.category === 'player_wave' ? tryOnItem.id : activePlayerWave;
+                      const waveId = getPreviewItemId('player_wave', activePlayerWave);
                       const waveObj = getPlayerWave(waveId);
                       const barClass = waveObj?.waveGradient ? `bg-gradient-to-t ${waveObj.waveGradient}` : 'bg-gradient-to-t from-purple-500 to-pink-400';
                       const glowClass = waveObj?.waveGlow || 'shadow-[0_0_12px_rgba(168,85,247,0.5)]';
@@ -1023,16 +1109,17 @@ export function HaevyLiteHubView({
                           type="button"
                           onClick={() => {
                             setTryOnItem(item);
+                            setTryOnComboMap(prev => ({ ...prev, [item.category]: item }));
                             setIsDressingRoomOpen(true);
                             haptics.selection();
-                            window.scrollTo({ top: 300, behavior: 'smooth' });
+                            window.scrollTo({ top: 240, behavior: 'smooth' });
                           }}
                           className={`px-3 py-2.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
-                            isBeingTried
+                            isBeingTried || tryOnComboMap[item.category]?.id === item.id
                               ? 'bg-pink-600/30 text-pink-300 border-pink-500/50 shadow-sm'
                               : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-800'
                           }`}
-                          title="Ướm thử vật phẩm này lên phòng thử đồ"
+                          title="Ướm thử vật phẩm này lên phòng thử đồ (Hỗ trợ phối nhiều món)"
                         >
                           <Eye size={14} />
                           <span className="hidden sm:inline">Ướm Thử</span>
@@ -1100,6 +1187,18 @@ export function HaevyLiteHubView({
           onOpenAuth={onOpenAuth}
         />
       )}
+
+      {/* Quick Watch 30s Ad Modal accessible from any tab */}
+      <Watch30sAdModal
+        isOpen={isQuickAdOpen}
+        onClose={() => setIsQuickAdOpen(false)}
+        onAdCompleted={(coins) => {
+          setStatusMessage({
+            type: 'success',
+            text: `🎉 Tuyệt vời! Bạn vừa nhận được +${coins} Xu Haevy Lite sau khi xem đủ 30 giây quảng cáo!`
+          });
+        }}
+      />
 
       {/* Preview Entrance Modal */}
       {previewAnimId && (

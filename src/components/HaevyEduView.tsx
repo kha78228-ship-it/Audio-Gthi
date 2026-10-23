@@ -9,31 +9,49 @@ import {
   Dna, 
   BookOpen, 
   BrainCircuit,
-  Sparkles,
-  Zap,
-  HelpCircle,
-  Activity,
-  CheckCircle2,
-  ChevronRight,
-  Calculator,
-  Timer,
-  Globe,
-  Bell,
-  ArrowLeft,
-  Calendar
+  Sparkles, 
+  Zap, 
+  Activity, 
+  CheckCircle2, 
+  ChevronRight, 
+  Calculator, 
+  Timer, 
+  Globe, 
+  Bell, 
+  Calendar, 
+  Target, 
+  Sun,
+  Headphones,
+  UploadCloud,
+  MessageSquare,
+  Wallet,
+  Gamepad2,
+  Orbit,
+  Music,
+  ChevronDown,
+  Layers
 } from 'lucide-react';
-import { PhysicsLab } from './edu/PhysicsLab';
-import { ChemistryLab } from './edu/ChemistryLab';
-import { BiologyLab } from './edu/BiologyLab';
-import { DocumentRoadmapView } from './edu/DocumentRoadmapView';
-import { VideoLessonPlayer } from './edu/VideoLessonPlayer';
-import { VirtualLabDashboard } from './edu/VirtualLabDashboard';
-import { AiStudyAssistantView } from './edu/AiStudyAssistantView';
-import { ResearchNotebookView } from './edu/ResearchNotebookView';
-import { StemQuickQuizView } from './edu/StemQuickQuizView';
-import { EduUtilitySuiteView } from './edu/EduUtilitySuiteView';
-import { SpeedExamPrepView } from './edu/SpeedExamPrepView';
-import { EduPushNotificationModal } from './edu/EduPushNotificationModal';
+import { motion, AnimatePresence } from 'motion/react';
+// Lazy load heavy STEM Labs, Virtual Dashboard, and AI Study views to maximize mobile performance
+const PhysicsLab = React.lazy(() => import('./edu/PhysicsLab').then(m => ({ default: m.PhysicsLab })));
+const ChemistryLab = React.lazy(() => import('./edu/ChemistryLab').then(m => ({ default: m.ChemistryLab })));
+const BiologyLab = React.lazy(() => import('./edu/BiologyLab').then(m => ({ default: m.BiologyLab })));
+const DocumentRoadmapView = React.lazy(() => import('./edu/DocumentRoadmapView').then(m => ({ default: m.DocumentRoadmapView })));
+const VideoLessonPlayer = React.lazy(() => import('./edu/VideoLessonPlayer').then(m => ({ default: m.VideoLessonPlayer })));
+const VirtualLabDashboard = React.lazy(() => import('./edu/VirtualLabDashboard').then(m => ({ default: m.VirtualLabDashboard })));
+const AiStudyAssistantView = React.lazy(() => import('./edu/AiStudyAssistantView').then(m => ({ default: m.AiStudyAssistantView })));
+const ResearchNotebookView = React.lazy(() => import('./edu/ResearchNotebookView').then(m => ({ default: m.ResearchNotebookView })));
+const StemQuickQuizView = React.lazy(() => import('./edu/StemQuickQuizView').then(m => ({ default: m.StemQuickQuizView })));
+const EduUtilitySuiteView = React.lazy(() => import('./edu/EduUtilitySuiteView').then(m => ({ default: m.EduUtilitySuiteView })));
+const SpeedExamPrepView = React.lazy(() => import('./edu/SpeedExamPrepView').then(m => ({ default: m.SpeedExamPrepView })));
+const EduPushNotificationModal = React.lazy(() => import('./edu/EduPushNotificationModal').then(m => ({ default: m.EduPushNotificationModal })));
+import { EduDailyGoalTracker } from './edu/EduDailyGoalTracker';
+import { EduDailyGoalSummaryStrip } from './edu/EduDailyGoalSummaryStrip';
+const EduCelebrationModal = React.lazy(() => import('./edu/EduCelebrationModal').then(m => ({ default: m.EduCelebrationModal })));
+const SunStudyAppView = React.lazy(() => import('./edu/sunStudy/SunStudyAppView').then(m => ({ default: m.SunStudyAppView })));
+const EduWorkspaceToolkitView = React.lazy(() => import('./edu/EduWorkspaceToolkitView').then(m => ({ default: m.EduWorkspaceToolkitView })));
+import { EduMusicPlayer } from './edu/EduMusicPlayer';
+import { calculateCurrentDailyGoalStreak, getTodayDateString } from '../services/eduDailyGoalService';
 import { 
   evaluateScheduledReminders, 
   calculateThpt2027Countdown, 
@@ -42,51 +60,73 @@ import {
 import { useEduGamification } from '../hooks/useEduGamification';
 import { EduStreakXpWidget } from './edu/gamification/EduStreakXpWidget';
 import { EduXpNotificationToast } from './edu/gamification/EduXpNotificationToast';
-import { EduStreakXpModal } from './edu/gamification/EduStreakXpModal';
-import { EduLabSubject } from '../types';
+const EduStreakXpModal = React.lazy(() => import('./edu/gamification/EduStreakXpModal').then(m => ({ default: m.EduStreakXpModal })));
+import { EduLabSubject, EcosystemMode } from '../types';
+import { switchEcosystemMode } from '../services/modeSyncService';
+
+// Unified 5 Mega-Hubs + legacy compatibility keys
+export type EduTab = 'workspace' | 'sun_study' | 'labs' | 'assistant' | 'tools' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'exam' | 'goals';
 
 interface HaevyEduViewProps {
   onBackToLanding?: () => void;
-  activeTabControlled?: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam';
-  onTabChange?: (tab: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam') => void;
+  activeTabControlled?: EduTab;
+  onTabChange?: (tab: EduTab) => void;
   onOpenHaevyAi?: () => void;
 }
 
-export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange, onOpenHaevyAi }: HaevyEduViewProps) {
+export function HaevyEduView({ activeTabControlled, onTabChange, onOpenHaevyAi }: HaevyEduViewProps) {
   // Gamification Engine (Streak & XP System)
   const { profile, recordActivity, latestXpToast, clearToast } = useEduGamification();
   const [isGamificationModalOpen, setIsGamificationModalOpen] = useState<boolean>(false);
+  const [isCelebrationModalOpen, setIsCelebrationModalOpen] = useState<boolean>(false);
 
-  // Main tab state: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam'
-  const [internalTab, setInternalTab] = useState<'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam'>('assistant');
-  const activeTab = activeTabControlled ?? internalTab;
-  const setActiveTab = (tab: 'labs' | 'assistant' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam') => {
+  // Music Player Bar Visibility (Default to compact toggle)
+  const [isMusicPlayerOpen, setIsMusicPlayerOpen] = useState<boolean>(false);
+
+  // Primary Active Tab: 'workspace' | 'sun_study' | 'labs' | 'assistant' | 'tools'
+  const [internalTab, setInternalTab] = useState<EduTab>('workspace');
+  const activeTabRaw = activeTabControlled ?? internalTab;
+
+  // Resolve raw tab to one of 5 mega hubs
+  const getPrimaryHub = (tab: EduTab): 'workspace' | 'sun_study' | 'labs' | 'assistant' | 'tools' => {
+    if (tab === 'roadmap' || tab === 'notebook') return 'assistant';
+    if (tab === 'video') return 'labs';
+    if (tab === 'quiz' || tab === 'exam' || tab === 'goals') return 'tools';
+    return tab;
+  };
+
+  const primaryHub = getPrimaryHub(activeTabRaw);
+
+  const setActiveTab = (tab: EduTab) => {
     setInternalTab(tab);
     if (onTabChange) {
       onTabChange(tab);
     }
   };
 
-  // Sub-tab state for labs: 'dashboard' | 'physics' | 'chemistry' | 'biology'
-  const [activeLabSubject, setActiveLabSubject] = useState<EduLabSubject>('dashboard');
+  // Sub-tabs inside Hub 2 (Phòng Lab 3D STEM): 'dashboard' | 'physics' | 'chemistry' | 'biology' | 'video'
+  const [activeLabSubject, setActiveLabSubject] = useState<EduLabSubject | 'video'>('dashboard');
   const [activeExperimentId, setActiveExperimentId] = useState<string>('pendulum');
+
+  // Sub-tabs inside Hub 3 (AI Gia Sư & Lộ Trình): 'assistant' | 'roadmap' | 'notebook'
+  const [activeAiSubTab, setActiveAiSubTab] = useState<'assistant' | 'roadmap' | 'notebook'>('assistant');
+
+  // Sub-tabs inside Hub 4 (Tiện Ích & Luyện Thi): 'casio880' | 'exam' | 'quiz' | 'goals'
+  const [activeToolSubTab, setActiveToolSubTab] = useState<'casio880' | 'exam' | 'quiz' | 'goals'>('casio880');
+
+  // Selected Utility Suite Tab for fx-880 & other utilities
+  const [selectedToolsTab, setSelectedToolsTab] = useState<'casio880' | 'calculator' | 'periodic' | 'converter' | 'pomodoro' | 'flashcards' | 'deconstructor'>('casio880');
 
   // Quick Quiz target module
   const [quizTargetSubject, setQuizTargetSubject] = useState<EduLabSubject | undefined>(undefined);
   const [quizTargetExpId, setQuizTargetExpId] = useState<string | undefined>(undefined);
 
-  // Video player state when requested from roadmap
+  // Video player topic state
   const [videoTopic, setVideoTopic] = useState<string>('Con Lắc Đơn & Bảo Toàn Năng Lượng');
   const [videoSummary, setVideoSummary] = useState<string>('');
 
   // AI Assistant cross-navigation prompt state
   const [aiInitialQuery, setAiInitialQuery] = useState<string>('');
-
-  // Quick Lab Selector Dropdown Popover State
-  const [isQuickLabDropdownOpen, setIsQuickLabDropdownOpen] = useState<boolean>(false);
-
-  // Selected Utility Suite Tab (defaults to Casio fx-880 BTG for THPT 2027)
-  const [selectedToolsTab, setSelectedToolsTab] = useState<'casio880' | 'calculator' | 'periodic' | 'converter' | 'pomodoro' | 'flashcards' | 'deconstructor'>('casio880');
 
   // THPT 2027 Web Push Notification & Milestone Reminders State
   const [isPushReminderModalOpen, setIsPushReminderModalOpen] = useState<boolean>(false);
@@ -104,7 +144,8 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
       const detail = e.detail;
       if (!detail) return;
       if (detail.actionType === 'open_exam') {
-        setActiveTab('exam');
+        setActiveTab('tools');
+        setActiveToolSubTab('exam');
       } else if (detail.actionType === 'open_lab') {
         const subj = detail.actionPayload?.subject || 'physics';
         const expId = detail.actionPayload?.experimentId || 'pendulum';
@@ -114,8 +155,10 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
           setAiInitialQuery(detail.actionPayload.initialQuery);
         }
         setActiveTab('assistant');
+        setActiveAiSubTab('assistant');
       } else if (detail.actionType === 'open_notebook') {
-        setActiveTab('notebook');
+        setActiveTab('assistant');
+        setActiveAiSubTab('notebook');
       }
     };
 
@@ -126,27 +169,28 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
     };
   }, []);
 
-  // Handle cross-navigation from Roadmap or Video
+  // Handle cross-navigation
   const handleOpenLab = (subject: EduLabSubject, experimentId: string) => {
     setActiveLabSubject(subject);
     setActiveExperimentId(experimentId);
     setActiveTab('labs');
-    setIsQuickLabDropdownOpen(false);
   };
 
   const handleOpenQuiz = (subject?: EduLabSubject, experimentId?: string) => {
     setQuizTargetSubject(subject);
     setQuizTargetExpId(experimentId);
-    setActiveTab('quiz');
+    setActiveToolSubTab('quiz');
+    setActiveTab('tools');
   };
 
   const handleOpenVideo = (topic: string, summary: string = '') => {
     setVideoTopic(topic);
     setVideoSummary(summary);
-    setActiveTab('video');
+    setActiveLabSubject('video');
+    setActiveTab('labs');
   };
 
-  const handleAskAiAboutLab = (subject: EduLabSubject, expId: string) => {
+  const handleAskAiAboutLab = (subject: EduLabSubject | 'video', expId: string) => {
     let query = '';
     if (subject === 'physics') {
       if (expId === 'pendulum') {
@@ -155,639 +199,742 @@ export function HaevyEduView({ onBackToLanding, activeTabControlled, onTabChange
         query = 'Bản chất rơi tự do (Vật lý 10 CTGDPT 2018): Tại sao trong chân không một chiếc lông vũ rơi nhanh bằng hòn đá (g không đổi)? Giải thích sự khác biệt giữa khối lượng quán tính (m_i) và khối lượng hấp dẫn (m_g) của Einstein.';
       } else if (expId === 'wave_interference') {
         query = 'Bản chất giao thoa sóng (Vật lý 11 CTGDPT 2018): Tại sao hai nguồn sóng kết hợp cùng pha lại tạo ra các vân cực đại có hiệu đường đi d2 - d1 = kλ và cực tiểu (k + 0.5)λ? Bản chất sự chồng chập năng lượng dao động.';
-      } else if (expId === 'thermodynamics') {
-        query = 'Bản chất nhiệt động lực học (Vật lý 12 CTGDPT 2018): Giải thích định luật I ΔU = Q + A và định luật II qua bản chất vi mô của chuyển động nhiệt phân tử và entropy.';
-      } else if (expId === 'optics') {
-        query = 'Bản chất quang học: Giải thích nguyên lý khúc xạ ánh sáng theo định luật Snell và hiện tượng phản xạ toàn phần từ bản chất tốc độ ánh sáng thay đổi trong môi trường chiết quang.';
-      } else if (expId === 'circuits') {
-        query = 'Bản chất định luật Ohm: Tại sao hiệu điện thế U là nguyên nhân đẩy electron tự do tạo dòng điện I? Sự khác nhau bản chất giữa mắc nối tiếp và song song.';
       } else {
-        query = 'Bản chất chuyển động ném ngang và xiên: Tại sao chuyển động theo phương ngang và phương thẳng đứng lại độc lập với nhau?';
+        query = 'Bản chất định luật Ohm: Tại sao hiệu điện thế U là nguyên nhân đẩy electron tự do tạo dòng điện I?';
       }
     } else if (subject === 'chemistry') {
       if (expId === 'reaction_rate') {
-        query = 'Bản chất tốc độ phản ứng (Hóa học 10 CTGDPT 2018): Tại sao tăng nhiệt độ lên 10°C tốc độ tăng từ 2-4 lần (Hệ số Van t Hoff γ)? Thuyết va chạm hoạt động và năng lượng hoạt hóa Ea giải thích điều này như thế nào?';
+        query = 'Bản chất tốc độ phản ứng (Hóa học 10 CTGDPT 2018): Tại sao tăng nhiệt độ lên 10°C tốc độ tăng từ 2-4 lần (Hệ số Van t Hoff γ)?';
       } else if (expId === 'le_chatelier') {
-        query = 'Bản chất nguyên lý chuyển dịch cân bằng Le Chatelier (Hóa học 11 CTGDPT 2018): Khi tăng áp suất hoặc làm lạnh hệ 2NO2 (nâu đỏ) ⇌ N2O4 (không màu), vì sao cân bằng lại tự điều chỉnh chống lại tác động bên ngoài? Bản chất tốc độ phản ứng thuận/nghịch.';
-      } else if (expId === 'electrochemical') {
-        query = 'Bản chất pin điện hóa Galvanic Daniell Zn-Cu (Hóa học 12 CTGDPT 2018): Tại sao thế điện cực chuẩn E°(Zn2+/Zn) = -0.76V và E°(Cu2+/Cu) = +0.34V lại tạo ra suất điện động 1.10V? Vai trò thực chất của cầu muối KNO3.';
-      } else if (expId === 'titration') {
-        query = 'Bản chất chuẩn độ axit - bazơ: Tại sao lại xuất hiện bước nhảy pH đột ngột quanh điểm tương đương 25ml mặc dù ta nhỏ từng giọt buret đều đặn?';
-      } else if (expId === 'reaction') {
-        query = 'Bản chất phản ứng trao đổi ion: Giải thích tại sao BaCl2 + Na2SO4 tạo kết tủa BaSO4, vai trò thực sự của các ion tham gia và spectator ions.';
+        query = 'Bản chất nguyên lý chuyển dịch cân bằng Le Chatelier (Hóa học 11 CTGDPT 2018): Khi tăng áp suất hoặc làm lạnh hệ 2NO2 ⇌ N2O4, vì sao cân bằng tự điều chỉnh?';
       } else {
-        query = 'Bản chất định luật khí lý tưởng PV = nRT: Mối liên hệ vi mô giữa va chạm phân tử khí và áp suất đo được.';
+        query = 'Bản chất pin điện hóa Galvanic Daniell Zn-Cu (Hóa học 12 CTGDPT 2018): Vai trò thực chất của cầu muối KNO3.';
       }
     } else if (subject === 'biology') {
       if (expId === 'plasmolysis') {
-        query = 'Bản chất thẩm thấu & co nguyên sinh (Sinh học 10 CTGDPT 2018): Tại sao khi ngâm tế bào biểu bì củ hành vào nước muối ưu trương, nước lại thoát ra ngoài làm màng sinh chất co rúm? Áp suất thẩm thấu và thế nước Ψ chi phối hiện tượng này ra sao?';
-      } else if (expId === 'transpiration') {
-        query = 'Bản chất thoát hơi nước & động học khí khổng (Sinh học 11 CTGDPT 2018): Tại sao thoát hơi nước ở mặt dưới của lá lại nhanh hơn mặt trên? Cơ chế bơm ion K+ đóng mở lỗ khí theo nhịp sinh học.';
-      } else if (expId === 'hardy_weinberg') {
-        query = 'Bản chất cân bằng di truyền Hardy - Weinberg (Sinh học 12 CTGDPT 2018): Tại sao trong quần thể ngẫu phối vô hạn và không có chọn lọc, tần số p²AA + 2pqAa + q²aa = 1 lại bất biến qua mọi thế hệ? Tiến hóa diễn ra khi nào?';
-      } else if (expId === 'microscope') {
-        query = 'Bản chất tế bào học: Phân biệt cấu trúc thành tế bào cellulose thực vật và màng sinh chất tế bào động vật qua kính hiển vi.';
-      } else if (expId === 'genetics') {
-        query = 'Bản chất quy luật di truyền Men-đen: Tại sao phép lai Aa x Aa lại phân ly kiểu hình theo tỉ lệ 3 trội : 1 lặn? Bản chất xác suất trong khung Punnett.';
-      } else if (expId === 'photosynthesis') {
-        query = 'Bản chất quang hợp: Ánh sáng kích thích electron trong diệp lục như thế nào để chuyển đổi năng lượng photon thành liên kết hóa học ATP/NADPH?';
+        query = 'Bản chất thẩm thấu & co nguyên sinh (Sinh học 10 CTGDPT 2018): Tại sao khi ngâm tế bào biểu bì củ hành vào nước muối ưu trương, nước lại thoát ra ngoài?';
       } else {
-        query = 'Bản chất phân tử DNA: Tại sao cấu trúc xoắn kép theo nguyên tắc bổ sung A-T và G-C lại là cơ chế hoàn hảo để sao chép thông tin di truyền không bị sai lệch?';
+        query = 'Bản chất cân bằng di truyền Hardy - Weinberg (Sinh học 12 CTGDPT 2018): Tại sao trong quần thể ngẫu phối, tần số alen lại bất biến?';
       }
     } else {
       query = 'Hãy giải thích tổng quan các định luật bảo toàn nền tảng chi phối toàn bộ thế giới vật lý và hóa học (First Principles).';
     }
 
     setAiInitialQuery(query);
+    setActiveAiSubTab('assistant');
     setActiveTab('assistant');
   };
 
+  // Top ecosystem mode switcher items for direct 1-tap switching across all Haevy apps
+  const ecosystemModes = [
+    { id: 'portal' as EcosystemMode, label: 'Cổng Tổng', icon: Sparkles },
+    { id: 'edu' as EcosystemMode, label: 'Edu ☀️', icon: GraduationCap, active: true },
+    { id: 'audio' as EcosystemMode, label: 'Audio 🎵', icon: Headphones },
+    { id: 'internet' as EcosystemMode, label: 'Internet 🌐', icon: Globe },
+    { id: 'messages' as EcosystemMode, label: 'Tin Nhắn 💬', icon: MessageSquare },
+    { id: 'finance' as EcosystemMode, label: 'Thu Chi 💰', icon: Wallet },
+    { id: 'games' as EcosystemMode, label: 'Games 🎮', icon: Gamepad2 },
+    { id: 'space' as EcosystemMode, label: 'Space 🌌', icon: Orbit },
+  ];
+
   return (
     <div className="w-full min-h-screen bg-zinc-950 text-zinc-100 flex flex-col no-swipe touch-pan-y" data-no-swipe="true">
-      {/* Header Banner - Executive Academic Header without crowded nav tabs (Taskbar moved down to Bottom) */}
-      <header className="w-full bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-800/80 sticky top-0 z-30 px-3 sm:px-6 py-2.5 sm:py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xl">
-        {/* Left: Branding & Academic Profile */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-            {onBackToLanding && (
+      {/* ========================================================================= */}
+      {/* 1. STREAMLINED UNIFIED TOP COMMAND TASKBAR (SPACE OPTIMIZED + ANIMATIONS) */}
+      {/* ========================================================================= */}
+      <header className="w-full bg-zinc-950/95 backdrop-blur-2xl border-b border-zinc-800/80 sticky top-0 z-30 px-2 sm:px-4 py-2 shadow-lg space-y-2">
+        {/* Row 1: Mode Switcher Strip + Utility Actions */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Ecosystem Mode Quick Switcher */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x flex-1 min-w-0 py-0.5">
+            {ecosystemModes.map(item => (
               <button
-                onClick={onBackToLanding}
-                className="p-1.5 sm:p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 border border-zinc-800 transition-all cursor-pointer active:scale-95"
-                title="Quay về Cổng Hệ Sinh Thái"
+                key={item.id}
+                onClick={() => switchEcosystemMode(item.id)}
+                className={`px-2.5 sm:px-3 py-1 rounded-xl text-[11px] font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap ${
+                  item.active
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-zinc-950 shadow-md shadow-emerald-500/25 font-black scale-[1.02]'
+                    : 'bg-zinc-900/90 text-zinc-400 hover:text-white border border-zinc-800 hover:border-zinc-700'
+                }`}
+                title={`Chuyển sang chế độ ${item.label}`}
               >
-                <ArrowLeft size={16} />
+                <item.icon size={13} className={item.active ? 'text-zinc-950' : 'text-zinc-400'} />
+                <span>{item.label}</span>
               </button>
-            )}
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-md shadow-emerald-950/40 shrink-0">
-              <GraduationCap size={20} className="sm:w-5 sm:h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-black tracking-tight text-zinc-100 flex items-center gap-1">
-                  Haevy <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Edu</span>
-                </h1>
-                <span className="text-zinc-600 text-xs hidden sm:inline">•</span>
-                <span className="hidden sm:inline-block text-xs text-zinc-400 font-medium">Hệ Thống Nghiên Cứu STEM</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold tracking-wide">
-                  GDPT 2018
-                </span>
-                <span className="hidden xs:inline-block px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold">
-                  THPT 2027
-                </span>
-              </div>
-              <p className="text-[11px] sm:text-xs text-zinc-400 font-normal truncate max-w-[220px] xs:max-w-md sm:max-w-none">
-                Tư duy First Principles • Thí nghiệm ảo 11+ • Casio fx-880 BTG • Thông báo đẩy ôn thi
-              </p>
-            </div>
+            ))}
           </div>
 
-          {/* Mobile Streak & XP Widget */}
-          <div className="md:hidden shrink-0">
-            <EduStreakXpWidget profile={profile} onClick={() => setIsGamificationModalOpen(true)} />
-          </div>
-        </div>
-
-        {/* Right side: Academic Actions & Widgets */}
-        <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar justify-between md:justify-end py-0.5 touch-pan-x">
-          {/* THPT 2027 Interactive Milestone Countdown */}
-          <button
-            onClick={() => setIsPushReminderModalOpen(true)}
-            className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-amber-300 hover:text-amber-200 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/40 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 shadow-sm"
-            title="Nhắc nhở học tập định kỳ bằng thông báo đẩy theo 7 cột mốc ôn thi THPT 2027"
-          >
-            <Bell size={13} className="text-amber-400 shrink-0 animate-pulse" />
-            <span>Đếm ngược THPT 2027:</span>
-            <span className="font-mono text-amber-300 bg-amber-500/20 px-1.5 py-0.2 rounded font-black text-[11px]">
-              {countdownDays} ngày
-            </span>
-          </button>
-
-          {/* Tra cứu ngoài (Google Search Grounding) */}
-          <button
-            onClick={() => {
-              setActiveTab('assistant');
-              setAiInitialQuery('Tra cứu thông tin bên ngoài: ');
-            }}
-            className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-300 hover:text-blue-200 bg-blue-950/40 hover:bg-blue-900/50 border border-blue-500/40 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 shadow-sm"
-            title="Tra cứu trực tiếp kiến thức bên ngoài qua Google Search"
-          >
-            <Globe size={13} className="text-blue-400 shrink-0" />
-            <span className="hidden xs:inline">Tra Cứu</span>
-            <span>Ngoài</span>
-          </button>
-
-          {/* Desktop Streak & XP Widget */}
-          <div className="hidden md:block shrink-0">
-            <EduStreakXpWidget profile={profile} onClick={() => setIsGamificationModalOpen(true)} />
-          </div>
-
-          {/* Haevy AI Hub Button */}
-          {onOpenHaevyAi && (
+          {/* Right Action Icons: Music Toggle, THPT 2027 Countdown, Streak XP */}
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
-              onClick={onOpenHaevyAi}
-              className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer bg-gradient-to-r from-purple-950/80 to-indigo-950/80 hover:from-purple-900/90 hover:to-indigo-900/90 text-purple-200 hover:text-white border border-purple-500/40 hover:border-purple-300 shadow-sm active:scale-95"
-              title="Mở Không Gian Haevy AI Toàn Năng"
+              onClick={() => setIsMusicPlayerOpen(!isMusicPlayerOpen)}
+              className={`px-2 sm:px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 ${
+                isMusicPlayerOpen
+                  ? 'bg-amber-500 text-zinc-950 font-black shadow-md shadow-amber-500/20'
+                  : 'bg-zinc-900 text-amber-300 hover:text-amber-200 border border-amber-500/30'
+              }`}
+              title="Bật/Tắt thanh nhạc tập trung & tải nhạc lên"
             >
-              <Sparkles size={13} className="text-purple-400" />
-              <span className="hidden sm:inline">Haevy</span>
-              <span>AI Hub</span>
+              <Music size={13} className={isMusicPlayerOpen ? 'animate-bounce' : ''} />
+              <span className="hidden xs:inline">Nhạc Focus</span>
+              <UploadCloud size={12} className="hidden sm:inline" />
             </button>
-          )}
-        </div>
-      </header>
 
-      {/* Contextual Academic Sub-Bar (Mobile Responsive & Academic Focus) */}
-      <div className="w-full bg-zinc-950/80 border-b border-zinc-800/80 px-2.5 sm:px-6 py-1.5 sm:py-2 flex items-center justify-between gap-3 overflow-x-auto scrollbar-none text-xs touch-pan-x">
-        {/* Left: Dynamic Academic Scope Breadcrumb */}
-        <div className="flex items-center gap-1.5 shrink-0 text-zinc-300 font-medium">
-          <span className="text-zinc-500 font-mono text-[10px] sm:text-[11px]">HỌC PHẦN:</span>
-          {activeTab === 'assistant' && (
-            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
-              <BrainCircuit size={13} className="text-emerald-400 shrink-0" />
-              <span>AI Trợ Lý First Principles</span>
-              <span className="hidden md:inline text-zinc-400 font-normal"> • Phân Tích Bản Chất & Trích Xuất Giáo Trình</span>
-            </span>
-          )}
-          {activeTab === 'exam' && (
-            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
-              <Timer size={13} className="text-amber-400 shrink-0" />
-              <span>Luyện Thi GDPT 2018</span>
-              <span className="hidden md:inline text-zinc-400 font-normal"> • Bấm Giờ & Casio fx-880 BTG</span>
-            </span>
-          )}
-          {activeTab === 'labs' && (
-            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
-              <FlaskConical size={13} className="text-cyan-400 shrink-0" />
-              <span>Phòng Thí Nghiệm Ảo</span>
-              <span className="hidden md:inline text-zinc-400 font-normal"> • 11+ Mô Phỏng (L10 - L12)</span>
-            </span>
-          )}
-          {activeTab === 'tools' && (
-            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
-              <Calculator size={13} className="text-emerald-400 shrink-0" />
-              <span>Tiện Ích STEM Đa Năng</span>
-              <span className="hidden md:inline text-zinc-400 font-normal"> • fx-880, Đồ Thị, Bảng Tuần Hoàn 2026</span>
-            </span>
-          )}
-          {activeTab === 'roadmap' && (
-            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
-              <Compass size={13} className="text-amber-400 shrink-0" />
-              <span>Lộ Trình Tri Thức STEM</span>
-              <span className="hidden md:inline text-zinc-400 font-normal"> • Bóc Tách Bản Chất Đa Cấp Độ</span>
-            </span>
-          )}
-          {activeTab === 'notebook' && (
-            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
-              <BookOpen size={13} className="text-purple-400 shrink-0" />
-              <span>Sổ Tay Nghiên Cứu</span>
-              <span className="hidden md:inline text-zinc-400 font-normal"> • Lưu Trữ Nguyên Lý & Cheat Sheet</span>
-            </span>
-          )}
-          {activeTab === 'video' && (
-            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
-              <Film size={13} className="text-rose-400 shrink-0" />
-              <span>Video Bài Giảng AI</span>
-              <span className="hidden md:inline text-zinc-400 font-normal"> • Trực Quan Hóa Tự Nhiên</span>
-            </span>
-          )}
-          {activeTab === 'quiz' && (
-            <span className="flex items-center gap-1.5 text-zinc-200 font-semibold">
-              <Zap size={13} className="text-emerald-400 shrink-0" />
-              <span>Đánh Giá Năng Lực Nhanh</span>
-              <span className="hidden md:inline text-zinc-400 font-normal"> • Phản Biện Bản Chất</span>
-            </span>
-          )}
-        </div>
-
-        {/* Right: Integrated Fast Jump Tools Dock & Lab Selector Popover */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <div className="flex items-center gap-1 sm:gap-1.5 bg-zinc-900/90 px-1.5 sm:px-2 py-1 rounded-xl border border-zinc-800">
             <button
               onClick={() => setIsPushReminderModalOpen(true)}
-              className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-amber-300 hover:text-amber-200 hover:bg-amber-950/50 border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
-              title="Nhắc nhở học tập định kỳ bằng thông báo đẩy theo 7 cột mốc ôn thi THPT 2027"
+              className="px-2 sm:px-2.5 py-1 rounded-xl text-[11px] font-bold text-amber-300 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/30 transition flex items-center gap-1 cursor-pointer active:scale-95"
+              title="Đếm ngược kỳ thi THPT 2027"
             >
-              <Bell size={12} className="text-amber-400 shrink-0 animate-pulse" />
-              <span>Nhắc THPT 2027</span>
-              <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono hidden sm:inline">
-                {countdownDays}d
-              </span>
+              <Bell size={12} className="text-amber-400 animate-pulse" />
+              <span className="font-mono font-black">{countdownDays}d</span>
             </button>
 
-            <span className="text-zinc-700">|</span>
-
-            <button
-              onClick={() => {
-                setActiveTab('assistant');
-                setAiInitialQuery('Tra cứu thông tin bên ngoài: ');
-              }}
-              className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-blue-300 hover:text-blue-200 hover:bg-blue-950/50 border border-blue-500/30 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
-              title="Tra cứu trực tiếp thông tin bên ngoài phục vụ học tập qua Google Search"
-            >
-              <Globe size={12} className="text-blue-400 shrink-0" />
-              <span>Tra Cứu Ngoài</span>
-            </button>
-
-            <span className="text-zinc-700">|</span>
-
-            <button
-              onClick={() => setActiveTab('exam')}
-              className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-amber-300 hover:bg-zinc-800 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
-              title="Chuyển nhanh tới phòng thi thử bấm giờ"
-            >
-              <Timer size={12} className="text-amber-400 shrink-0" />
-              <span>Thi Thử</span>
-            </button>
-
-            <span className="text-zinc-700">|</span>
-
-            <button
-              onClick={() => { setSelectedToolsTab('casio880'); setActiveTab('tools'); }}
-              className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-emerald-300 hover:bg-zinc-800 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
-              title="Mở máy tính Casio fx-880 BTG"
-            >
-              <Calculator size={12} className="text-emerald-400 shrink-0" />
-              <span>fx-880</span>
-            </button>
-
-            <span className="text-zinc-700 hidden xs:inline">|</span>
-
-            <button
-              onClick={() => { setSelectedToolsTab('calculator'); setActiveTab('tools'); }}
-              className="hidden xs:flex px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-teal-300 hover:bg-zinc-800 transition-all items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
-              title="Khảo sát hàm số & đồ thị"
-            >
-              <span>Đồ Thị</span>
-            </button>
-
-            <span className="text-zinc-700">|</span>
-
-            {/* Quick Lab Popover Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setIsQuickLabDropdownOpen(!isQuickLabDropdownOpen)}
-                className="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold text-cyan-300 hover:bg-cyan-500/10 transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
-                title="Mở danh sách thí nghiệm ảo 11+"
-              >
-                <FlaskConical size={12} className="text-cyan-400 shrink-0" />
-                <span>Lab ▾</span>
-              </button>
-
-              {isQuickLabDropdownOpen && (
-                <div 
-                  className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-24px)] bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl p-3 z-50 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-150"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                    <span className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
-                      <FlaskConical size={14} className="text-cyan-400" />
-                      Phòng Thí Nghiệm Ảo (11+)
-                    </span>
-                    <button
-                      onClick={() => setIsQuickLabDropdownOpen(false)}
-                      className="text-zinc-400 hover:text-white text-xs p-1 rounded-md hover:bg-zinc-800"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {/* Physics Labs */}
-                  <div>
-                    <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider mb-1">Vật Lý (L10 - L12)</div>
-                    <div className="grid grid-cols-1 gap-1 text-[11px]">
-                      <button
-                        onClick={() => handleOpenLab('physics', 'pendulum')}
-                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
-                      >
-                        <span>Con Lắc Đơn & Cơ Năng</span>
-                        <span className="text-[9px] text-zinc-500 font-mono">T=2π√(L/g)</span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenLab('physics', 'free_fall')}
-                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
-                      >
-                        <span>Rơi Tự Do Trong Chân Không</span>
-                        <span className="text-[9px] text-zinc-500 font-mono">L10</span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenLab('physics', 'wave_interference')}
-                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
-                      >
-                        <span>Giao Thoa Sóng Cơ Học</span>
-                        <span className="text-[9px] text-zinc-500 font-mono">L11</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Chemistry Labs */}
-                  <div>
-                    <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1">Hóa Học (L10 - L12)</div>
-                    <div className="grid grid-cols-1 gap-1 text-[11px]">
-                      <button
-                        onClick={() => handleOpenLab('chemistry', 'reaction_rate')}
-                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
-                      >
-                        <span>Tốc Độ Phản Ứng & Nhiệt Độ</span>
-                        <span className="text-[9px] text-zinc-500 font-mono">L10</span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenLab('chemistry', 'le_chatelier')}
-                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
-                      >
-                        <span>Cân Bằng Le Chatelier (NO2)</span>
-                        <span className="text-[9px] text-zinc-500 font-mono">L11</span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenLab('chemistry', 'electrochemical')}
-                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
-                      >
-                        <span>Pin Điện Hóa Daniell (Zn-Cu)</span>
-                        <span className="text-[9px] text-zinc-500 font-mono">L12</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Biology Labs */}
-                  <div>
-                    <div className="text-[10px] font-bold text-teal-400 uppercase tracking-wider mb-1">Sinh Học (L10 - L12)</div>
-                    <div className="grid grid-cols-1 gap-1 text-[11px]">
-                      <button
-                        onClick={() => handleOpenLab('biology', 'plasmolysis')}
-                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
-                      >
-                        <span>Co Nguyên Sinh Tế Bào</span>
-                        <span className="text-[9px] text-zinc-500 font-mono">L10</span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenLab('biology', 'hardy_weinberg')}
-                        className="text-left px-2 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-between"
-                      >
-                        <span>Di Truyền Hardy - Weinberg</span>
-                        <span className="text-[9px] text-zinc-500 font-mono">L12</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-zinc-400 pl-2 border-l border-zinc-800">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono text-[10px]">Gemini 3.5 Flash</span>
+            <EduStreakXpWidget profile={profile} onClick={() => setIsGamificationModalOpen(true)} />
           </div>
         </div>
-      </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 max-w-7xl w-full mx-auto p-2.5 sm:p-5 lg:p-6 pb-28 sm:pb-16">
-        {/* TAB 0: AI STUDY ASSISTANT (FIRST PRINCIPLES) */}
-        {activeTab === 'assistant' && (
-          <AiStudyAssistantView
-            onOpenLab={(subject, experimentId) => handleOpenLab(subject, experimentId)}
-            onOpenVideo={(topic, summary) => handleOpenVideo(topic, summary)}
-            onOpenNotebook={() => setActiveTab('notebook')}
-            onOpenTools={(toolTab) => {
-              if (toolTab) setSelectedToolsTab(toolTab);
-              setActiveTab('tools');
-            }}
-            onOpenExam={() => setActiveTab('exam')}
-            onOpenHaevyAi={onOpenHaevyAi}
-            initialQuery={aiInitialQuery}
-            onClearInitialQuery={() => setAiInitialQuery('')}
-          />
-        )}
-
-        {/* TAB 1: VIRTUAL LABS */}
-        {activeTab === 'labs' && (
-          <div className="w-full flex flex-col gap-5">
-            {/* Subject Selector & Quick Actions (Unified Segmented Control) */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-3">
-              <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800/90 overflow-x-auto scrollbar-none -mx-2.5 px-2.5 sm:mx-0 sm:px-0 touch-pan-x">
+        {/* Row 2: 5 Primary Mega-Hubs with Spring Sliding Tab Indicator */}
+        <div className="flex items-center justify-between gap-2 border-t border-zinc-800/60 pt-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1 w-full bg-zinc-950 p-1 rounded-xl border border-zinc-800/80">
+            {[
+              { id: 'workspace', label: 'Bàn Học 📚', desc: 'SRS & Mindmap', icon: Layers },
+              { id: 'sun_study', label: 'Sun Study ☀️', desc: 'Kỷ Luật & Rank', icon: Sun },
+              { id: 'labs', label: 'Lab STEM 🔬', desc: '20+ Mô Phỏng', icon: FlaskConical },
+              { id: 'assistant', label: 'AI Gia Sư 🧠', desc: 'First Principles', icon: BrainCircuit },
+              { id: 'tools', label: 'Luyện Thi 🛠️', desc: 'Casio & Đề Thi', icon: Calculator },
+            ].map(hub => {
+              const isSelected = primaryHub === hub.id;
+              return (
                 <button
-                  onClick={() => setActiveLabSubject('dashboard')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 ${
-                    activeLabSubject === 'dashboard'
-                      ? 'bg-zinc-800 text-zinc-100 border border-zinc-700/80 shadow-sm'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                  key={hub.id}
+                  onClick={() => setActiveTab(hub.id as any)}
+                  className={`relative py-1.5 px-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
+                    isSelected ? 'text-zinc-950 font-black' : 'text-zinc-400 hover:text-white'
                   }`}
                 >
-                  <FlaskConical size={14} className={activeLabSubject === 'dashboard' ? 'text-emerald-400' : 'text-zinc-400'} />
-                  <span>Tổng Quan Dashboard</span>
+                  {isSelected && (
+                    <motion.div
+                      layoutId="activeEduMegaHubIndicator"
+                      className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-500 rounded-lg shadow-md shadow-amber-500/25 -z-0"
+                      transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1 truncate">
+                    <hub.icon size={14} className={isSelected ? 'text-zinc-950' : 'text-zinc-400'} />
+                    <span className="truncate">{hub.label}</span>
+                  </span>
                 </button>
+              );
+            })}
+          </div>
+        </div>
 
-                <button
-                  onClick={() => { setActiveLabSubject('physics'); setActiveExperimentId('pendulum'); }}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 ${
-                    activeLabSubject === 'physics'
-                      ? 'bg-zinc-800 text-cyan-300 border border-zinc-700/80 shadow-sm'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-                  }`}
-                >
-                  <Atom size={14} className={activeLabSubject === 'physics' ? 'text-cyan-400' : 'text-zinc-400'} />
-                  <span>Vật Lý</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-950/60 text-zinc-400 font-mono">7 mô phỏng</span>
-                </button>
+        {/* Row 3: Sub-Feature Secondary Pill Navigation (Smoothly shown per active Mega-Hub) */}
+        {primaryHub !== 'sun_study' && primaryHub !== 'workspace' && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center gap-1.5 overflow-x-auto no-scrollbar touch-pan-x text-[11px] pt-1"
+          >
+            {/* Sub-bar for HUB 2: LABS */}
+            {primaryHub === 'labs' && (
+              <>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase shrink-0">Bộ Môn Lab:</span>
+                {[
+                  { id: 'dashboard', label: '📊 Tổng Quan Dashboard' },
+                  { id: 'physics', label: '⚛️ Vật Lý 10-12 (7 bài)' },
+                  { id: 'chemistry', label: '🧪 Hóa Học 10-12 (6 bài)' },
+                  { id: 'biology', label: '🧬 Sinh Học 10-12 (7 bài)' },
+                  { id: 'video', label: '🎬 Video Bài Giảng AI' },
+                ].map(sub => {
+                  const isSelected = activeLabSubject === sub.id;
+                  return (
+                    <button
+                      key={sub.id}
+                      onClick={() => setActiveLabSubject(sub.id as any)}
+                      className={`relative px-2.5 py-1 rounded-lg font-bold shrink-0 transition-colors cursor-pointer whitespace-nowrap active:scale-95 ${
+                        isSelected ? 'text-zinc-950 font-black' : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="activeLabSubIndicator"
+                          className="absolute inset-0 bg-cyan-400 rounded-lg shadow-sm -z-0"
+                          transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                        />
+                      )}
+                      <span className="relative z-10">{sub.label}</span>
+                    </button>
+                  );
+                })}
 
-                <button
-                  onClick={() => { setActiveLabSubject('chemistry'); setActiveExperimentId('titration'); }}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 ${
-                    activeLabSubject === 'chemistry'
-                      ? 'bg-zinc-800 text-rose-300 border border-zinc-700/80 shadow-sm'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-                  }`}
-                >
-                  <TestTube size={14} className={activeLabSubject === 'chemistry' ? 'text-rose-400' : 'text-zinc-400'} />
-                  <span>Hóa Học</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-950/60 text-zinc-400 font-mono">6 mô phỏng</span>
-                </button>
-
-                <button
-                  onClick={() => { setActiveLabSubject('biology'); setActiveExperimentId('microscope'); }}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 ${
-                    activeLabSubject === 'biology'
-                      ? 'bg-zinc-800 text-teal-300 border border-zinc-700/80 shadow-sm'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-                  }`}
-                >
-                  <Dna size={14} className={activeLabSubject === 'biology' ? 'text-teal-400' : 'text-zinc-400'} />
-                  <span>Sinh Học</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-950/60 text-zinc-400 font-mono">7 mô phỏng</span>
-                </button>
-              </div>
-
-              {/* Action: Ask AI about current active experiment */}
-              <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                 <button
                   onClick={() => handleAskAiAboutLab(activeLabSubject, activeExperimentId)}
-                  className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/50 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
-                  title="Gửi câu hỏi bóc tách nguyên lý của thí nghiệm này tới AI Trợ lý"
+                  className="ml-auto px-2.5 py-1 rounded-lg text-emerald-300 bg-emerald-950/40 border border-emerald-500/40 hover:bg-emerald-900/50 font-bold shrink-0 flex items-center gap-1 cursor-pointer whitespace-nowrap active:scale-95"
                 >
-                  <BrainCircuit size={14} className="text-emerald-400" />
+                  <BrainCircuit size={12} className="text-emerald-400" />
                   <span>Hỏi AI Về Hiện Tượng</span>
                 </button>
-              </div>
-            </div>
-
-            {/* Active Lab Component */}
-            {activeLabSubject === 'dashboard' && (
-              <VirtualLabDashboard
-                onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
-                onOpenRoadmapTopic={(topic) => handleOpenVideo(topic)}
-                onOpenAiAssistant={() => setActiveTab('assistant')}
-                onRecordActivity={recordActivity}
-              />
-            )}
-            {activeLabSubject === 'physics' && (
-              <PhysicsLab
-                initialExperiment={activeExperimentId as any}
-                onSelectExperiment={(id) => setActiveExperimentId(id)}
-                onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
-                onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
-                onRecordActivity={recordActivity}
-              />
+              </>
             )}
 
-            {activeLabSubject === 'chemistry' && (
-              <ChemistryLab
-                initialExperiment={activeExperimentId as any}
-                onSelectExperiment={(id) => setActiveExperimentId(id)}
-                onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
-                onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
-                onRecordActivity={recordActivity}
-              />
+            {/* Sub-bar for HUB 3: AI ASSISTANT & ROADMAP */}
+            {primaryHub === 'assistant' && (
+              <>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase shrink-0">Mô-đun AI:</span>
+                {[
+                  { id: 'assistant', label: '🤖 AI Gia Sư First Principles' },
+                  { id: 'roadmap', label: '🧭 Lộ Trình Tri Thức GDPT 2018' },
+                  { id: 'notebook', label: '📓 Sổ Tay Nghiên Cứu' }
+                ].map(sub => {
+                  const isSelected = activeAiSubTab === sub.id;
+                  return (
+                    <button
+                      key={sub.id}
+                      onClick={() => setActiveAiSubTab(sub.id as any)}
+                      className={`relative px-2.5 py-1 rounded-lg font-bold shrink-0 transition-colors cursor-pointer whitespace-nowrap active:scale-95 ${
+                        isSelected ? 'text-zinc-950 font-black' : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="activeAiSubIndicator"
+                          className="absolute inset-0 bg-purple-400 rounded-lg shadow-sm -z-0"
+                          transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                        />
+                      )}
+                      <span className="relative z-10">{sub.label}</span>
+                    </button>
+                  );
+                })}
+              </>
             )}
 
-            {activeLabSubject === 'biology' && (
-              <BiologyLab
-                initialExperiment={activeExperimentId as any}
-                onSelectExperiment={(id) => setActiveExperimentId(id)}
-                onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
-                onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
-                onRecordActivity={recordActivity}
-              />
+            {/* Sub-bar for HUB 4: TOOLS & EXAM PREP */}
+            {primaryHub === 'tools' && (
+              <>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase shrink-0">Công Cụ:</span>
+                {[
+                  { id: 'casio880', label: '🧮 Máy Tính Casio fx-880 BTG' },
+                  { id: 'exam', label: '⏱️ Phòng Thi Thử Bấm Giờ' },
+                  { id: 'quiz', label: '⚡ Trắc Nghiệm Tư Duy Nhanh' },
+                  { id: 'goals', label: '🎯 7 Trụ Cột Mục Tiêu Ngày' }
+                ].map(sub => {
+                  const isSelected = activeToolSubTab === sub.id;
+                  return (
+                    <button
+                      key={sub.id}
+                      onClick={() => setActiveToolSubTab(sub.id as any)}
+                      className={`relative px-2.5 py-1 rounded-lg font-bold shrink-0 transition-colors cursor-pointer whitespace-nowrap active:scale-95 ${
+                        isSelected ? 'text-zinc-950 font-black' : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="activeToolSubIndicator"
+                          className="absolute inset-0 bg-emerald-400 rounded-lg shadow-sm -z-0"
+                          transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                        />
+                      )}
+                      <span className="relative z-10">{sub.label}</span>
+                    </button>
+                  );
+                })}
+              </>
             )}
+          </motion.div>
+        )}
+      </header>
+
+      {/* ========================================================================= */}
+      {/* 2. DOCKABLE EDU FOCUS MUSIC & USER AUDIO UPLOADER ENGINE (ANIMATED EXPAND)*/}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isMusicPlayerOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-7xl mx-auto px-2 sm:px-4 pt-2 overflow-hidden"
+          >
+            <EduMusicPlayer compact={false} className="border-amber-500/30 shadow-2xl" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* 3. MAIN CONTENT AREA (ANIMATED VIEW TRANSITIONS WITH SPRING DYNAMICS)      */}
+      {/* ========================================================================= */}
+      <div className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 lg:p-6 pb-28 sm:pb-16 flex flex-col gap-4">
+        {/* Daily Goal Milestone Summary Strip */}
+        <EduDailyGoalSummaryStrip
+          onOpenGoalsTracker={() => {
+            setActiveTab('tools');
+            setActiveToolSubTab('goals');
+          }}
+          onOpenCelebration={() => setIsCelebrationModalOpen(true)}
+        />
+
+        {/* Animated Primary Mega-Hubs Switcher */}
+        <React.Suspense fallback={
+          <div className="w-full min-h-[320px] flex flex-col items-center justify-center p-8 bg-zinc-950/60 rounded-2xl border border-zinc-800/80 animate-pulse text-center">
+            <div className="w-9 h-9 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mb-3 shadow-lg shadow-amber-500/10" />
+            <p className="text-xs text-amber-300 font-bold">Đang tải phòng học & không gian học tập Haevy Edu...</p>
+            <p className="text-[11px] text-zinc-500 mt-1">Nạp bất đồng bộ theo phân hệ để tiết kiệm dung lượng RAM điện thoại</p>
           </div>
-        )}
+        }>
+          <AnimatePresence mode="wait">
+          {/* ---------------- MEGA-HUB 0: BÀN HỌC TẬP TRUNG ALL-IN-ONE ---------------- */}
+          {primaryHub === 'workspace' && (
+            <motion.div
+              key="hub-workspace"
+              initial={{ opacity: 0, y: 12, scale: 0.995 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.995 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
+            >
+              <EduWorkspaceToolkitView
+                onOpenAiAssistant={(prompt) => {
+                  if (prompt) setAiInitialQuery(prompt);
+                  setActiveTab('assistant');
+                  setActiveAiSubTab('assistant');
+                }}
+                onOpenExamPrep={() => {
+                  setActiveTab('tools');
+                  setActiveToolSubTab('exam');
+                }}
+                onOpenCasio={() => {
+                  setSelectedToolsTab('casio880');
+                  setActiveTab('tools');
+                  setActiveToolSubTab('casio880');
+                }}
+                onRecordActivity={recordActivity}
+              />
+            </motion.div>
+          )}
 
-        {/* TAB 2: DOCUMENT ROADMAP VIEW */}
-        {activeTab === 'roadmap' && (
-          <DocumentRoadmapView
-            onOpenLabExperiment={(subj, expId) => handleOpenLab(subj, expId)}
-            onGenerateVideoFromDoc={(title, summary) => handleOpenVideo(title, summary)}
-            onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
-            onOpenAiAssistant={(prompt) => {
-              if (prompt) setAiInitialQuery(prompt);
-              setActiveTab('assistant');
-            }}
-          />
-        )}
+          {/* ---------------- MEGA-HUB 1: SUN STUDY APP ---------------- */}
+          {primaryHub === 'sun_study' && (
+            <motion.div
+              key="hub-sun_study"
+              initial={{ opacity: 0, y: 12, scale: 0.995 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.995 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
+            >
+              <SunStudyAppView
+                onJumpToExamPrep={() => {
+                  setActiveTab('tools');
+                  setActiveToolSubTab('exam');
+                }}
+                onJumpToAiAssistant={() => {
+                  setActiveTab('assistant');
+                  setActiveAiSubTab('assistant');
+                }}
+              />
+            </motion.div>
+          )}
 
-        {/* TAB 3: VIDEO LESSON PLAYER */}
-        {activeTab === 'video' && (
-          <VideoLessonPlayer
-            initialTopic={videoTopic}
-            initialSummary={videoSummary}
-            onOpenLabExperiment={(subj, expId) => handleOpenLab(subj as any, expId)}
-          />
-        )}
+          {/* ---------------- MEGA-HUB 2: STEM VIRTUAL LABS & VIDEO ---------------- */}
+          {primaryHub === 'labs' && (
+            <motion.div
+              key="hub-labs"
+              initial={{ opacity: 0, y: 12, scale: 0.995 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.995 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full flex flex-col gap-4"
+            >
+              <AnimatePresence mode="wait">
+                {activeLabSubject === 'dashboard' && (
+                  <motion.div 
+                    key="lab-dashboard"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <VirtualLabDashboard
+                      onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
+                      onOpenRoadmapTopic={(topic) => handleOpenVideo(topic)}
+                      onOpenAiAssistant={() => {
+                        setActiveTab('assistant');
+                        setActiveAiSubTab('assistant');
+                      }}
+                      onRecordActivity={recordActivity}
+                    />
+                  </motion.div>
+                )}
 
-        {/* TAB 4: RESEARCH NOTEBOOK & CHEAT SHEET */}
-        {activeTab === 'notebook' && (
-          <ResearchNotebookView
-            onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
-            onOpenAiAssistant={(prompt) => {
-              if (prompt) setAiInitialQuery(prompt);
-              setActiveTab('assistant');
-            }}
-          />
-        )}
+                {activeLabSubject === 'physics' && (
+                  <motion.div 
+                    key="lab-physics"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <PhysicsLab
+                      initialExperiment={activeExperimentId as any}
+                      onSelectExperiment={(id) => setActiveExperimentId(id)}
+                      onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
+                      onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
+                      onRecordActivity={recordActivity}
+                    />
+                  </motion.div>
+                )}
 
-        {/* TAB 5: STEM QUICK QUIZ (FIRST PRINCIPLES SELF-ASSESSMENT) */}
-        {activeTab === 'quiz' && (
-          <StemQuickQuizView
-            initialSubject={quizTargetSubject}
-            initialExperimentId={quizTargetExpId}
-            onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
-            onOpenAiAssistant={(prompt) => {
-              if (prompt) setAiInitialQuery(prompt);
-              setActiveTab('assistant');
-            }}
-            onRecordActivity={recordActivity}
-          />
-        )}
+                {activeLabSubject === 'chemistry' && (
+                  <motion.div 
+                    key="lab-chemistry"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <ChemistryLab
+                      initialExperiment={activeExperimentId as any}
+                      onSelectExperiment={(id) => setActiveExperimentId(id)}
+                      onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
+                      onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
+                      onRecordActivity={recordActivity}
+                    />
+                  </motion.div>
+                )}
 
-        {/* TAB 6: STEM UTILITY SUITE & CASIO FX-880 BTG */}
-        {activeTab === 'tools' && (
-          <EduUtilitySuiteView
-            onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
-            onOpenAiAssistant={(prompt) => {
-              if (prompt) setAiInitialQuery(prompt);
-              setActiveTab('assistant');
-            }}
-            onOpenExamPrep={() => setActiveTab('exam')}
-            onRecordActivity={recordActivity}
-            initialUtilityTab={selectedToolsTab}
-          />
-        )}
+                {activeLabSubject === 'biology' && (
+                  <motion.div 
+                    key="lab-biology"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <BiologyLab
+                      initialExperiment={activeExperimentId as any}
+                      onSelectExperiment={(id) => setActiveExperimentId(id)}
+                      onOpenVideoLesson={(topic) => handleOpenVideo(topic)}
+                      onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
+                      onRecordActivity={recordActivity}
+                    />
+                  </motion.div>
+                )}
 
-        {/* TAB 7: SPEED EXAM PREP (LUYỆN THI CẤP TỐC TÍCH HỢP TRỰC TIẾP CASIO FX-880 BTG) */}
-        {activeTab === 'exam' && (
-          <SpeedExamPrepView
-            onRecordActivity={recordActivity}
-            onOpenAiAssistant={(prompt) => {
-              if (prompt) setAiInitialQuery(prompt);
-              setActiveTab('assistant');
-            }}
-            onSaveToNotebook={() => {
-              setActiveTab('notebook');
-            }}
-            onOpenPushReminders={() => setIsPushReminderModalOpen(true)}
-          />
-        )}
+                {activeLabSubject === 'video' && (
+                  <motion.div 
+                    key="lab-video"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <VideoLessonPlayer
+                      initialTopic={videoTopic}
+                      initialSummary={videoSummary}
+                      onOpenLabExperiment={(subj, expId) => handleOpenLab(subj as any, expId)}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+
+          {/* ---------------- MEGA-HUB 3: AI ASSISTANT, ROADMAP & NOTEBOOK ---------------- */}
+          {primaryHub === 'assistant' && (
+            <motion.div
+              key="hub-assistant"
+              initial={{ opacity: 0, y: 12, scale: 0.995 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.995 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full flex flex-col gap-4"
+            >
+              <AnimatePresence mode="wait">
+                {activeAiSubTab === 'assistant' && (
+                  <motion.div 
+                    key="ai-assistant-view"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <AiStudyAssistantView
+                      onOpenLab={(subject, experimentId) => handleOpenLab(subject, experimentId)}
+                      onOpenVideo={(topic, summary) => handleOpenVideo(topic, summary)}
+                      onOpenNotebook={() => setActiveAiSubTab('notebook')}
+                      onOpenTools={(toolTab) => {
+                        if (toolTab) setSelectedToolsTab(toolTab);
+                        setActiveTab('tools');
+                      }}
+                      onOpenExam={() => {
+                        setActiveTab('tools');
+                        setActiveToolSubTab('exam');
+                      }}
+                      onOpenHaevyAi={onOpenHaevyAi}
+                      initialQuery={aiInitialQuery}
+                      onClearInitialQuery={() => setAiInitialQuery('')}
+                    />
+                  </motion.div>
+                )}
+
+                {activeAiSubTab === 'roadmap' && (
+                  <motion.div 
+                    key="ai-roadmap-view"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <DocumentRoadmapView
+                      onOpenLabExperiment={(subj, expId) => handleOpenLab(subj, expId)}
+                      onGenerateVideoFromDoc={(title, summary) => handleOpenVideo(title, summary)}
+                      onOpenQuickQuiz={(subj, expId) => handleOpenQuiz(subj, expId)}
+                      onOpenAiAssistant={(prompt) => {
+                        if (prompt) setAiInitialQuery(prompt);
+                        setActiveAiSubTab('assistant');
+                      }}
+                    />
+                  </motion.div>
+                )}
+
+                {activeAiSubTab === 'notebook' && (
+                  <motion.div 
+                    key="ai-notebook-view"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <ResearchNotebookView
+                      onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
+                      onOpenAiAssistant={(prompt) => {
+                        if (prompt) setAiInitialQuery(prompt);
+                        setActiveAiSubTab('assistant');
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+
+          {/* ---------------- MEGA-HUB 4: EXAM PREP, UTILITIES & CASIO FX-880 ---------------- */}
+          {primaryHub === 'tools' && (
+            <motion.div
+              key="hub-tools"
+              initial={{ opacity: 0, y: 12, scale: 0.995 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.995 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full flex flex-col gap-4"
+            >
+              <AnimatePresence mode="wait">
+                {activeToolSubTab === 'casio880' && (
+                  <motion.div 
+                    key="tool-casio880"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <EduUtilitySuiteView
+                      onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
+                      onOpenAiAssistant={(prompt) => {
+                        if (prompt) setAiInitialQuery(prompt);
+                        setActiveTab('assistant');
+                        setActiveAiSubTab('assistant');
+                      }}
+                      onOpenExamPrep={() => setActiveToolSubTab('exam')}
+                      onRecordActivity={recordActivity}
+                      initialUtilityTab={selectedToolsTab}
+                    />
+                  </motion.div>
+                )}
+
+                {activeToolSubTab === 'exam' && (
+                  <motion.div 
+                    key="tool-exam"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <SpeedExamPrepView
+                      onRecordActivity={recordActivity}
+                      onOpenAiAssistant={(prompt) => {
+                        if (prompt) setAiInitialQuery(prompt);
+                        setActiveTab('assistant');
+                        setActiveAiSubTab('assistant');
+                      }}
+                      onSaveToNotebook={() => {
+                        setActiveTab('assistant');
+                        setActiveAiSubTab('notebook');
+                      }}
+                      onOpenPushReminders={() => setIsPushReminderModalOpen(true)}
+                    />
+                  </motion.div>
+                )}
+
+                {activeToolSubTab === 'quiz' && (
+                  <motion.div 
+                    key="tool-quiz"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <StemQuickQuizView
+                      initialSubject={quizTargetSubject}
+                      initialExperimentId={quizTargetExpId}
+                      onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
+                      onOpenAiAssistant={(prompt) => {
+                        if (prompt) setAiInitialQuery(prompt);
+                        setActiveTab('assistant');
+                        setActiveAiSubTab('assistant');
+                      }}
+                      onRecordActivity={recordActivity}
+                    />
+                  </motion.div>
+                )}
+
+                {activeToolSubTab === 'goals' && (
+                  <motion.div 
+                    key="tool-goals"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    <EduDailyGoalTracker
+                      onNavigateToTab={(tab, payload) => {
+                        if (tab === 'assistant') {
+                          if (payload?.initialQuery) setAiInitialQuery(payload.initialQuery);
+                          setActiveTab('assistant');
+                          setActiveAiSubTab('assistant');
+                        } else if (tab === 'exam') {
+                          setActiveToolSubTab('exam');
+                        } else if (tab === 'labs') {
+                          if (payload?.subject && payload?.experimentId) {
+                            handleOpenLab(payload.subject, payload.experimentId);
+                          } else {
+                            setActiveTab('labs');
+                          }
+                        } else if (tab === 'tools') {
+                          if (payload?.toolTab) setSelectedToolsTab(payload.toolTab);
+                          setActiveToolSubTab('casio880');
+                        } else if (tab === 'notebook') {
+                          setActiveTab('assistant');
+                          setActiveAiSubTab('notebook');
+                        } else if (tab === 'quiz') {
+                          handleOpenQuiz();
+                        } else {
+                          setActiveTab(tab as any);
+                        }
+                      }}
+                      onOpenLab={(subject, experimentId) => handleOpenLab(subject, experimentId)}
+                      onOpenExam={() => setActiveToolSubTab('exam')}
+                      onOpenAssistant={(prompt) => {
+                        if (prompt) setAiInitialQuery(prompt);
+                        setActiveTab('assistant');
+                        setActiveAiSubTab('assistant');
+                      }}
+                      onOpenTools={(toolTab) => {
+                        if (toolTab) setSelectedToolsTab(toolTab);
+                        setActiveToolSubTab('casio880');
+                      }}
+                      onOpenNotebook={() => {
+                        setActiveTab('assistant');
+                        setActiveAiSubTab('notebook');
+                      }}
+                      onOpenQuiz={() => handleOpenQuiz()}
+                      onRecordActivity={recordActivity}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        </React.Suspense>
       </div>
 
       {/* Realtime Floating XP & Streak Notification */}
       <EduXpNotificationToast toast={latestXpToast} onDismiss={clearToast} />
 
       {/* Student Streak & XP Profile Modal */}
-      <EduStreakXpModal
-        isOpen={isGamificationModalOpen}
-        onClose={() => setIsGamificationModalOpen(false)}
-        profile={profile}
-        onJumpToLabs={() => {
-          setIsGamificationModalOpen(false);
-          setActiveTab('labs');
-        }}
-        onJumpToQuiz={() => {
-          setIsGamificationModalOpen(false);
-          handleOpenQuiz();
-        }}
-      />
+      {isGamificationModalOpen && (
+        <React.Suspense fallback={null}>
+          <EduStreakXpModal
+            isOpen={isGamificationModalOpen}
+            onClose={() => setIsGamificationModalOpen(false)}
+            profile={profile}
+            onJumpToLabs={() => {
+              setIsGamificationModalOpen(false);
+              setActiveTab('labs');
+            }}
+            onJumpToQuiz={() => {
+              setIsGamificationModalOpen(false);
+              handleOpenQuiz();
+            }}
+          />
+        </React.Suspense>
+      )}
 
       {/* THPT 2027 Milestone Study Reminders & Push Notification Modal */}
-      <EduPushNotificationModal
-        isOpen={isPushReminderModalOpen}
-        onClose={() => setIsPushReminderModalOpen(false)}
-        onNavigateToTab={(tab, payload) => {
-          if (tab === 'assistant') {
-            if (payload?.initialQuery) setAiInitialQuery(payload.initialQuery);
-            setActiveTab('assistant');
-          } else if (tab === 'exam') {
-            setActiveTab('exam');
-          } else if (tab === 'labs') {
-            setActiveTab('labs');
-          } else if (tab === 'notebook') {
-            setActiveTab('notebook');
-          }
-        }}
-        onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
-        onOpenExam={() => setActiveTab('exam')}
-        onOpenAssistant={(prompt) => {
-          if (prompt) setAiInitialQuery(prompt);
-          setActiveTab('assistant');
-        }}
-      />
+      {isPushReminderModalOpen && (
+        <React.Suspense fallback={null}>
+          <EduPushNotificationModal
+            isOpen={isPushReminderModalOpen}
+            onClose={() => setIsPushReminderModalOpen(false)}
+            onNavigateToTab={(tab, payload) => {
+              if (tab === 'assistant') {
+                if (payload?.initialQuery) setAiInitialQuery(payload.initialQuery);
+                setActiveTab('assistant');
+                setActiveAiSubTab('assistant');
+              } else if (tab === 'exam') {
+                setActiveTab('tools');
+                setActiveToolSubTab('exam');
+              } else if (tab === 'labs') {
+                setActiveTab('labs');
+              } else if (tab === 'notebook') {
+                setActiveTab('assistant');
+                setActiveAiSubTab('notebook');
+              }
+            }}
+            onOpenLab={(subj, expId) => handleOpenLab(subj, expId)}
+            onOpenExam={() => {
+              setActiveTab('tools');
+              setActiveToolSubTab('exam');
+            }}
+            onOpenAssistant={(prompt) => {
+              if (prompt) setAiInitialQuery(prompt);
+              setActiveTab('assistant');
+              setActiveAiSubTab('assistant');
+            }}
+          />
+        </React.Suspense>
+      )}
+
+      {/* 7 Exam Prep Pillars Daily All-Goals-Complete Celebration Modal */}
+      {isCelebrationModalOpen && (
+        <React.Suspense fallback={null}>
+          <EduCelebrationModal
+            isOpen={isCelebrationModalOpen}
+            onClose={() => setIsCelebrationModalOpen(false)}
+            dateStr={getTodayDateString()}
+            streakCount={calculateCurrentDailyGoalStreak()}
+            onOpenNotebook={() => {
+              setIsCelebrationModalOpen(false);
+              setActiveTab('assistant');
+              setActiveAiSubTab('notebook');
+            }}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 }

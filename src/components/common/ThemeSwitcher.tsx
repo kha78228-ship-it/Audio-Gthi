@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sun, Moon, Smartphone, Sunrise, Check, Sparkles, MapPin, RefreshCw, CloudSun } from 'lucide-react';
+import { Sun, Moon, Smartphone, Sunrise, Check, Sparkles, MapPin, RefreshCw, CloudSun, Cloud } from 'lucide-react';
 import { useTheme, ThemeMode } from '../../context/ThemeContext';
 import { useHaevyMood } from '../../context/HaevyMoodContext';
 import { formatSolarTime } from '../../utils/solarCalculator';
@@ -24,7 +24,10 @@ export function ThemeSwitcher({
     solarLocation,
     solarLoading,
     requestSolarLocation,
-    setThemeMode
+    setThemeMode,
+    isCloudSynced,
+    isSyncingToCloud,
+    lastCloudSyncTime
   } = useTheme();
 
   const mood = useHaevyMood();
@@ -138,6 +141,43 @@ export function ThemeSwitcher({
             </button>
           );
         })}
+
+        {/* Real-time Multi-Device Firestore Synchronization Badge */}
+        <div className="sm:col-span-2 lg:col-span-4 mt-1 p-3 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border ${
+              isSyncingToCloud 
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' 
+                : isCloudSynced 
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+            }`}>
+              <Cloud size={14} className={isSyncingToCloud ? 'animate-pulse' : ''} />
+            </div>
+            <div>
+              <div className="font-semibold text-zinc-200 flex items-center gap-1.5">
+                <span>Đồng Bộ Firestore Đa Thiết Bị</span>
+                <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                  isSyncingToCloud 
+                    ? 'bg-amber-500/20 text-amber-300' 
+                    : isCloudSynced 
+                    ? 'bg-emerald-500/20 text-emerald-300' 
+                    : 'bg-zinc-800 text-zinc-400'
+                }`}>
+                  {isSyncingToCloud ? 'Đang lưu Cloud...' : isCloudSynced ? 'Đã đồng bộ Cloud' : 'Lưu cục bộ'}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                Chế độ bạn chọn ('Sáng' hoặc 'Tối') được lưu vĩnh viễn trên Firestore và tự động đồng bộ xuyên suốt mọi thiết bị điện thoại, máy tính bảng và laptop.
+              </p>
+            </div>
+          </div>
+          {lastCloudSyncTime && (
+            <div className="text-[10px] text-zinc-500 font-mono text-left sm:text-right shrink-0">
+              Vừa đồng bộ: {lastCloudSyncTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -308,9 +348,12 @@ export function ThemeSwitcher({
               <Sparkles size={14} className="text-amber-400" />
               <span className="text-xs font-bold text-zinc-100">Giao diện Ngày & Đêm</span>
             </div>
-            <span className="text-[10px] text-zinc-400 font-mono">
-              {effectiveTheme === 'dark' ? '🌙 Tối' : '☀️ Sáng'}
-            </span>
+            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono">
+              <span title={isSyncingToCloud ? "Đang đồng bộ Firestore" : isCloudSynced ? "Đã đồng bộ Firestore" : "Cục bộ"}>
+                <Cloud size={11} className={isSyncingToCloud ? "text-amber-400 animate-pulse" : isCloudSynced ? "text-emerald-400" : "text-zinc-500"} />
+              </span>
+              <span>{effectiveTheme === 'dark' ? '🌙 Tối' : '☀️ Sáng'}</span>
+            </div>
           </div>
 
           <div className="space-y-1.5">

@@ -20,7 +20,8 @@ import {
   Eye,
   Scroll,
   Hash,
-  BookOpen
+  BookOpen,
+  Smile
 } from 'lucide-react';
 import { HaevyTarotView } from './spiritual/HaevyTarotView';
 import { HaevyTuViView } from './spiritual/HaevyTuViView';
@@ -32,12 +33,15 @@ import { HaevyDivinationView } from './spiritual/HaevyDivinationView';
 import { HaevyNumerologyView } from './spiritual/HaevyNumerologyView';
 import { HaevyCrystalOracleView } from './spiritual/HaevyCrystalOracleView';
 import { HaevyFocusReaderView } from './spiritual/HaevyFocusReaderView';
+import { HaevyMoodJournalView } from './spiritual/HaevyMoodJournalView';
+import { HaevyMoodJournalPrompt } from './spiritual/HaevyMoodJournalPrompt';
 import { SpiritualShareModal } from './spiritual/SpiritualShareModal';
 import { SpiritualShareAttachment } from '../types';
 import { spiritualAudio } from '../utils/spiritualAudioSynthesizer';
 import { haptics } from '../utils/haptics';
 
 export type SpiritualSubTab = 
+  | 'mood_journal'
   | 'tarot' 
   | 'palmistry' 
   | 'divination' 
@@ -141,6 +145,15 @@ export function HaevySpiritualView({ onEarnCoins, initialSubTab, onNavigateToMod
   };
 
   const subTabs = [
+    {
+      id: 'mood_journal' as const,
+      name: 'Nhật Ký Tâm Trạng',
+      badge: 'Cảm Xúc & Biểu Đồ',
+      icon: Smile,
+      color: 'from-amber-400 to-purple-600',
+      activeBorder: 'border-amber-400',
+      activeGlow: 'bg-amber-600/30 text-amber-200'
+    },
     {
       id: 'tarot' as const,
       name: 'Bói Bài Tarot',
@@ -295,6 +308,22 @@ export function HaevySpiritualView({ onEarnCoins, initialSubTab, onNavigateToMod
             )}
           </button>
 
+          {/* Consult Haevy AI Spiritual Advisor */}
+          {onNavigateToMode && (
+            <button
+              type="button"
+              onClick={() => {
+                haptics.medium();
+                onNavigateToMode('haevy_ai', 'chat');
+              }}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-purple-500/40 bg-purple-950/50 hover:bg-purple-900/60 text-purple-200 transition-all cursor-pointer shadow-md active:scale-95"
+              title="Trò chuyện và tham vấn trực giác cùng trợ lý Haevy AI"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+              <span className="hidden sm:inline">AI Tâm Thức</span>
+            </button>
+          )}
+
           {/* Claim Daily Coin */}
           <button
             onClick={handleClaimDailyBlessing}
@@ -310,6 +339,18 @@ export function HaevySpiritualView({ onEarnCoins, initialSubTab, onNavigateToMod
           </button>
         </div>
       </div>
+
+      {/* Quick Mood Journal Prompt Banner (Prompt users while exploring other tabs) */}
+      {activeSubTab !== 'mood_journal' && (
+        <HaevyMoodJournalPrompt
+          onEarnCoins={onEarnCoins}
+          onOpenFullJournal={() => {
+            haptics.impact('light');
+            setActiveSubTab('mood_journal');
+            if (onSubTabChange) onSubTabChange('mood_journal');
+          }}
+        />
+      )}
 
       {/* Top Spiritual Ecosystem Navigation Bar */}
       <div className="w-full bg-zinc-950/90 backdrop-blur-xl border border-purple-500/30 p-2 sm:p-2.5 rounded-2xl sm:rounded-3xl shadow-2xl flex items-center justify-between gap-2 overflow-x-auto custom-scrollbar">
@@ -351,6 +392,9 @@ export function HaevySpiritualView({ onEarnCoins, initialSubTab, onNavigateToMod
 
       {/* Main View Area */}
       <div className="w-full">
+        {activeSubTab === 'mood_journal' && (
+          <HaevyMoodJournalView onEarnCoins={onEarnCoins} onNavigateToMode={onNavigateToMode} />
+        )}
         {activeSubTab === 'tarot' && <HaevyTarotView onEarnCoins={onEarnCoins} onNavigateToMode={onNavigateToMode} />}
         {activeSubTab === 'palmistry' && <HaevyPalmistryView onEarnCoins={onEarnCoins} onNavigateToMode={onNavigateToMode} />}
         {activeSubTab === 'divination' && <HaevyDivinationView onEarnCoins={onEarnCoins} onNavigateToMode={onNavigateToMode} />}

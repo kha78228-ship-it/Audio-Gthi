@@ -29,6 +29,26 @@
           "type": "object",
           "description": "User personal customized keyboard shortcut mappings synchronized across devices"
         },
+        "theme": {
+          "type": "string",
+          "enum": ["dark", "light"],
+          "description": "User's chosen theme visual preference ('dark' or 'light') synchronized across all ecosystem devices"
+        },
+        "themePreference": {
+          "type": "string",
+          "enum": ["dark", "light"],
+          "description": "User's preferred theme visual mode"
+        },
+        "themeMode": {
+          "type": "string",
+          "enum": ["solar", "system", "light", "dark"],
+          "description": "Ecosystem theme mode selection ('solar', 'system', 'light', or 'dark')"
+        },
+        "themeUpdatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp when theme visual preference was last saved to Firestore"
+        },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -529,6 +549,55 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "message", "category", "isRead", "createdAt"]
+    },
+    "eduDailyGoals": {
+      "title": "Edu Daily Goals",
+      "description": "Daily study milestones across the 7 exam prep pillars for Haevy Edu",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "items": { "type": "object" },
+        "allCompleted": { "type": "boolean" },
+        "completedCount": { "type": "number" },
+        "totalCount": { "type": "number" },
+        "streakCount": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "items", "completedCount", "totalCount"]
+    },
+    "moodJournals": {
+      "title": "User Mood Journal Entry",
+      "description": "Daily mood entries recorded with emoji, sentiment score, and 1-sentence reflection notes for sentiment trend tracking in Haevy Spiritual",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "emoji": { "type": "string" },
+        "moodLabel": { "type": "string" },
+        "sentimentScore": { "type": "number", "description": "Numeric sentiment score from 1 to 5" },
+        "note": { "type": "string", "maxLength": 300, "description": "1-sentence reflection note" },
+        "tag": { "type": "string" },
+        "date": { "type": "string", "description": "Date formatted as YYYY-MM-DD" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "emoji", "moodLabel", "sentimentScore", "note", "createdAt"]
+    },
+    "quickNotes": {
+      "title": "User Quick Notes",
+      "description": "Fleeting thoughts, sparks, ideas and quick memos saved persistently from the Haevy Portal, accessible in Haevy AI chat",
+      "type": "object",
+      "properties": {
+        "content": { "type": "string", "description": "The fleeting thought or note content" },
+        "tag": { "type": "string", "enum": ["idea", "thought", "todo", "question", "spark"] },
+        "tagLabel": { "type": "string" },
+        "userId": { "type": "string" },
+        "isStarred": { "type": "boolean" },
+        "color": { "type": "string" },
+        "syncedWithAI": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["content", "userId", "createdAt"]
     }
   },
   "firestore": {
@@ -683,6 +752,18 @@
     "/users/{userId}/notifications/{notificationId}": {
       "entity": "notifications",
       "description": "User specific real-time notifications for system announcements, friend activity, finance, and family tree alerts"
+    },
+    "/users/{userId}/eduDailyGoals/{dateId}": {
+      "entity": "eduDailyGoals",
+      "description": "User study milestones and daily goals progress across the 7 exam prep pillars"
+    },
+    "/users/{userId}/moodJournals/{entryId}": {
+      "entity": "moodJournals",
+      "description": "User personal mood journal entries for sentiment trends in Haevy Spiritual"
+    },
+    "/users/{userId}/quickNotes/{noteId}": {
+      "entity": "quickNotes",
+      "description": "User fleeting thoughts and quick notes saved directly from Haevy Portal and accessible in Haevy AI chat"
     }
   }
 }

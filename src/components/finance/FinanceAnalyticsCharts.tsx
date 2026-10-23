@@ -10,7 +10,8 @@ import {
   Sparkles,
   Layers,
   HelpCircle,
-  Activity
+  Activity,
+  Flame
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -24,6 +25,9 @@ import {
 } from 'recharts';
 import { FinanceTransaction, FinanceCategory, FinanceBudget } from '../../types';
 import { FinanceRechartsVisualization } from './FinanceRechartsVisualization';
+import { FinanceD3SunburstChart } from './FinanceD3SunburstChart';
+import { FinanceSixJarsSavingsGrowthChart } from './FinanceSixJarsSavingsGrowthChart';
+import { FinanceHeatmap } from './FinanceHeatmap';
 
 interface FinanceAnalyticsChartsProps {
   transactions: FinanceTransaction[];
@@ -38,7 +42,7 @@ export function FinanceAnalyticsCharts({
   budget,
   selectedMonth
 }: FinanceAnalyticsChartsProps) {
-  const [chartMode, setChartMode] = useState<'recharts' | 'category' | 'trend' | 'ranking'>('recharts');
+  const [chartMode, setChartMode] = useState<'recharts' | 'heatmap' | 'growth' | 'sunburst' | 'category' | 'trend' | 'ranking'>('recharts');
 
   const formatVND = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -115,6 +119,39 @@ export function FinanceAnalyticsCharts({
             <span>Phân Tích Recharts (Tuần &amp; Ngân Sách)</span>
           </button>
           <button
+            onClick={() => setChartMode('heatmap')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              chartMode === 'heatmap' 
+                ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 text-zinc-950 shadow-md font-black' 
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Flame size={14} className="text-amber-400" />
+            <span>🔥 Heatmap 30 Ngày (D3.js)</span>
+          </button>
+          <button
+            onClick={() => setChartMode('growth')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              chartMode === 'growth' 
+                ? 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-zinc-950 shadow-md font-black' 
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <TrendingUp size={14} />
+            <span>📈 Tăng Trưởng 6 Hũ (30 Ngày)</span>
+          </button>
+          <button
+            onClick={() => setChartMode('sunburst')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              chartMode === 'sunburst' 
+                ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 text-zinc-950 shadow-md font-black' 
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Sparkles size={14} />
+            <span>☀️ Sunburst 6 Hũ (D3.js)</span>
+          </button>
+          <button
             onClick={() => setChartMode('category')}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
               chartMode === 'category' 
@@ -157,6 +194,34 @@ export function FinanceAnalyticsCharts({
       {/* MODE 0: RECHARTS ADVANCED VISUALIZATION */}
       {chartMode === 'recharts' && (
         <FinanceRechartsVisualization
+          transactions={transactions}
+          categories={categories}
+          budget={budget}
+          selectedMonth={selectedMonth}
+        />
+      )}
+
+      {/* MODE HEATMAP: D3.JS 30-DAY SPENDING HEATMAP */}
+      {chartMode === 'heatmap' && (
+        <FinanceHeatmap
+          transactions={transactions}
+          categories={categories}
+          budget={budget}
+        />
+      )}
+
+      {/* MODE GROWTH: RECHARTS 30-DAY 6-JARS SAVINGS GROWTH */}
+      {chartMode === 'growth' && (
+        <FinanceSixJarsSavingsGrowthChart
+          transactions={transactions}
+          categories={categories}
+          budget={budget}
+        />
+      )}
+
+      {/* MODE SUNBURST: D3.JS 6-JARS SUNBURST */}
+      {chartMode === 'sunburst' && (
+        <FinanceD3SunburstChart
           transactions={transactions}
           categories={categories}
           budget={budget}

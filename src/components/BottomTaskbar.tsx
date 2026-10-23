@@ -68,7 +68,11 @@ import {
   Video,
   Timer,
   MapPin,
-  PenLine
+  PenLine,
+  Globe,
+  Bookmark,
+  Newspaper,
+  Search
 } from 'lucide-react';
 import { Track, ActiveTab, EcosystemMode } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -107,12 +111,16 @@ interface BottomTaskbarProps {
   onSelectSpiritualSubTab?: (subTab: 'tarot' | 'tuvi' | 'astrology' | 'soundscapes' | 'crystal_oracle' | 'couple_spiritual') => void;
   familyTreeSubTab?: 'tree' | 'records' | 'anniversaries' | 'ancestors';
   onSelectFamilyTreeSubTab?: (subTab: 'tree' | 'records' | 'anniversaries' | 'ancestors') => void;
-  haevyLiteSubTab?: 'shop' | 'customize' | 'topup_and_ads';
-  onSelectHaevyLiteSubTab?: (subTab: 'shop' | 'customize' | 'topup_and_ads') => void;
+  haevyLiteSubTab?: 'shop' | 'rewards' | 'customize' | 'topup_and_ads';
+  onSelectHaevyLiteSubTab?: (subTab: 'shop' | 'rewards' | 'customize' | 'topup_and_ads') => void;
   profileSubTab?: 'posts' | 'about' | 'audio' | 'media' | 'security' | 'transactions' | 'support';
   onSelectProfileSubTab?: (subTab: 'posts' | 'about' | 'audio' | 'media' | 'security' | 'transactions' | 'support') => void;
-  eduSubTab?: 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam';
-  onSelectEduSubTab?: (subTab: 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam') => void;
+  eduSubTab?: 'workspace' | 'sun_study' | 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam' | 'goals';
+  onSelectEduSubTab?: (subTab: 'workspace' | 'sun_study' | 'assistant' | 'labs' | 'roadmap' | 'video' | 'notebook' | 'quiz' | 'tools' | 'exam' | 'goals') => void;
+  mapsSubTab?: 'all' | 'couple' | 'family' | 'zones';
+  onSelectMapsSubTab?: (subTab: 'all' | 'couple' | 'family' | 'zones') => void;
+  internetSubTab?: string;
+  onSelectInternetSubTab?: (subTab: any) => void;
   currentTrack: Track | null;
   isPlaying: boolean;
   progress: number;
@@ -173,6 +181,10 @@ export function BottomTaskbar({
   onSelectProfileSubTab,
   eduSubTab = 'assistant',
   onSelectEduSubTab,
+  mapsSubTab = 'all',
+  onSelectMapsSubTab,
+  internetSubTab = 'browser',
+  onSelectInternetSubTab,
   currentTrack,
   isPlaying,
   progress,
@@ -268,26 +280,73 @@ export function BottomTaskbar({
     return () => unsubReq();
   }, [user]);
 
-  // Hide entire taskbar when user avatar menu is open
+  // Hide entire taskbar when user avatar menu is open or Haevy Internet is in 100% fullscreen mode
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isInternetFullscreen, setIsInternetFullscreen] = useState(false);
+  const [isDockCollapsed, setIsDockCollapsed] = useState(false);
+
   useEffect(() => {
     const handleUserMenu = (e: any) => {
       setIsUserMenuOpen(Boolean(e.detail));
     };
+    const handleInternetFs = (e: any) => {
+      setIsInternetFullscreen(Boolean(e.detail?.isFullscreen));
+    };
     window.addEventListener('haevy:user-menu-opened', handleUserMenu);
+    window.addEventListener('haevy:internet-fullscreen', handleInternetFs);
     return () => {
       window.removeEventListener('haevy:user-menu-opened', handleUserMenu);
+      window.removeEventListener('haevy:internet-fullscreen', handleInternetFs);
     };
   }, []);
 
-  // If user action panel is open, completely hide bottom taskbar
-  if (isUserMenuOpen) {
+  // Auto-collapse Smart Floating Dock when scrolling down, expand when scrolling up
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      if (currentY > lastScrollY + 28 && currentY > 120) {
+        setIsDockCollapsed(true);
+      } else if (currentY < lastScrollY - 18 || currentY < 60) {
+        setIsDockCollapsed(false);
+      }
+      lastScrollY = currentY;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // If user action panel or 100% fullscreen browser is open, completely hide bottom taskbar
+  if (isUserMenuOpen || isInternetFullscreen) {
     return null;
+  }
+
+  // If Smart Floating Dock is auto-collapsed while scrolling, render a sleek floating pill to restore
+  if (isDockCollapsed) {
+    return (
+      <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 animate-fadeIn">
+        <button
+          type="button"
+          onClick={() => {
+            haptics.selection();
+            setIsDockCollapsed(false);
+          }}
+          className="px-4 py-2 rounded-full bg-zinc-950/90 hover:bg-zinc-900 border border-amber-500/40 text-amber-300 shadow-[0_8px_30px_rgba(0,0,0,0.85)] backdrop-blur-xl flex items-center gap-2 text-xs font-black cursor-pointer transition-all hover:scale-105"
+          title="Mở thanh điều hướng thông minh"
+        >
+          <ChevronUp size={14} />
+          <span>Mở Dock Điều Hướng</span>
+          {currentTrack && isPlaying && (
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          )}
+        </button>
+      </div>
+    );
   }
 
   // Dynamic bottom dock tabs corresponding to the active mode
   const getDockNavItems = () => {
-    if (activeTab === 'vip' || activeTab === 'topup') {
+    if (activeTab === 'vip' || activeTab === 'topup' || currentMode === 'vip') {
       return [
         { id: 'page1', label: 'Đặc Quyền', icon: Crown, isModeSubTab: true },
         { id: 'page2', label: 'Nạp VIP', icon: Zap, isModeSubTab: true },
@@ -455,19 +514,18 @@ export function BottomTaskbar({
         ];
       case 'haevy_lite':
         return [
-          { id: 'shop', label: '1. Shop Bán 🛍️', icon: ShoppingBag, badge: getBadgeForSubTab('haevy_lite', 'shop') || undefined, isModeSubTab: true },
-          { id: 'customize', label: '2. Tùy Chỉnh 🎨', icon: SlidersHorizontal, isModeSubTab: true },
-          { id: 'topup_and_ads', label: '3. Nạp Xu & QC 🪙', icon: Coins, badge: getBadgeForSubTab('haevy_lite', 'topup_and_ads') || undefined, isModeSubTab: true },
+          { id: 'shop', label: 'Cửa Hàng 🛍️', icon: ShoppingBag, badge: getBadgeForSubTab('haevy_lite', 'shop') || undefined, isModeSubTab: true },
+          { id: 'rewards', label: 'Điểm Danh & Quay 🎁', icon: Gift, badge: 'FREE', isModeSubTab: true },
+          { id: 'customize', label: 'Phòng Thử Đồ 🎨', icon: SlidersHorizontal, isModeSubTab: true },
+          { id: 'topup_and_ads', label: 'Nạp QR & QC 🪙', icon: Coins, badge: getBadgeForSubTab('haevy_lite', 'topup_and_ads') || undefined, isModeSubTab: true },
         ];
       case 'edu':
         return [
+          { id: 'workspace', label: 'Bàn Học 📚', icon: BookOpen, badge: '4-in-1', isModeSubTab: true },
+          { id: 'sun_study', label: 'Sun Study ☀️', icon: Sun, isModeSubTab: true },
+          { id: 'labs', label: 'Lab 3D STEM', icon: FlaskConical, badge: '11+', isModeSubTab: true },
           { id: 'assistant', label: 'AI Gia Sư', icon: BrainCircuit, isModeSubTab: true },
-          { id: 'exam', label: 'Luyện Thi', icon: Timer, badge: '2027', isModeSubTab: true },
-          { id: 'labs', label: 'Lab Ảo', icon: FlaskConical, badge: '11+', isModeSubTab: true },
-          { id: 'tools', label: 'Tiện Ích', icon: Calculator, badge: 'fx-880', isModeSubTab: true },
-          { id: 'roadmap', label: 'Lộ Trình', icon: Compass, isModeSubTab: true },
-          { id: 'notebook', label: 'Sổ Tay', icon: FileText, isModeSubTab: true },
-          { id: 'quiz', label: 'Quiz', icon: Zap, isModeSubTab: true },
+          { id: 'tools', label: 'Thi & fx-880', icon: Calculator, isModeSubTab: true },
         ];
       case 'maps':
         return [
@@ -475,6 +533,14 @@ export function BottomTaskbar({
           { id: 'couple', label: 'Bạn Đời 💖', icon: Heart, isModeSubTab: true },
           { id: 'family', label: 'Gia Đình 🏡', icon: Home, isModeSubTab: true },
           { id: 'zones', label: 'Vùng An Toàn 🛡️', icon: ShieldCheck, isModeSubTab: true },
+        ];
+      case 'internet':
+        return [
+          { id: 'browser', label: 'Trình Duyệt', icon: Globe, isModeSubTab: true },
+          { id: 'search', label: 'Tìm Kiếm AI', icon: Search, isModeSubTab: true },
+          { id: 'bookmarks', label: 'Dấu Trang', icon: Bookmark, isModeSubTab: true },
+          { id: 'news', label: 'Tin Tức', icon: Newspaper, isModeSubTab: true },
+          { id: 'ai_reader', label: 'Đọc Sạch', icon: BookOpen, isModeSubTab: true },
         ];
       case 'profile':
         return [
@@ -509,7 +575,7 @@ export function BottomTaskbar({
     } else {
       haptics.selection();
     }
-    if (activeTab === 'vip' || activeTab === 'topup') {
+    if (activeTab === 'vip' || activeTab === 'topup' || currentMode === 'vip') {
       if (item.isModeSubTab) {
         if (onSelectVipSubTab) {
           onSelectVipSubTab(item.id as 'page1' | 'page2' | 'page3' | 'page4' | 'page5' | 'page6');
@@ -602,7 +668,7 @@ export function BottomTaskbar({
       if (item.isModeSubTab) {
         onSelectTab('haevy_lite');
         if (onSelectHaevyLiteSubTab) {
-          onSelectHaevyLiteSubTab(item.id as 'shop' | 'customize' | 'topup_and_ads');
+          onSelectHaevyLiteSubTab(item.id as 'shop' | 'rewards' | 'customize' | 'topup_and_ads');
         }
       } else {
         onSelectTab(item.id as ActiveTab);
@@ -638,6 +704,24 @@ export function BottomTaskbar({
       } else {
         onSelectTab(item.id as ActiveTab);
       }
+    } else if (currentMode === 'maps') {
+      if (item.isModeSubTab) {
+        onSelectTab('maps' as any);
+        if (onSelectMapsSubTab) {
+          onSelectMapsSubTab(item.id as any);
+        }
+      } else {
+        onSelectTab(item.id as ActiveTab);
+      }
+    } else if (currentMode === 'internet') {
+      if (item.isModeSubTab) {
+        onSelectTab('internet' as any);
+        if (onSelectInternetSubTab) {
+          onSelectInternetSubTab(item.id as any);
+        }
+      } else {
+        onSelectTab(item.id as ActiveTab);
+      }
     } else {
       onSelectTab(item.id as ActiveTab);
     }
@@ -646,7 +730,7 @@ export function BottomTaskbar({
   return (
     <footer 
       id="bottom-dock-taskbar"
-      className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-800/90 shadow-[0_-10px_35px_rgba(0,0,0,0.85)] transition-all"
+      className="fixed bottom-2 left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-full sm:max-w-4xl z-50 bg-zinc-950/90 backdrop-blur-2xl border border-zinc-800/90 rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.85)] transition-all pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] overflow-hidden"
     >
       {/* Mini Player Strip (Docked directly above the bottom navigation tabs) */}
       {currentTrack && activeTab !== 'player' && isPlayerStripCollapsed && (
@@ -946,32 +1030,36 @@ export function BottomTaskbar({
       <div className="max-w-4xl mx-auto px-1.5 sm:px-6 py-2 flex items-center justify-around gap-1 sm:gap-2 overflow-x-auto no-scrollbar touch-pan-x">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = (activeTab === 'vip' || activeTab === 'topup')
-            ? vipSubTab === item.id
+          const isActive = (activeTab === 'vip' || activeTab === 'topup' || currentMode === 'vip')
+            ? (vipSubTab === item.id || (!vipSubTab && item.id === 'page1'))
+            : currentMode === 'maps'
+            ? (mapsSubTab === item.id || (!mapsSubTab && item.id === 'all'))
+            : currentMode === 'internet'
+            ? (internetSubTab === item.id || (!internetSubTab && item.id === 'browser'))
             : currentMode === 'messages'
-            ? activeTab === 'messages' && messageSubTab === item.id
+            ? (messageSubTab === item.id || (!messageSubTab && item.id === 'chat'))
             : currentMode === 'couple'
-            ? activeTab === 'couple' && coupleSubTab === item.id
+            ? (coupleSubTab === item.id || (!coupleSubTab && item.id === 'page1'))
             : currentMode === 'finance'
-            ? activeTab === 'finance' && financeSubTab === item.id
+            ? (financeSubTab === item.id || (!financeSubTab && item.id === 'page1'))
             : currentMode === 'admin'
-            ? activeTab === 'admin' && adminSubTab === item.id
+            ? (adminSubTab === item.id || (!adminSubTab && item.id === 'page1'))
             : currentMode === 'games'
-            ? activeTab === 'games' && (gamesSubTab === item.id || (!gamesSubTab && item.id === 'home') || (item.id === 'home' && gamesSubTab !== 'leaderboard' && gamesSubTab !== 'quests'))
+            ? (gamesSubTab === item.id || (!gamesSubTab && item.id === 'home') || (item.id === 'home' && gamesSubTab !== 'leaderboard' && gamesSubTab !== 'quests'))
             : currentMode === 'studio'
-            ? activeTab === 'studio' && studioSubTab === item.id
+            ? (studioSubTab === item.id || (!studioSubTab && item.id === 'page1'))
             : currentMode === 'haevy_ai'
-            ? activeTab === 'haevy_ai' && (haevyAISubTab === item.id || (!haevyAISubTab && item.id === 'overview'))
+            ? (haevyAISubTab === item.id || (!haevyAISubTab && item.id === 'overview'))
             : currentMode === 'spiritual'
-            ? activeTab === 'spiritual' && (spiritualSubTab === item.id || (!spiritualSubTab && item.id === 'tarot'))
+            ? (spiritualSubTab === item.id || (!spiritualSubTab && item.id === 'tarot'))
             : currentMode === 'family_tree'
-            ? activeTab === 'family_tree' && (familyTreeSubTab === item.id || (!familyTreeSubTab && item.id === 'tree'))
+            ? (familyTreeSubTab === item.id || (!familyTreeSubTab && item.id === 'tree'))
             : currentMode === 'haevy_lite'
-            ? activeTab === 'haevy_lite' && (haevyLiteSubTab === item.id || (!haevyLiteSubTab && item.id === 'shop'))
+            ? (haevyLiteSubTab === item.id || (!haevyLiteSubTab && item.id === 'shop'))
             : currentMode === 'edu'
-            ? activeTab === 'edu' && (eduSubTab === item.id || (!eduSubTab && item.id === 'assistant'))
+            ? (eduSubTab === item.id || (!eduSubTab && item.id === 'sun_study'))
             : currentMode === 'profile'
-            ? activeTab === 'profile' && (profileSubTab === item.id || (!profileSubTab && item.id === 'posts'))
+            ? (profileSubTab === item.id || (!profileSubTab && item.id === 'posts'))
             : (currentMode === 'space' || currentMode === 'morning')
             ? (spaceSubTab === item.id || (!spaceSubTab && item.id === 'portal'))
             : activeTab === item.id;
@@ -1007,12 +1095,16 @@ export function BottomTaskbar({
               id={`taskbar-tab-${item.id}`}
               type="button"
               onClick={() => handleTabClick(item)}
-              className={`relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-2 sm:px-3.5 rounded-2xl transition-all cursor-pointer min-w-0 shrink-0 sm:shrink sm:flex-1 ${
+              className={`relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-1.5 sm:py-2 px-2 sm:px-3.5 rounded-2xl transition-all cursor-pointer min-w-[44px] min-h-[44px] shrink-0 sm:shrink sm:flex-1 touch-manipulation select-none ${
                 isActive
                   ? currentMode === 'finance'
                     ? 'bg-emerald-500/20 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 dark:border-emerald-500/50 font-black shadow-lg shadow-emerald-500/10 scale-[1.02]'
-                    : currentMode === 'edu'
+                    : currentMode === 'maps'
                     ? 'bg-emerald-500/20 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 dark:border-emerald-500/50 font-black shadow-lg shadow-emerald-500/10 scale-[1.02]'
+                    : currentMode === 'internet'
+                    ? 'bg-sky-500/20 dark:bg-sky-500/20 text-sky-800 dark:text-sky-300 border border-sky-500/40 dark:border-sky-500/50 font-black shadow-lg shadow-sky-500/10 scale-[1.02]'
+                    : currentMode === 'edu'
+                    ? 'bg-cyan-500/20 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/40 dark:border-cyan-500/50 font-black shadow-lg shadow-cyan-500/10 scale-[1.02]'
                     : currentMode === 'profile'
                     ? 'bg-blue-500/20 dark:bg-blue-500/20 text-blue-800 dark:text-blue-300 border border-blue-500/40 dark:border-blue-500/50 font-black shadow-lg shadow-blue-500/10 scale-[1.02]'
                     : currentMode === 'couple'

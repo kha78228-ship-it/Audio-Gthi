@@ -46,14 +46,16 @@ import {
   Award,
   Zap,
   TrendingUp,
-  Cpu
+  Cpu,
+  Type
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useDisplayScale } from '../context/DisplayScaleContext';
+import { haptics } from '../utils/haptics';
 import { calculateLevelFromExp } from '../data/levelMilestones';
 import { EcosystemMode, ActiveTab } from '../types';
 import { ThemeSwitcher } from './common/ThemeSwitcher';
 import { EduPushNotificationModal } from './edu/EduPushNotificationModal';
-import { HaevyMCPProtocolModal } from './haevyAI/HaevyMCPProtocolModal';
 import {
   GoogleDriveServiceConfig,
   getStoredGoogleDriveConfig,
@@ -121,6 +123,7 @@ export function HaevyUserDropdownMenu({
     unclaimedLevelRewardsCount = 0,
     setIsLevelModalOpen
   } = useAuth();
+  const { isLargeDisplay, toggleDisplayScale, setDisplayScale } = useDisplayScale();
   
   const levelState = calculateLevelFromExp(levelExp);
   
@@ -129,7 +132,6 @@ export function HaevyUserDropdownMenu({
   const [copiedId, setCopiedId] = useState(false);
   const [activeCategory, setActiveCategory] = useState<MenuCategory>('all');
   const [isEduPushModalOpen, setIsEduPushModalOpen] = useState(false);
-  const [isMCPModalOpen, setIsMCPModalOpen] = useState(false);
 
   // Privacy Mode State (defaults to true: hide sensitive balance & IDs in public)
   const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(() => {
@@ -607,38 +609,6 @@ export function HaevyUserDropdownMenu({
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* 2.8 MODEL CONTEXT PROTOCOL (MCP) AI DATA ACCESS BANNER                    */}
-        {/* ========================================================================= */}
-        <div
-          onClick={() => {
-            setIsMCPModalOpen(true);
-            onClose();
-          }}
-          className="group p-2.5 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-indigo-500/10 hover:from-cyan-500/20 hover:to-indigo-500/20 rounded-2xl border border-cyan-500/30 hover:border-cyan-400/60 mb-3 cursor-pointer transition-all shadow-md flex items-center justify-between gap-2.5"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-300 flex items-center justify-center font-bold shrink-0 border border-cyan-500/30">
-              <Cpu size={16} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xs text-white group-hover:text-cyan-300 transition-colors">
-                  Giao Diện MCP Context Cho AI
-                </span>
-                <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-[9px] font-mono font-bold">
-                  MCP
-                </span>
-              </div>
-              <p className="text-[10px] text-zinc-400 truncate">
-                Đăng nhập & cho phép AI đọc, truy cứu dữ liệu người dùng
-              </p>
-            </div>
-          </div>
-          <span className="text-[11px] font-bold text-cyan-400 shrink-0 group-hover:translate-x-0.5 transition-transform">
-            Mở →
-          </span>
-        </div>
 
         {/* ========================================================================= */}
         {/* 3. CATEGORY SWITCHER PILLS (CÀI ĐẶT, BẢO MẬT & GOOGLE HUB)              */}
@@ -840,6 +810,70 @@ export function HaevyUserDropdownMenu({
                     }`}
                   >
                     Tắt
+                  </button>
+                </div>
+              </div>
+
+              {/* Cỡ Chữ & Kích Thước Hiển Thị Hệ Sinh Thái (Font Size & Display Scale Control) */}
+              <div className="p-3 rounded-2xl bg-zinc-900/90 border border-zinc-800/90 hover:border-amber-500/30 transition-all space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs border transition-all ${
+                      isLargeDisplay
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-md shadow-amber-500/20'
+                        : 'bg-zinc-800 text-zinc-300 border-zinc-700'
+                    }`}>
+                      <Type size={16} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-white flex items-center gap-1.5">
+                        <span>Cỡ Chữ &amp; Giao Diện</span>
+                        <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold border ${
+                          isLargeDisplay 
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
+                            : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                        }`}>
+                          {isLargeDisplay ? 'Lớn (115%)' : 'Chuẩn (100%)'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-zinc-400">
+                        {isLargeDisplay ? 'Chữ to rõ nét, chống mỏi mắt' : 'Cỡ chữ gốc thanh thoát'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Segmented Dual Switcher */}
+                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-zinc-950 border border-zinc-800 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      setDisplayScale('standard');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      !isLargeDisplay
+                        ? 'bg-gradient-to-r from-zinc-800 to-zinc-700 text-white border border-zinc-600 shadow-sm font-black'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <span className="text-xs font-black">A</span>
+                    <span>Cỡ Chuẩn</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      setDisplayScale('large');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isLargeDisplay
+                        ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-zinc-950 font-black shadow-md shadow-amber-500/20'
+                        : 'text-zinc-400 hover:text-amber-300'
+                    }`}
+                  >
+                    <span className="text-sm font-black">A+</span>
+                    <span>Cỡ Lớn</span>
                   </button>
                 </div>
               </div>
@@ -1566,15 +1600,7 @@ export function HaevyUserDropdownMenu({
         initialTab={drivePickerTab}
       />
 
-      {/* Model Context Protocol (MCP) Interface Modal */}
-      <HaevyMCPProtocolModal
-        isOpen={isMCPModalOpen}
-        onClose={() => setIsMCPModalOpen(false)}
-        onRunChatPrompt={(prompt) => {
-          setIsMCPModalOpen(false);
-          onSelectMode('haevy_ai');
-        }}
-      />
+
     </>
   );
 }

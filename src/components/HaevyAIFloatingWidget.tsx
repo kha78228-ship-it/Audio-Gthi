@@ -31,7 +31,12 @@ import {
   Music,
   Coins,
   Camera,
-  TrendingUp
+  TrendingUp,
+  GraduationCap,
+  MapPin,
+  Layers,
+  Globe,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { haptics } from '../utils/haptics';
@@ -281,6 +286,11 @@ export function HaevyAIFloatingWidget({
       case 'Coins': return <Coins className={className} />;
       case 'Camera': return <Camera className={className} />;
       case 'TrendingUp': return <TrendingUp className={className} />;
+      case 'GraduationCap': return <GraduationCap className={className} />;
+      case 'MapPin': return <MapPin className={className} />;
+      case 'Layers': return <Layers className={className} />;
+      case 'Globe': return <Globe className={className} />;
+      case 'BookOpen': return <BookOpen className={className} />;
       default: return <Sparkles className={className} />;
     }
   };
@@ -581,6 +591,73 @@ export function HaevyAIFloatingWidget({
                 </div>
               </div>
               <ChevronRight size={14} className="text-zinc-500 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
+            </button>
+
+            {/* Quick Action 4: First Principles Deep Study (Gemini 3.5 Flash) */}
+            <button
+              type="button"
+              id="haevy_ai_action_first_principles"
+              onClick={() => {
+                haptics.impact('medium');
+                setIsMenuOpen(false);
+                if (onSelectMode) {
+                  onSelectMode('edu', 'assistant');
+                } else {
+                  handleOpenAIChatWithPrompt('Hãy phân tích nguyên lý gốc rễ (First Principles), bản chất logic và tóm tắt cô đọng giúp tôi.', 'chat');
+                }
+              }}
+              className="group flex items-center justify-between w-full p-2 rounded-xl bg-zinc-900/60 hover:bg-cyan-950/40 border border-zinc-800/80 hover:border-cyan-500/50 transition-all duration-200 text-left active:scale-[0.98] cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 group-hover:scale-110 group-hover:text-cyan-200 transition-all">
+                  <GraduationCap size={16} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-zinc-100 group-hover:text-cyan-300 transition-colors flex items-center gap-1.5">
+                    <span>Deep Study AI</span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                      First Principles
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-zinc-400 truncate">
+                    Phân tích nguyên lý bản chất & tránh học vẹt
+                  </div>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-zinc-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
+            </button>
+
+            {/* Quick Action 5: Haevy Internet (Web Browser Pro) */}
+            <button
+              type="button"
+              onClick={() => {
+                haptics.selection();
+                setIsMenuOpen(false);
+                if (onSelectMode) {
+                  onSelectMode('internet', 'browser');
+                } else {
+                  handleOpenAIChatWithPrompt('Mở trình duyệt web Haevy Internet để tra cứu và đọc tin tức.', 'chat');
+                }
+              }}
+              className="group flex items-center justify-between w-full p-2 rounded-xl bg-zinc-900/60 hover:bg-sky-950/40 border border-zinc-800/80 hover:border-sky-500/50 transition-all duration-200 text-left active:scale-[0.98] cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500/20 to-blue-500/20 border border-sky-500/40 flex items-center justify-center text-sky-300 group-hover:scale-110 group-hover:text-sky-200 transition-all">
+                  <Globe size={16} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-zinc-100 group-hover:text-sky-300 transition-colors flex items-center gap-1.5">
+                    <span>Haevy Internet</span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      Web 4.0
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-zinc-400 truncate">
+                    Trình duyệt đa thẻ, tìm kiếm AI & đọc sạch
+                  </div>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-zinc-500 group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
             </button>
 
             {/* Auto-hide (5s) Setting Row */}

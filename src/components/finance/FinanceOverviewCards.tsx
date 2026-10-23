@@ -11,7 +11,9 @@ import {
   AlertTriangle,
   Scale,
   Award,
-  ChevronRight
+  ChevronRight,
+  Mic,
+  Flame
 } from 'lucide-react';
 import { FinanceWallet, FinanceTransaction, FinanceBudget, FinanceAchievementBadge } from '../../types';
 
@@ -25,6 +27,8 @@ interface FinanceOverviewCardsProps {
   onOpenBudget: () => void;
   onOpenAiAdvisor: () => void;
   onOpenAchievements?: () => void;
+  onOpenVoiceExpense?: () => void;
+  onOpenHeatmap?: () => void;
 }
 
 export function FinanceOverviewCards({
@@ -36,7 +40,9 @@ export function FinanceOverviewCards({
   onOpenWallets,
   onOpenBudget,
   onOpenAiAdvisor,
-  onOpenAchievements
+  onOpenAchievements,
+  onOpenVoiceExpense,
+  onOpenHeatmap
 }: FinanceOverviewCardsProps) {
   // Format VND currency
   const formatVND = (amount: number) => {
@@ -123,7 +129,9 @@ export function FinanceOverviewCards({
 
         {/* 3. Monthly Expense */}
         <div 
-          className="group relative p-5 rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800 hover:border-rose-500/50 shadow-xl transition-all overflow-hidden flex flex-col justify-between"
+          onClick={onOpenHeatmap || onOpenBudget}
+          className="group relative p-5 rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800 hover:border-rose-500/50 shadow-xl transition-all cursor-pointer overflow-hidden flex flex-col justify-between"
+          title="Bấm để xem Bản đồ nhiệt chi tiêu 30 ngày (D3.js)"
         >
           <div className="absolute top-0 right-0 w-28 h-28 bg-rose-500/10 rounded-full blur-2xl group-hover:bg-rose-500/20 transition-all pointer-events-none" />
           <div className="flex items-center justify-between">
@@ -131,16 +139,18 @@ export function FinanceOverviewCards({
               <ArrowUpRight size={15} className="text-rose-400" />
               Tổng Chi Tiêu Tháng
             </span>
-            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20">
-              Dòng Tiền Ra
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20 flex items-center gap-1 group-hover:bg-rose-500/20 transition-colors">
+              <Flame size={10} className="text-amber-400 animate-pulse" />
+              Xem Heatmap
             </span>
           </div>
           <div className="mt-3">
             <h3 className="text-2xl font-black text-rose-400 tracking-tight">
               -{formatVND(totalExpense)}
             </h3>
-            <p className="text-[11px] text-zinc-400 mt-1">
-              Ăn uống, sinh hoạt, mua sắm &amp; hóa đơn
+            <p className="text-[11px] text-zinc-400 mt-1 flex items-center justify-between">
+              <span>Ăn uống, sinh hoạt, mua sắm &amp; hóa đơn</span>
+              <span className="text-rose-300 font-bold hidden group-hover:inline text-[10px]">D3.js →</span>
             </p>
           </div>
         </div>
@@ -265,6 +275,43 @@ export function FinanceOverviewCards({
           </div>
         </div>
       </div>
+
+      {/* Voice Expense Quick Action Banner */}
+      {onOpenVoiceExpense && (
+        <div 
+          onClick={onOpenVoiceExpense}
+          className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-950/60 via-zinc-900 to-teal-950/50 border border-emerald-500/40 hover:border-emerald-400 shadow-xl transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 group relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-zinc-950 flex items-center justify-center font-black shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition-transform shrink-0">
+              <Mic size={22} className="animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-white group-hover:text-emerald-300 transition-colors">
+                  Ghi Chép Chi Tiêu Siêu Tốc Bằng Giọng Nói
+                </span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Nhận Diện Tiếng Việt
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Chỉ cần đọc: <span className="text-zinc-200 font-semibold">"Ăn sáng 45k"</span>, <span className="text-zinc-200 font-semibold">"Đổ xăng 70 nghìn ví tiền mặt"</span>... Hệ thống tự động phân loại 6 Hũ và trừ số dư ví.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <button
+              type="button"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 group-hover:from-emerald-400 group-hover:to-teal-300 text-zinc-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+            >
+              <span>Nói Ngay</span>
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Achievement Badges Milestone Quick Strip */}
       {badges.length > 0 && onOpenAchievements && (

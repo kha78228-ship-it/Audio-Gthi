@@ -24,7 +24,11 @@ export interface ContextQuickSuggestion {
     | 'Coins' 
     | 'Camera' 
     | 'TrendingUp' 
-    | 'Layers';
+    | 'Layers'
+    | 'GraduationCap'
+    | 'MapPin'
+    | 'Globe'
+    | 'BookOpen';
   actionType: 'prompt' | 'navigate' | 'action';
   prompt?: string;
   targetMode?: string;
@@ -633,6 +637,159 @@ export const ECOSYSTEM_CONTEXT_SUGGESTIONS: Record<string, ModeContextConfig> = 
         iconName: 'TrendingUp',
         actionType: 'prompt',
         prompt: 'Tóm tắt các chỉ số vận hành quan trọng, báo cáo an ninh và khuyến nghị tối ưu hệ sinh thái.'
+      }
+    ]
+  },
+  edu: {
+    mode: 'edu',
+    displayName: 'Haevy Edu & STEM Lab',
+    badge: 'Deep Study AI',
+    iconName: 'GraduationCap',
+    gradient: 'from-cyan-500/20 via-blue-500/20 to-indigo-500/20',
+    accentBorder: 'border-cyan-500/40 hover:border-cyan-400',
+    badgeBg: 'bg-cyan-500/20',
+    badgeText: 'text-cyan-300',
+    tagline: 'Khoa học thực nghiệm & Tư duy First Principles',
+    suggestions: [
+      {
+        id: 'edu_first_principles',
+        title: 'Phân tích bản chất First Principles',
+        subtitle: 'Giải thích nguyên lý gốc rễ, cạm bẫy học vẹt & tóm tắt cô đọng',
+        badge: 'Gemini 3.5',
+        iconName: 'Sparkles',
+        actionType: 'prompt',
+        prompt: 'Hãy phân tích nguyên lý gốc rễ (First Principles) của bài học này: giải thích bản chất logic vận hành, chỉ ra cạm bẫy học vẹt và tóm tắt cô đọng.'
+      },
+      {
+        id: 'edu_casio_tactic',
+        title: 'Bí quyết Casio fx-880 BTG',
+        subtitle: 'Mở máy tính khoa học & mẹo giải nhanh kỳ thi THPT',
+        badge: 'Casio Tools',
+        iconName: 'Layers',
+        actionType: 'navigate',
+        targetTab: 'tools'
+      },
+      {
+        id: 'edu_virtual_lab',
+        title: 'Vào Phòng Thí Nghiệm Ảo',
+        subtitle: 'Tương tác vật lý, hóa học, sinh học với thanh trượt trực quan',
+        badge: 'STEM Lab',
+        iconName: 'Orbit',
+        actionType: 'navigate',
+        targetTab: 'labs'
+      },
+      {
+        id: 'edu_doc_processor',
+        title: 'Trích xuất tài liệu nội bộ',
+        subtitle: 'Đọc dữ liệu nội bộ và bóc tách kiến thức trọng tâm',
+        badge: 'Bóc tách',
+        iconName: 'GraduationCap',
+        actionType: 'prompt',
+        prompt: 'Trích xuất và tóm tắt bản chất logic các định luật bảo toàn từ tài liệu nội bộ, không học thuộc lòng công thức.'
+      }
+    ]
+  },
+  maps: {
+    mode: 'maps',
+    displayName: 'Haevy Maps & Định Vị Gia Đình',
+    badge: 'Safe Geolocation',
+    iconName: 'MapPin',
+    gradient: 'from-emerald-500/20 via-teal-500/20 to-cyan-500/20',
+    accentBorder: 'border-emerald-500/40 hover:border-emerald-400',
+    badgeBg: 'bg-emerald-500/20',
+    badgeText: 'text-emerald-300',
+    tagline: 'Bản đồ định vị gia đình & cảnh báo vùng an toàn',
+    suggestions: [
+      {
+        id: 'maps_safe_route',
+        title: 'AI Tư vấn điểm hẹn & Lộ trình an toàn',
+        subtitle: 'Tính toán điểm giao cân bằng khoảng cách giữa các thành viên',
+        badge: 'Định vị AI',
+        iconName: 'Compass',
+        actionType: 'prompt',
+        prompt: 'Hãy gợi ý cách chọn điểm hẹn an toàn, cân bằng khoảng cách giữa các thành viên gia đình và thiết lập cảnh báo Geofencing.'
+      },
+      {
+        id: 'maps_geofence_zones',
+        title: 'Xem Vùng An Toàn Gia Đình',
+        subtitle: 'Kiểm tra cảnh báo ra/vào trường học, cơ quan và nhà ở',
+        badge: 'Geofence',
+        iconName: 'ShieldCheck',
+        actionType: 'navigate',
+        targetTab: 'zones'
+      }
+    ]
+  },
+  haevy_ai: {
+    mode: 'haevy_ai',
+    displayName: 'Vũ Trụ Haevy AI & MCP',
+    badge: 'Universal AI',
+    iconName: 'Sparkles',
+    gradient: 'from-purple-500/20 via-pink-500/20 to-amber-500/20',
+    accentBorder: 'border-purple-500/40 hover:border-purple-400',
+    badgeBg: 'bg-purple-500/20',
+    badgeText: 'text-purple-300',
+    tagline: 'Model Context Protocol & Trợ lý thông minh toàn diện',
+    suggestions: [
+      {
+        id: 'ai_mcp_security_audit',
+        title: 'Quét An Toàn Bảo Mật MCP',
+        subtitle: 'Kiểm tra token, rò rỉ dữ liệu nhạy cảm E2EE và quyền truy cập',
+        badge: 'Bảo mật E2EE',
+        iconName: 'ShieldCheck',
+        actionType: 'prompt',
+        prompt: 'Tiến hành kiểm tra an toàn dữ liệu Model Context Protocol (MCP) và đề xuất các biện pháp bảo vệ tài khoản.'
+      },
+      {
+        id: 'ai_deep_first_principles_switch',
+        title: 'Chuyển sang Học Sâu First Principles',
+        subtitle: 'Phân tích bản chất mọi chủ đề học tập cùng Gemini 3.5 Flash',
+        badge: 'First Principles',
+        iconName: 'GraduationCap',
+        actionType: 'navigate',
+        targetMode: 'edu',
+        targetTab: 'assistant'
+      }
+    ]
+  },
+  internet: {
+    mode: 'internet',
+    displayName: 'Haevy Internet',
+    badge: 'Web 4.0 Pro 🌐',
+    iconName: 'Globe',
+    gradient: 'from-sky-500/20 via-blue-500/20 to-indigo-500/20',
+    accentBorder: 'border-sky-500/40 hover:border-sky-400',
+    badgeBg: 'bg-sky-500/20',
+    badgeText: 'text-sky-300',
+    tagline: 'Trình duyệt web đa tab & AI Reader tách từ Haevy AI',
+    suggestions: [
+      {
+        id: 'internet_summarize_content',
+        title: 'Tóm tắt bài viết đang đọc',
+        subtitle: 'Bóc tách ý cốt lõi, loại bỏ quảng cáo',
+        badge: 'Tóm tắt AI',
+        iconName: 'Sparkles',
+        actionType: 'prompt',
+        prompt: 'Hãy tóm tắt ngắn gọn các điểm chính của bài viết trên trang web hiện tại.'
+      },
+      {
+        id: 'internet_reader_clean',
+        title: 'Bật chế độ đọc sạch Reader',
+        subtitle: 'Font chữ đọc sách, nền dịu mắt',
+        badge: 'Đọc sạch',
+        iconName: 'BookOpen',
+        actionType: 'navigate',
+        targetMode: 'internet',
+        targetTab: 'ai_reader'
+      },
+      {
+        id: 'internet_check_url',
+        title: 'Kiểm tra bảo mật trang web',
+        subtitle: 'Quét chứng chỉ SSL & cảnh báo giả mạo',
+        badge: 'Bảo mật SSL',
+        iconName: 'ShieldCheck',
+        actionType: 'prompt',
+        prompt: 'Đánh giá tính an toàn bảo mật và độ tin cậy của trang web đang mở.'
       }
     ]
   },

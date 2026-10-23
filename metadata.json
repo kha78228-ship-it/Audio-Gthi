@@ -1,6 +1,6 @@
 {
   "name": "Haevy Audio",
-  "description": "Hệ sinh thái Haevy toàn năng: Haevy Maps (Bản đồ trực tiếp kết nối bạn đời, người yêu và gia đình, chia sẻ vị trí an toàn, pin & vùng an toàn Geofencing), Haevy Edu (STEM & Luyện thi THPT), Haevy Finance (Hệ thống 6 Hũ tiền), Haevy Family Tree, Haevy AI Master, Haevy Spiritual, Âm nhạc Hi-Fi Lossless.",
+  "description": "Hệ sinh thái Haevy toàn năng: Sun Study App (Khu học tập kỷ luật, Đếm ngược ngày thi THPTQG, Bảng xếp hạng cày rank, To-do list & KPI, Box cộng đồng xả stress), Haevy Internet (Trình duyệt mô phỏng tìm kiếm trực tiếp đa nguồn báo chí & Gemini AI), Universal MCP Protocol, Haevy Edu STEM & Casio fx-880 BTG, Gia Phả 4.0 và Âm nhạc Hi-Fi Lossless.",
   "requestFramePermissions": ["camera", "microphone", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

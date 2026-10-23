@@ -498,7 +498,7 @@ export function ProfileAboutTab({
                 </span>
               </div>
               <p className="text-xs text-zinc-300 leading-relaxed">
-                Tùy chỉnh giao diện theo thói quen của bạn. Khi chọn <strong>Theo hệ thống điện thoại</strong>, ứng dụng sẽ tự động chuyển sang chế độ <strong>Ban đêm</strong> khi điện thoại bật Dark Mode, và tự động chuyển sang <strong>Ban ngày sáng</strong> khi điện thoại ở chế độ sáng.
+                Tùy chỉnh giao diện theo thói quen của bạn. Lựa chọn chế độ <strong>Ban ngày ('light')</strong> hoặc <strong>Ban đêm ('dark')</strong> sẽ được lưu vĩnh viễn trên cơ sở dữ liệu Firestore và tự động đồng bộ tức thời xuyên suốt tất cả các thiết bị trong hệ sinh thái Haevy Hub của bạn.
               </p>
               <ThemeSwitcher variant="cards" />
             </div>

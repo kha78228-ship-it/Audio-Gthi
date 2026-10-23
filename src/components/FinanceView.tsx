@@ -21,7 +21,8 @@ import {
   TrendingDown,
   ShieldCheck,
   Crown,
-  Award
+  Award,
+  Mic
 } from 'lucide-react';
 import { 
   FinanceWallet, 
@@ -53,10 +54,16 @@ import { FinanceAnalyticsCharts } from './finance/FinanceAnalyticsCharts';
 import { FinanceFamilyFundView } from './finance/FinanceFamilyFundView';
 import { FinanceCalculatorsView } from './finance/FinanceCalculatorsView';
 import { FinanceAddExpenseView } from './finance/FinanceAddExpenseView';
+import { FinanceVoiceExpenseModal } from './finance/FinanceVoiceExpenseModal';
 import { FinanceAIAdvisorModal } from './finance/FinanceAIAdvisorModal';
 import { FinanceAchievementsSection } from './finance/FinanceAchievementsSection';
 import { FinanceMilestoneToast } from './finance/FinanceMilestoneToast';
 import { FinanceBadgeDetailModal } from './finance/FinanceBadgeDetailModal';
+import { FinanceD3SunburstChart } from './finance/FinanceD3SunburstChart';
+import { FinanceSixJarsSavingsGrowthChart } from './finance/FinanceSixJarsSavingsGrowthChart';
+import { FinanceHeatmap } from './finance/FinanceHeatmap';
+import { SavingsMilestoneConfettiCanvas, MilestoneCelebrationData } from './finance/SavingsMilestoneConfettiCanvas';
+import { DEFAULT_SAVINGS_MILESTONES } from './finance/SavingsMilestonesInteractive';
 import { computeFinanceAchievements, FINANCE_UNLOCKED_SEEN_KEY, setBadgeClaimed } from '../data/financeAchievements';
 import { useAuth } from '../context/AuthContext';
 
@@ -66,7 +73,7 @@ interface FinanceViewProps {
   onUpgradeVip?: () => void;
   activePage?: 'page1' | 'page2' | 'page3' | 'page4' | 'page5';
   onSelectPage?: (page: 'page1' | 'page2' | 'page3' | 'page4' | 'page5') => void;
-  initialPage2SubTab?: 'budget' | 'savings' | 'debts' | 'recurring';
+  initialPage2SubTab?: 'budget' | 'sunburst' | 'growth' | 'heatmap' | 'savings' | 'debts' | 'recurring';
   openWalletsTrigger?: number;
   openAddTransactionTrigger?: number;
 }
@@ -92,8 +99,8 @@ export function FinanceView({
     if (onSelectPage) onSelectPage(p);
   };
 
-  // Sub-tabs for Page 2 (Ngân Sách / Tiết Kiệm / Nợ Vay / Định Kỳ / Huy Hiệu)
-  const [page2SubTab, setPage2SubTab] = useState<'budget' | 'savings' | 'debts' | 'recurring' | 'achievements'>(initialPage2SubTab || 'budget');
+  // Sub-tabs for Page 2 (Ngân Sách / Tiết Kiệm / Nợ Vay / Định Kỳ / Huy Hiệu / Sunburst / Tăng Trưởng 30 Ngày / Heatmap D3)
+  const [page2SubTab, setPage2SubTab] = useState<'budget' | 'sunburst' | 'growth' | 'heatmap' | 'savings' | 'debts' | 'recurring' | 'achievements'>(initialPage2SubTab || 'budget');
 
   // Page 1 View Switcher (Transactions vs Achievements)
   const [page1Tab, setPage1Tab] = useState<'transactions' | 'achievements'>('transactions');
@@ -186,10 +193,81 @@ export function FinanceView({
     }
   }, [badges]);
 
+  // Canvas-based Savings Milestone Confetti State
+  const [savingsCelebration, setSavingsCelebration] = useState<MilestoneCelebrationData | null>(null);
+  const prevSavingsPctRef = React.useRef<Record<string, number>>({});
+  const isFirstRender = React.useRef(true);
+
+  // Detect whenever any savings goal reaches a new milestone (25%, 50%, 75%, 100%)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      // Initialize map on initial mount without firing celebratory confetti
+      const initialMap: Record<string, number> = {};
+      savingsGoals.forEach(g => {
+        const pct = g.targetAmount > 0 ? (g.currentAmount / g.targetAmount) * 100 : 0;
+        initialMap[g.id] = pct;
+      });
+      prevSavingsPctRef.current = initialMap;
+      isFirstRender.current = false;
+      return;
+    }
+
+    // Check for newly achieved milestones
+    for (const goal of savingsGoals) {
+      const prevPct = prevSavingsPctRef.current[goal.id] ?? 0;
+      const targetVal = Math.max(1, goal.targetAmount);
+      const newPct = (goal.currentAmount / targetVal) * 100;
+
+      // Find highest milestone crossed
+      const crossed = [...DEFAULT_SAVINGS_MILESTONES]
+        .reverse()
+        .find(m => prevPct < m.percentage && newPct >= m.percentage);
+
+      if (crossed) {
+        setSavingsCelebration({
+          goalId: goal.id,
+          goalTitle: goal.title,
+          goalColor: goal.color || '#06b6d4',
+          milestonePercentage: crossed.percentage,
+          badgeName: crossed.badgeName,
+          icon: crossed.icon,
+          targetAmount: goal.targetAmount,
+          currentAmount: goal.currentAmount
+        });
+        break;
+      }
+    }
+
+    // Update tracked percentages
+    const updatedMap: Record<string, number> = {};
+    savingsGoals.forEach(g => {
+      const pct = g.targetAmount > 0 ? (g.currentAmount / g.targetAmount) * 100 : 0;
+      updatedMap[g.id] = pct;
+    });
+    prevSavingsPctRef.current = updatedMap;
+  }, [savingsGoals]);
+
   // Modal Controls
   const [isWalletsModalOpen, setIsWalletsModalOpen] = useState(false);
   const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
   const [isAiAdvisorOpen, setIsAiAdvisorOpen] = useState(false);
+  const [isVoiceExpenseModalOpen, setIsVoiceExpenseModalOpen] = useState(false);
+
+  // Quick keyboard shortcut 'v' or 'V' to trigger voice logging in Finance mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        setIsVoiceExpenseModalOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (openWalletsTrigger && openWalletsTrigger > 0) {
@@ -464,8 +542,17 @@ export function FinanceView({
             </div>
           </div>
 
-          {/* AI Advisor & Wallet Manager Buttons */}
+          {/* Voice Expense, AI Advisor & Wallet Manager Buttons */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsVoiceExpenseModalOpen(true)}
+              className="px-3.5 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:opacity-95 text-zinc-950 text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-500/25 transition-all cursor-pointer whitespace-nowrap group active:scale-95"
+              title="Ghi chép nhanh chi tiêu bằng giọng nói tiếng Việt"
+            >
+              <Mic size={14} className="text-zinc-950 animate-pulse group-hover:scale-110 transition-transform" />
+              <span>Nói Ghi Chi Tiêu</span>
+            </button>
+
             <button
               onClick={() => setIsAiAdvisorOpen(true)}
               className="px-3.5 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:opacity-95 text-zinc-950 text-xs font-black flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer whitespace-nowrap group"
@@ -498,8 +585,10 @@ export function FinanceView({
               badges={badges}
               onOpenWallets={() => setIsWalletsModalOpen(true)}
               onOpenBudget={() => handleSetPage('page2')}
+              onOpenHeatmap={() => { handleSetPage('page2'); setPage2SubTab('heatmap'); }}
               onOpenAiAdvisor={() => setIsAiAdvisorOpen(true)}
               onOpenAchievements={() => setPage1Tab('achievements')}
+              onOpenVoiceExpense={() => setIsVoiceExpenseModalOpen(true)}
             />
 
             {/* Page 1 Sub-Tab Switcher: Transactions vs Achievements */}
@@ -564,6 +653,7 @@ export function FinanceView({
                     onEditTransaction={handleEditTransaction}
                     onDeleteTransaction={handleDeleteTransaction}
                     onExportCSV={handleExportCSV}
+                    onOpenVoiceExpense={() => setIsVoiceExpenseModalOpen(true)}
                   />
                 </div>
 
@@ -718,7 +808,10 @@ export function FinanceView({
             {/* Sub-tab navigation for Page 2 */}
             <div className="flex items-center gap-2 p-1.5 bg-zinc-950 rounded-2xl border border-zinc-800 overflow-x-auto no-scrollbar">
               {[
-                { id: 'budget', label: '⚖️ Ngân Sách 50/30/20' },
+                { id: 'budget', label: '⚖️ Ngân Sách 50/30/20 & 6 Hũ' },
+                { id: 'heatmap', label: '🔥 Bản Đồ Nhiệt Chi Tiêu 30 Ngày (D3.js)' },
+                { id: 'growth', label: '📈 Tăng Trưởng 6 Hũ (30 Ngày)' },
+                { id: 'sunburst', label: '☀️ Sunburst 6 Hũ (D3.js)' },
                 { id: 'savings', label: '🐷 Mục Tiêu Tiết Kiệm' },
                 { id: 'debts', label: '👥 Sổ Vay Nợ & Trả Góp' },
                 { id: 'recurring', label: '🔁 Hóa Đơn Định Kỳ' },
@@ -737,6 +830,38 @@ export function FinanceView({
                 </button>
               ))}
             </div>
+
+            {/* Sub-view: D3 Finance Heatmap (Food, Edu, Entertainment 30-Day Intensity) */}
+            {page2SubTab === 'heatmap' && (
+              <FinanceHeatmap
+                transactions={transactions}
+                categories={categories}
+                budget={budget}
+                onAddTransaction={handleAddTransaction}
+                onOpenAiAdvisor={() => setIsAiAdvisorOpen(true)}
+              />
+            )}
+
+            {/* Sub-view: Recharts 6-Jars 30-Day Savings Growth */}
+            {page2SubTab === 'growth' && (
+              <FinanceSixJarsSavingsGrowthChart
+                transactions={transactions}
+                categories={categories}
+                budget={budget}
+                onOpenAiAdvisor={() => setIsAiAdvisorOpen(true)}
+              />
+            )}
+
+            {/* Sub-view: D3 Sunburst 6-Jars */}
+            {page2SubTab === 'sunburst' && (
+              <FinanceD3SunburstChart
+                transactions={transactions}
+                categories={categories}
+                budget={budget}
+                selectedMonth={selectedMonth}
+                onOpenAiAdvisor={() => setIsAiAdvisorOpen(true)}
+              />
+            )}
 
             {/* Sub-view: Achievements */}
             {page2SubTab === 'achievements' && (
@@ -838,6 +963,7 @@ export function FinanceView({
             currentUserId={currentUserId}
             onAddTransaction={handleAddTransaction}
             onSuccess={() => handleSetPage('page1')}
+            onOpenVoiceExpense={() => setIsVoiceExpenseModalOpen(true)}
           />
         )}
 
@@ -927,6 +1053,23 @@ export function FinanceView({
             }
           }
         }}
+      />
+
+      {/* Canvas-Based Savings Milestone Celebration Confetti */}
+      <SavingsMilestoneConfettiCanvas
+        celebration={savingsCelebration}
+        onClose={() => setSavingsCelebration(null)}
+      />
+
+      {/* Voice Expense Fast Auto-Logger Modal */}
+      <FinanceVoiceExpenseModal
+        isOpen={isVoiceExpenseModalOpen}
+        onClose={() => setIsVoiceExpenseModalOpen(false)}
+        wallets={wallets}
+        categories={categories}
+        currentUserId={currentUserId}
+        onAddTransaction={handleAddTransaction}
+        onNavigateToAll={() => handleSetPage('page1')}
       />
     </div>
   );

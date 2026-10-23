@@ -293,37 +293,52 @@ export function HomeView({
         </section>
       )}
 
-      {/* Hero Spotlight Section */}
+      {/* Editorial Acoustic Hero Stage */}
       {heroTrack || heroSectionConfig?.overrideHero ? (
-        <section 
+        <section
           id="home-hero-spotlight"
-          className={`relative overflow-hidden rounded-3xl p-5 sm:p-8 md:p-10 transition-all ${getHeroWrapperStyle()}`}
+          className="relative overflow-hidden rounded-3xl bg-[#0D1017] border border-white/[0.08] p-6 sm:p-10 lg:p-12 shadow-2xl"
         >
-          {heroStyle === 'neon' ? (
-            <div className="absolute -right-10 -bottom-10 w-80 h-80 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
-          ) : (
-            <>
-              <div className="absolute -right-10 -bottom-10 w-72 sm:w-96 h-72 sm:h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute right-1/3 top-0 w-48 sm:w-64 h-48 sm:h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
-            </>
-          )}
+          {/* Subtle atmospheric chiaroscuro lighting */}
+          <div
+            className="pointer-events-none absolute -top-32 right-12 w-96 h-96 rounded-full opacity-25 blur-[120px]"
+            style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.35) 0%, transparent 70%)' }}
+          />
 
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 sm:gap-8 justify-between">
-            <div className="flex-1 space-y-4 sm:space-y-5 text-center md:text-left min-w-0">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-800/90 border border-zinc-700 text-xs font-semibold text-zinc-300">
-                <Sparkles size={14} className={heroStyle === 'neon' ? 'text-cyan-400' : 'text-amber-400'} />
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-7 space-y-5 text-left">
+              <div className="flex items-center gap-2.5 text-xs uppercase tracking-[0.16em] text-amber-300/90 font-medium">
                 <span>{heroBadge}</span>
+                <span className="text-zinc-600">·</span>
+                <span className="font-mono-tabular text-zinc-400">Spatial Master 24-Bit</span>
               </div>
 
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight break-words">
+              <h1 className="font-editorial text-3xl sm:text-5xl lg:text-6xl font-semibold text-[#F5F2EB] tracking-tight leading-[1.06] break-words">
                 {heroTitle}
               </h1>
-              
-              <p className="text-zinc-400 text-xs sm:text-base max-w-xl font-normal leading-relaxed">
+
+              <p className="text-zinc-300/90 text-sm sm:text-base max-w-xl font-normal leading-relaxed">
                 {heroSubtitle}
               </p>
 
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 sm:gap-4 pt-1 sm:pt-2">
+              {/* Live Animated Acoustic Spectrum Bar */}
+              <div className="flex items-end gap-1.5 h-10 pt-2 max-w-sm opacity-80">
+                {Array.from({ length: 28 }).map((_, i) => {
+                  const h = 22 + ((i * 19) % 65);
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        height: isPlaying ? `${h}%` : `${Math.max(20, h * 0.45)}%`,
+                        backgroundColor: i % 4 === 0 ? '#F59E0B' : 'rgba(245,242,235,0.22)'
+                      }}
+                      className="flex-1 rounded-t-sm transition-all duration-500"
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3.5 pt-2">
                 {heroTrack && (
                   <button
                     id="hero-play-btn"
@@ -334,20 +349,16 @@ export function HomeView({
                         onPlayTrack(heroTrack);
                       }
                     }}
-                    className={`flex items-center gap-2.5 sm:gap-3 px-6 sm:px-7 py-3 sm:py-3.5 rounded-2xl font-bold transition-all shadow-xl hover:scale-105 active:scale-95 cursor-pointer text-sm sm:text-base ${
-                      heroStyle === 'neon' 
-                        ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black' 
-                        : 'bg-white hover:bg-zinc-200 text-black'
-                    }`}
+                    className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-[#F5F2EB] hover:bg-white text-[#08090D] font-semibold transition-all cursor-pointer text-sm whitespace-nowrap shrink-0"
                   >
                     {currentTrack?.id === heroTrack.id && isPlaying ? (
                       <>
-                        <Pause size={18} fill="currentColor" />
+                        <Pause size={17} fill="currentColor" />
                         <span>Tạm dừng phát</span>
                       </>
                     ) : (
                       <>
-                        <Play size={18} fill="currentColor" className="ml-0.5" />
+                        <Play size={17} fill="currentColor" className="ml-0.5" />
                         <span>{heroCtaText}</span>
                       </>
                     )}
@@ -357,42 +368,42 @@ export function HomeView({
                 <button
                   id="hero-explore-library-btn"
                   onClick={() => onSelectTab('library')}
-                  className="flex items-center gap-2 bg-zinc-800/90 hover:bg-zinc-800 text-zinc-200 hover:text-white px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl font-semibold border border-zinc-700/70 transition-all text-xs sm:text-sm"
+                  className="flex items-center gap-2 bg-white/[0.05] hover:bg-white/[0.1] text-[#F5F2EB] px-5 py-3.5 rounded-xl font-medium border border-white/15 transition-all text-sm whitespace-nowrap shrink-0"
                 >
-                  <Compass size={16} />
+                  <Compass size={16} className="text-amber-300" />
                   <span>Khám phá kho audio</span>
                 </button>
               </div>
             </div>
 
-            {/* Hero Cover Art Card */}
+            {/* Hero Cover Art & Vinyl Stage */}
             {heroCover && (
-              <div className={`w-44 sm:w-56 lg:w-72 aspect-square rounded-2xl overflow-hidden relative shadow-2xl border group shrink-0 ${
-                heroStyle === 'neon' ? 'border-cyan-500/50' : 'border-zinc-700/50'
-              }`}>
-                <img
-                  src={heroCover}
-                  alt={heroTitle}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3 sm:p-4">
-                  <span className="text-[11px] sm:text-xs text-zinc-400 font-medium">
-                    {heroTrack?.genre || 'Đặc sắc'}
-                  </span>
-                  {heroTrack && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onViewAuthorChannel && heroTrack) {
-                          onViewAuthorChannel(heroTrack.addedBy || heroTrack.artist, heroTrack.artist);
-                        }
-                      }}
-                      className="text-xs sm:text-sm font-bold text-white hover:text-amber-300 transition-colors truncate text-left"
-                    >
-                      {heroTrack.artist}
-                    </button>
-                  )}
+              <div className="lg:col-span-5 flex justify-center lg:justify-end">
+                <div className="relative w-56 sm:w-64 lg:w-72 aspect-square rounded-2xl overflow-hidden shadow-2xl border border-white/15 group shrink-0 bg-[#141821]">
+                  <img
+                    src={heroCover}
+                    alt={heroTitle}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex flex-col justify-end p-5">
+                    <div className="text-[11px] uppercase tracking-wider text-amber-300/90 font-medium">
+                      {heroTrack?.genre || 'Tuyển chọn'}
+                    </div>
+                    {heroTrack && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onViewAuthorChannel && heroTrack) {
+                            onViewAuthorChannel(heroTrack.addedBy || heroTrack.artist, heroTrack.artist);
+                          }
+                        }}
+                        className="font-editorial text-xl font-semibold text-[#F5F2EB] hover:text-amber-200 transition-colors truncate text-left mt-0.5"
+                      >
+                        {heroTrack.artist}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -400,25 +411,25 @@ export function HomeView({
         </section>
       ) : (
         /* Empty State when no author tracks exist yet */
-        <section className="relative overflow-hidden rounded-3xl bg-zinc-900/80 border border-zinc-800 p-8 sm:p-12 text-center shadow-xl flex flex-col items-center justify-center gap-4">
-          <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg">
-            <Radio size={32} />
+        <section className="relative overflow-hidden rounded-3xl bg-[#0D1017] border border-white/[0.08] p-8 sm:p-12 text-center shadow-xl flex flex-col items-center justify-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-300">
+            <Radio size={28} />
           </div>
-          <div className="max-w-md space-y-1">
-            <h2 className="text-xl sm:text-2xl font-black text-white">
-              Chào Mừng Đến Với Haevy Audio Hub
+          <div className="max-w-md space-y-1.5">
+            <h2 className="font-editorial text-2xl sm:text-3xl font-semibold text-[#F5F2EB]">
+              Không gian Thính giác Haevy Studio
             </h2>
             <p className="text-xs sm:text-sm text-zinc-400">
-              Hệ thống đã được làm sạch và chuyển đổi hoàn toàn sang Nền tảng Tác giả Tự Do & Cốt Truyện Audio.
+              Nền tảng lưu trữ và thưởng thức tác phẩm âm thanh, podcast và cốt truyện bản quyền.
             </p>
           </div>
           {onOpenPublishAudio && (
             <button
               onClick={onOpenPublishAudio}
-              className="mt-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-300 text-black font-extrabold text-xs sm:text-sm shadow-xl hover:brightness-110 active:scale-95 cursor-pointer flex items-center gap-2"
+              className="mt-2 px-6 py-3 rounded-xl bg-[#F5F2EB] text-[#08090D] font-semibold text-xs sm:text-sm hover:bg-white cursor-pointer flex items-center gap-2"
             >
-              <Plus size={18} />
-              <span>Đăng Tác Phẩm / Bộ Truyện Đầu Tiên</span>
+              <Plus size={16} />
+              <span>Đăng tác phẩm đầu tiên</span>
             </button>
           )}
         </section>

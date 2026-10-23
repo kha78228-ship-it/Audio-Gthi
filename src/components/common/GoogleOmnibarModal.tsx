@@ -23,10 +23,14 @@ import {
   TrendingUp, 
   Flame, 
   CornerDownLeft,
-  Command
+  Command,
+  GraduationCap,
+  MapPin,
+  Home
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EcosystemMode, ActiveTab, Track } from '../../types';
+import { toast } from '../../utils/toast';
 
 export interface GoogleOmnibarModalProps {
   isOpen: boolean;
@@ -107,7 +111,7 @@ export function GoogleOmnibarModal({
   const handleToggleVoice = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Trình duyệt của bạn chưa hỗ trợ tìm kiếm bằng giọng nói trực tiếp.');
+      toast.warning('Trình duyệt của bạn chưa hỗ trợ tìm kiếm bằng giọng nói trực tiếp.');
       return;
     }
 
@@ -247,7 +251,98 @@ export function GoogleOmnibarModal({
       badge: 'Buổi sáng',
       badgeColor: 'bg-orange-500/15 text-orange-300 border-orange-500/30',
       action: () => {
-        onSelectMode?.('morning');
+        onSelectMode?.('space');
+        onClose();
+      }
+    },
+    {
+      id: 'mode-couple',
+      category: 'mode',
+      title: 'I Love Haevy & Không Gian Cặp Đôi',
+      subtitle: 'Đồng hồ đếm ngày yêu, nhật ký hẹn hò, nghe nhạc đôi đồng bộ thời gian thực',
+      icon: Heart,
+      badge: 'Cặp Đôi 💕',
+      badgeColor: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+      action: () => {
+        onSelectMode?.('couple');
+        onClose();
+      }
+    },
+    {
+      id: 'mode-maps',
+      category: 'mode',
+      title: 'Haevy Maps (Định Vị Gia Đình & Bạn Đời)',
+      subtitle: 'Định vị GPS trực tiếp, chia sẻ mức pin, gửi tim yêu thương và vùng an toàn Geofencing',
+      icon: MapPin,
+      badge: 'Live GPS 📍',
+      badgeColor: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+      action: () => {
+        onSelectMode?.('maps');
+        onClose();
+      }
+    },
+    {
+      id: 'mode-edu',
+      category: 'mode',
+      title: 'Haevy Edu (STEM Labs & Lộ Trình Học)',
+      subtitle: 'AI gia sư First Principles, 11+ phòng lab ảo tương tác vật lý hóa học, luyện thi 2027',
+      icon: GraduationCap,
+      badge: 'STEM 🎓',
+      badgeColor: 'bg-teal-500/15 text-teal-300 border-teal-500/30',
+      action: () => {
+        onSelectMode?.('edu');
+        onClose();
+      }
+    },
+    {
+      id: 'mode-studio',
+      category: 'mode',
+      title: 'Haevy Studio (Phòng Thu & AI Voice TTS)',
+      subtitle: 'Chuyển văn bản thành giọng đọc truyền cảm Gemini TTS, eKYC tác giả & phát hành nhạc',
+      icon: Radio,
+      badge: 'Sáng Tạo 🎙️',
+      badgeColor: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+      action: () => {
+        onSelectMode?.('studio');
+        onClose();
+      }
+    },
+    {
+      id: 'mode-lite',
+      category: 'mode',
+      title: 'Xu Haevy Lite & Cửa Hàng Vũ Trụ',
+      subtitle: 'Xem quảng cáo nhận Xu thưởng, hào quang avatar quỹ đạo 3D, hiệu ứng cổng chào',
+      icon: Orbit,
+      badge: 'Vũ Trụ 🌌',
+      badgeColor: 'bg-pink-500/15 text-pink-300 border-pink-500/30',
+      action: () => {
+        onSelectMode?.('haevy_lite');
+        onClose();
+      }
+    },
+    {
+      id: 'mode-vip',
+      category: 'mode',
+      title: 'Haevy VIP Club & Đặc Quyền Hoàng Gia',
+      subtitle: 'Âm thanh Spatial 3D Hi-Fi Lossless, biểu tượng vương miện vàng phát sáng, VIP Intelligence',
+      icon: Crown,
+      badge: 'VIP Club 👑',
+      badgeColor: 'bg-amber-400/20 text-amber-300 border-amber-400/40',
+      action: () => {
+        onSelectMode?.('vip');
+        onClose();
+      }
+    },
+    {
+      id: 'mode-portal',
+      category: 'mode',
+      title: 'Cổng Hệ Sinh Thái Haevy (Trang Chủ HUB)',
+      subtitle: 'Cổng khám phá 15+ phân hệ toàn diện, bảng tin sự kiện đại lễ và nhận 500 Xu tân thủ',
+      icon: Home,
+      badge: 'Cổng Trung Tâm',
+      badgeColor: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+      action: () => {
+        onSelectMode?.('portal');
         onClose();
       }
     }
@@ -329,7 +424,7 @@ export function GoogleOmnibarModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: -10 }}
         transition={{ duration: 0.16 }}
-        className="relative w-full max-w-2xl bg-zinc-900 border border-zinc-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10"
+        className="relative w-full max-w-3xl sm:max-w-4xl bg-zinc-900 border border-zinc-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10"
       >
         {/* Google-Style Omnibar Input Header */}
         <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-zinc-800 bg-zinc-950/60">
